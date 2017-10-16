@@ -50,7 +50,7 @@ border-top: ;
 ```{r echo=FALSE, warning=FALSE, message=FALSE}
 if(!require(easypackages)){install.packages("easypackages")}
 library(easypackages)
-packages("caret", "plyr", "car", "dplyr", "FactoMineR", "factoextra", prompt = FALSE)
+packages("caret", "plyr", "car", "dplyr", "FactoMineR", "factoextra", "dummies", "PCAmixdata", prompt = FALSE)
 ```
 
 # Introduction
@@ -374,34 +374,11 @@ points(pred,col=2,pch=16)
 legend("bottomright",legend = c("train","test"),fill=1:2,col=1:2)
 ```
 
-### Plot of supplementary variables
-We choose as supplementary variables:
-  * the numerical variable __building__ of the datatable __environment__
-  * the categorical variable __doctor__ of the datatable __services__
-And we use the S3 method __supvar.PCAmix__ to obtain the coordinates of this supplmentary numerical on the correlation circle of __PCAmix__ as well as the coordinates of the levels of this supplementary categorical variable.
-```{r}
-X1sup <- gironde$environment[,1,drop=FALSE]
-X2sup <- gironde$services[,7,drop=FALSE]
-res.sup <- supvar(res.pcamix,X1sup,X2sup,rename.level=TRUE)
-res.sup$quanti.sup$coord[,1:2,drop=FALSE]
-res.sup$levels.sup$coord[,1:2]
-```
-
-The S3 method __plot.PCAmix__ plots automatically these supplementary variables on all the graphical outputs.
-
-```{r,fig.width = 5,fig.height = 10}
-par(mfrow=c(2,1))
-plot(res.sup,choice="cor",main="Numerical variables")
-plot(res.sup,choice="levels",main="Levels",xlim=c(-2,2.5))
-```
-
-
 ##PCArot
 
 We apply here the function __PCArot__ to perform varimax-type rotation to the result of __PCAmix__ applied to the datatable __housing__. The 10 first observations are removed to illustrate later the prediction of new observations.
 
 ```{r}
-library(PCAmixdata)
 data(gironde)
 #Create the datatable housing without the ten first observations
 train <- gironde$housing[-c(1:10), ]
@@ -520,43 +497,5 @@ In order to have details on the way the variables of the group __services__ (in 
 
 ```{r,fig.width = 7,fig.height = 5}
 plot(res.mfamix, choice="levels", coloring.var="groups", posleg="bottomleft", main="(c) Levels",xlim=c(-2,4))
-```
-
-### Prediction and plot of new observations
-We want to put the municipality __SAINTE-FOY-LA-GRANDE__ as supplementary observation in the __MFAmix__ analysis.
-
-```{r}
-sel <- which(rownames(dat)=="SAINTE-FOY-LA-GRANDE")
-res.mfamix<- MFAmix(data=dat[-sel,],groups=index, name.groups=names,rename.level=TRUE,graph=FALSE)
-pred <- predict(res.mfamix,dat[sel,,drop=FALSE])
-pred[,1:2,drop=FALSE]
-```
-
-It is then possible to plot __SAINTE-FOY-LA-GRANDE__ as an illustrative municipality.
-
-```{r}
-plot(res.mfamix,axes=c(1,2),label=FALSE,main="Observations map", ylim=c(-5,1.5),cex=0.8)
-points(pred[,1:2,drop=FALSE],col=2,pch=16)
-text(pred,"SAINTE-FOY-LA-GRANDE",col=2,cex=0.7,pos=2)
-selplot <- which(res.mfamix$ind$coord[,1]>4.2)
-text(res.mfamix$ind$coord[selplot,1:2],rownames(dat[-sel,])[selplot],col=1,cex=0.7,pos=2)
-legend("topright",legend = c("active","illustrative"),fill=1:2,col=1:2)
-```
-
-### Plot of supplementary groups
-Let us for instance apply __MFAmix__ with three groups (__employment__ ,  __services__,__environment__) and add the group __housing__  in supplementary.
-
-```{r}
-dat <- cbind(gironde$employment,gironde$services,gironde$environment) 
-names <- c("employment","services","environment") 
-mfa <-MFAmix(data=dat,groups=c(rep(1,9),rep(2,9),rep(3,4)), name.groups=names, rename.level=TRUE,graph=FALSE)
-mfa.sup <- supvar(mfa,data.sup=gironde$housing, groups.sup=rep(1,5), name.groups.sup="housing.sup",rename.level=TRUE)
-```
-
-The group __housing__ can then plotted as supplementary on the maps of __MFAmix__. 
-```{r,fig.width = 12,fig.height = 8}
-par(mfrow=c(1,2))
-plot(mfa.sup,choice="groups",coloring.var="groups")
-plot(mfa.sup,choice="cor",coloring.var = "groups")
 ```
 
