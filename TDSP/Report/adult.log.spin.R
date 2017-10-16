@@ -1,0 +1,625 @@
+
+#' ---
+#' title: 'Data Quality Report'
+#' author: 'Team Data Science Process by Microsoft'
+#' output: 
+#'  html_document:
+#'    toc: yes
+#' ---
+#+ echo=FALSE
+
+options(warn=-1)
+
+# install required packages
+options(repos='http://cran.rstudio.com/')
+list.of.packages <- c('Hmisc', 'psych', 'corrgram', 'yaml', 'entropy', 'vcd', 'shiny', 'corrplot', 'scatterplot3d', 'DescTools', 'xtable', 'shinyjs', 'RODBC','parallel','doSNOW','foreach', 'dplyr', 'lubridate', 'PCAmixdata')
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,'Package'])]
+if(length(new.packages))
+  install.packages(new.packages)
+
+# intall knitr version 1.12 
+if (!'knitr' %in% installed.packages()[,'Package']){
+  knitrurl <- 'http://cran.r-project.org/src/contrib/Archive/knitr/knitr_1.12.tar.gz'
+  install.packages(knitrurl, repos=NULL, type='source')
+} else if ('1.12' != installed.packages()['knitr','Version']){
+  remove.packages('knitr')
+  knitrurl <- 'http://cran.r-project.org/src/contrib/Archive/knitr/knitr_1.12.tar.gz'
+  install.packages(knitrurl, repos=NULL, type='source')
+}
+
+library(yaml)
+library(RODBC)
+library(foreach)
+
+# yaml
+yaml_file <- "C:/Users/cweaver/Documents/Github/Valorem/TDSP/Report/para-adult_updated_updated.yaml"
+config <- yaml.load_file(yaml_file)
+
+# data source
+if(is.null(config$DataSource) || config$DataSource == 'local'){
+  data <- read.csv(config$DataFilePath, header = config$HasHeader, sep =  config$Separator)
+} else {
+  dbhandle <- odbcDriverConnect(paste0('driver={ODBC Driver 11 for SQL Server};server=',config$Server,';database=',config$Database,';Uid=',config$Username,';Pwd=',config$Password))
+  data <- sqlQuery(dbhandle, config$Query)
+  odbcClose(dbhandle)
+}
+
+# add datetime columns
+library(lubridate)
+
+autogen_datetime_columns <- character()
+if(!is.null(config$DateTimeColumns)){
+  for (dt in names(config$DateTimeColumns)) {
+    data[[dt]] <- as.POSIXct(data[[dt]], format = config$DateTimeColumns[[dt]])
+    
+    new_col_name <- paste0(dt, '_autogen_year')
+    data[[new_col_name]] <- year(data[[dt]])
+    if (length(unique(na.omit(data[[new_col_name]]))) == 1){
+      data[[new_col_name]] <- NULL
+    } else{
+      autogen_datetime_columns <- c(autogen_datetime_columns, new_col_name)
+    }
+    
+
+    new_col_name <- paste0(dt, '_autogen_month')
+    data[[new_col_name]] <- month(data[[dt]]) 
+    if (length(unique(na.omit(data[[new_col_name]]))) == 1){
+      data[[new_col_name]] <- NULL
+    } else{
+      autogen_datetime_columns <- c(autogen_datetime_columns, new_col_name)
+    }
+    
+    new_col_name <- paste0(dt, '_autogen_week')
+    data[[new_col_name]] <- week(data[[dt]])
+    if (length(unique(na.omit(data[[new_col_name]]))) == 1){
+      data[[new_col_name]] <- NULL
+    } else{
+      autogen_datetime_columns <- c(autogen_datetime_columns, new_col_name)
+    }
+    
+    new_col_name <- paste0(dt, '_autogen_day')
+    data[[new_col_name]] <- day(data[[dt]])
+    if (length(unique(na.omit(data[[new_col_name]]))) == 1){
+      data[[new_col_name]] <- NULL
+    } else{
+      autogen_datetime_columns <- c(autogen_datetime_columns, new_col_name)
+    }
+    
+    new_col_name <- paste0(dt, '_autogen_wday')
+    data[[new_col_name]] <- wday(data[[dt]])
+    if (length(unique(na.omit(data[[new_col_name]]))) == 1){
+      data[[new_col_name]] <- NULL
+    } else{
+      autogen_datetime_columns <- c(autogen_datetime_columns, new_col_name)
+    }
+    
+    new_col_name <- paste0(dt, '_autogen_hour')
+    data[[new_col_name]] <- hour(data[[dt]])
+    if (length(unique(na.omit(data[[new_col_name]]))) == 1){
+      data[[new_col_name]] <- NULL
+    } else{
+      autogen_datetime_columns <- c(autogen_datetime_columns, new_col_name)
+    }
+    
+    new_col_name <- paste0(dt, '_autogen_minute')
+    data[[new_col_name]] <- minute(data[[dt]])
+    if (length(unique(na.omit(data[[new_col_name]]))) == 1){
+      data[[new_col_name]] <- NULL
+    } else{
+      autogen_datetime_columns <- c(autogen_datetime_columns, new_col_name) 
+    }
+    
+    new_col_name <- paste0(dt, '_autogen_second')
+    data[[new_col_name]] <- second(data[[dt]])
+    if (length(unique(na.omit(data[[new_col_name]]))) == 1){
+      data[[new_col_name]] <- NULL
+    } else{
+      autogen_datetime_columns <- c(autogen_datetime_columns, new_col_name)
+    }
+    config$ColumnsToExclude <- c(config$ColumnsToExclude, dt)
+  }
+}
+
+# Add datetime components to conf$CategoricalColumns
+CategoricalColumns <- config$CategoricalColumns
+config$CategoricalColumns <- c(config$CategoricalColumns, autogen_datetime_columns)
+
+# detect data types
+isNumerical <- sapply(data, is.numeric)
+isCategorical <- sapply(data,function(x)length(unique(na.omit(x)))<=nrow(data)/500||length(unique(na.omit(x)))<=5)
+isNumerical <- isNumerical & !isCategorical
+colNames <- colnames(data)
+
+# override auto-detected isCategorical with the specified categorical variables in yaml
+if(!is.null(config$CategoricalColumns)){
+  config$CategoricalColumns <- make.names(config$CategoricalColumns, unique=TRUE)
+  for(v in config$CategoricalCoumns){
+    isCategorical[v] <- TRUE
+    isNumerical[v] <- FALSE
+  }
+}
+# override auto-detected isNumerical with the specified numerical variables in yaml
+if(!is.null(config$NumericalColumns)){
+  config$NumericalColumns <- make.names(config$NumericalColumns, unique = TRUE)
+  for(v in config$NumericalColumns){
+    isNumerical[v] <- TRUE
+    isCategorical[v] <- FALSE
+    }
+}
+
+# populate config$CategoricalColumns and config$NumericalColumns with detected and specified variables
+config$CategoricalColumns <- colNames[isCategorical[colNames] == TRUE]
+config$NumericalColumns <- colNames[isNumerical[colNames] == TRUE]
+
+for(v in config$CategoricalColumns)
+{
+   data[,v] <- as.factor(data[,v])
+} 
+
+
+# exclude columns from the report
+if(!is.null(config$ColumnsToExclude)){
+  config$CategoricalColumns <- config$CategoricalColumns[!config$CategoricalColumns %in% config$ColumnsToExclude]
+  config$NumericalColumns <- config$NumericalColumns[!config$NumericalColumns %in% config$ColumnsToExclude]
+}
+
+# replace missing values
+if(!is.null(config$MissingValueReplaceWith)){
+  missingValueReplacement <- config$MissingValueReplaceWith
+} else {
+  missingValueReplacement <- 0
+}
+
+# detect task type
+if(is.null(config$Target)){
+  taskType <- 'data_exploration'
+} else if(isCategorical[config$Target]==FALSE){
+  taskType <- 'regression'
+} else {
+  taskType <- 'classification'
+}
+
+data0 <- data
+
+#' # Task Summary
+#+ echo=FALSE
+#' - The metadata (location, numerical columns, target, etc.) is - *"C:/Users/cweaver/Documents/Github/Valorem/TDSP/Report/para-adult_updated_updated.yaml"*
+#' - The data location is - *`r config$DataFilePath`*
+#' - The target is - *`r config$Target`*
+#' - The task type is - *`r taskType`*.
+#' - The numerical variables are - *`r config$NumericalColumns`*
+#' - The categorical variables are - *`r config$CategoricalColumns`*
+#+ echo=FALSE
+
+
+
+#+ echo=FALSE
+
+if(nrow(data)>50000) {
+    library(dplyr)
+    set.seed(98075)
+    data <- sample_n(data, min(50000, nrow(data)))
+}
+
+library(scatterplot3d)
+data[is.na(data)] <- missingValueReplacement
+x <- apply(data[,config$NumericalColumns],2,min)
+y <- apply(data[,config$NumericalColumns],2,max)
+index <- x == y
+nonConstantNames <- config$NumericalColumns[!index]
+
+x <- data[,nonConstantNames]
+sigma <- cor(x)
+sigma_eigen <- eigen(sigma)
+sigma_values <- sigma_eigen$values
+index <- sigma_values < 0 
+if (sum(index) > 0)
+{
+  sigma_values[index] <- 0
+}
+sum_variance <- sum(sigma_values^2)
+x <- scale(x)
+loadings <- x %*% sigma_eigen$vectors
+p.variance.explained <- sigma_values^2/sum_variance
+p.variance.cumsum <- cumsum(p.variance.explained)*100
+
+num_numericvars <- length(nonConstantNames)
+
+
+  #+ echo=FALSE
+
+  if(nrow(data)>50000) {
+      library(dplyr)
+      set.seed(98075)
+      data <- sample_n(data, min(50000, nrow(data)))
+  }
+
+  library(scatterplot3d)
+  library(PCAmixdata)
+  data[is.na(data)] <- missingValueReplacement
+  if (is.null(config$Target)){
+    cat_columns <- config$CategoricalColumns
+  } else{
+    if (config$Target %in% config$CategoricalColumns){
+      cat_columns <- config$CategoricalColumns[!config$CategoricalColumns==config$Target] 
+    }
+  }
+
+  # Remove the categorical columns which only have 1 unique value
+  if (length(cat_columns) == 1){
+    num_unique_cat_values <- length(unique(data[,cat_columns]))
+    if (num_unique_cat_values == 1){
+      cat_columns <- NULL
+    }
+  } else if (length(cat_columns) > 1) {
+    num_unique_cat_values <- sapply(data[,cat_columns], function(x) length(unique(x)))
+    num_unique_cat_values <- as.data.frame(num_unique_cat_values)
+    cat_columns <- rownames(num_unique_cat_values)[num_unique_cat_values>1]
+  }
+
+  if(length(cat_columns) >= 1) {
+    x11 <- apply(data[,config$NumericalColumns],2,min)
+    y11 <- apply(data[,config$NumericalColumns],2,max)
+    index11 <- x11 == y11
+    nonConstantNames <- config$NumericalColumns[!index11]
+  
+    x11 <- data[,nonConstantNames]
+    x11 <- scale(x11)
+  }
+  
+  x22 = data[,cat_columns]
+  
+  res.pcamix <- PCAmix(X.quanti=x11, X.quali=x22, rename.level=TRUE, graph=FALSE, ndim = Inf)
+  num_mixedvars0 <- length(res.pcamix$eig[,1])
+  num_mixedvars <- min(num_mixedvars0, 10)
+  res.pcamix <- PCArot(res.pcamix, dim = num_mixedvars, graph = FALSE)
+  
+  sigma_values11 <- res.pcamix$eig
+  index11 <- sigma_values11[, 1] < 0 
+  if (sum(index11) > 0)
+  {
+    sigma_values11[index11, 1] <- 0
+  }
+  #sum_variance11 <- sum(sigma_values11[, 1])
+  
+  #p.variance.explained11 <- sigma_values11[,2]
+  #p.variance.cumsum11 <- sigma_values11[,3]
+  loadings11 <- res.pcamix$ind$coord
+  
+
+#' # Data Summary
+#' ## Take a peek of the data by showing the top rows of the data
+#+ echo=FALSE
+     head(data, 10)
+  
+
+#' ## The dimensions of the data (Rows, Columns)
+#+ echo=FALSE
+dim <- as.data.frame( t(dim(data)))
+colnames(dim) <- c('Number of Rows','Number of Columns')
+dim
+    
+
+#' ## Types of columns
+#+ echo=FALSE
+# get the data type of each column
+ Column_Type <- sapply(data, class)
+ Column_Type <- lapply(Column_Type, function(x) paste(x, collapse=' '))
+ column_info <- cbind(Column_Name= names(Column_Type), Column_Type)
+ rownames(column_info) <- NULL
+ column_info[1:min(10,nrow(column_info)),]
+    
+
+#' # Dive deeper into each individual variable
+#' ## More detailed statistics of each variable
+#+ echo=FALSE
+ library(Hmisc)
+ desc <- Hmisc::describe(as.data.frame(data))
+ desc[1:min(10, length(desc))]
+    
+
+#' # Dive deeper into each individual variable
+#' ## Visualize the target variable
+#+ echo=FALSE
+
+if(isCategorical[config$Target])
+{
+    par(mfrow=c(1, 2)) 
+    barplot(table(data[[config$Target]]), main = paste('Bar Plot of', config$Target))
+    pie(table(data[[config$Target]]), main=paste('Pie Chart of', config$Target))  
+}else{
+    par(mfrow=c(2,2)) 
+    hist(data[[config$Target]], main = paste('Histogram of Target', config$Target), xlab = config$Target)
+    # Kernel Density Plot
+    d <- density(data[[config$Target]]) # returns the density data 
+    plot(d, main = paste('Density Plot of', config$Target)) 
+    polygon(d, col='grey', border='blue') 
+    qqnorm(data[[config$Target]], main = paste('QQ Plot of Target', config$Target))
+    qqline(data[[config$Target]])
+    boxplot(data[[config$Target]], main = paste('Boxplot of Target', config$Target))
+}
+  
+
+#' ## Visualize the numerical variables
+#+ echo=FALSE
+  # histogram, density, and QQ plot
+  par(mfrow=c(2,2))
+  if(length(data[,'age']) >= 5000){
+    sampled_data = data[sample(1:nrow(data), 5000, replace=FALSE),]
+    normtest <- shapiro.test(sampled_data[['age']])
+  } else{
+    normtest <- shapiro.test(data[['age']])
+  }
+  
+  p.value <- round(normtest$p.value,4)
+  if (p.value < 0.05) {
+    h0 <- 'rejected.'
+    color <- 'red'
+  } else {
+    h0 <- 'accepted.'
+    color <- 'blue'
+  }
+  hist(data[['age']], xlab = 'age', main = paste('Histogram of', 'age'))
+  
+  d <- density(data[['age']]) 
+  plot(d, main = paste('Density Plot of', 'age'))
+  qqnorm(data[['age']], main = paste('QQ Plot of', 'age'))
+  qqline(data[['age']])
+  boxplot(data[['age']], main = paste('Boxplot of', 'age'))
+  mtext(paste('Normality test of', 'age', h0, '( p-value=', p.value, ')'), side = 3, line = -1, outer = TRUE, fontface = 'italic', col=color, size = 10)
+  
+
+#' ## Visualize the numerical variables
+#+ echo=FALSE
+  # histogram, density, and QQ plot
+  par(mfrow=c(2,2))
+  if(length(data[,'educationnum']) >= 5000){
+    sampled_data = data[sample(1:nrow(data), 5000, replace=FALSE),]
+    normtest <- shapiro.test(sampled_data[['educationnum']])
+  } else{
+    normtest <- shapiro.test(data[['educationnum']])
+  }
+  
+  p.value <- round(normtest$p.value,4)
+  if (p.value < 0.05) {
+    h0 <- 'rejected.'
+    color <- 'red'
+  } else {
+    h0 <- 'accepted.'
+    color <- 'blue'
+  }
+  hist(data[['educationnum']], xlab = 'educationnum', main = paste('Histogram of', 'educationnum'))
+  
+  d <- density(data[['educationnum']]) 
+  plot(d, main = paste('Density Plot of', 'educationnum'))
+  qqnorm(data[['educationnum']], main = paste('QQ Plot of', 'educationnum'))
+  qqline(data[['educationnum']])
+  boxplot(data[['educationnum']], main = paste('Boxplot of', 'educationnum'))
+  mtext(paste('Normality test of', 'educationnum', h0, '( p-value=', p.value, ')'), side = 3, line = -1, outer = TRUE, fontface = 'italic', col=color, size = 10)
+  
+
+#' ## Visualize the categorical variables
+#+ echo=FALSE
+     # barplot and pie chart
+  par(mfrow=c(1,2))
+  fhist <- sort(table(data[['education']]), decreasing = TRUE)
+  barplot(table(data[['education']]), main = paste('Bar Plot of', 'education'))
+  pie(fhist, main=paste('Pie Chart of', 'education'))
+  
+
+#' # Investigation on Multiple Variable Interactions
+#' ## Rank associated variables
+#' This helps you to understand the top dependent variables (grouped by numerical and categorical) of a variable of your choice.
+#+ echo=FALSE
+    if(nrow(data)>50000) {
+      library(dplyr)
+      set.seed(9805)
+      data <- sample_n(data, min(50000, nrow(data)))
+    }
+
+    library(parallel)
+    library(doSNOW)
+     par(mfrow=c(1,2)) 
+  no_cores <- max(detectCores() - 1, 1)
+  cluster <- makeCluster(no_cores)
+  registerDoSNOW(cluster)
+  if(isCategorical['label_IsOver50K'] == TRUE){
+    aov_v <- foreach(i=1:length(config$NumericalColumns),.export=c('config','data','missingValueReplacement'),.packages=c('DescTools'),.combine='c') %dopar%
+    {
+      get('config')
+      get('data')
+      get('missingValueReplacement')
+      col1 <- data[[config$NumericalColumns[i]]]
+      index1 <- is.na(col1)
+      col1[index1] <- missingValueReplacement
+      if (max(col1, na.rm=T) != min(col1, na.rm=T))
+      {
+        fit <- aov(col1 ~ data[['label_IsOver50K']])
+        tryCatch(EtaSq(fit)[1], error=function(e) 0)   
+        
+      } else{
+        0
+      }
+    }
+    names(aov_v) <- config$NumericalColumns
+    aov_v <- subset(aov_v, names(aov_v)!='label_IsOver50K')
+    aov_v <- sort(aov_v, decreasing = TRUE)
+    barplot(head(aov_v, 5), xlab = 'Eta-squared value', beside=TRUE, main = paste('Top', length(head(aov_v, 5)), 'Associated Numerical Variables'), las=2, cex.axis = 0.7, space=1)
+    
+    
+    
+    cramer_v <- foreach(i=1:length(config$CategoricalColumns), .export=c('config','data'), .combine='c') %dopar%
+    {
+      get('config')
+      get('data')
+      data[,config$CategoricalColumns[i]] <- factor(data[,config$CategoricalColumns[i]])
+      if (nlevels(data[,config$CategoricalColumns[i]]) >= 2) 
+      {
+        tbl <- table(data[,c('label_IsOver50K', config$CategoricalColumns[i])])
+        chi2 <- chisq.test(tbl, correct=F)
+        sqrt(chi2$statistic / sum(tbl))
+      } else{
+        0
+      }
+      
+    }
+    names(cramer_v) <- config$CategoricalColumns
+    cramer_v <- subset(cramer_v, names(cramer_v)!='label_IsOver50K')
+    cramer_v <- sort(cramer_v, decreasing = TRUE)
+    if (length(cramer_v) > 0){
+      barplot(head(cramer_v, 5), xlab = 'Cramer\'s V', beside=TRUE, main = paste('Top', length(head(cramer_v, 5)), 'Associated Categorical Variables'), las=2, cex.axis = 0.7)
+    }
+    
+    
+  } else{
+    if(length(config$NumericalColumns)>=2){
+      cor <- cor(data[,'label_IsOver50K'], data[,config$NumericalColumns], method = 'pearson')
+      cor=cor[1,]
+      names(cor) <- config$NumericalColumns
+      cor <- subset( cor, names(cor) != 'label_IsOver50K')
+      cor_s <- cor*cor
+      names(cor_s) <- names(cor)
+      cor_s <- sort(cor_s, decreasing = TRUE)
+      if (length(cor_s) > 0){
+        barplot(head(cor_s, 5), xlab = 'R-squared (squared correlation)', beside=TRUE, main = paste('Top', length(head(cor_s, 5)), 'Associated Numerical Variables'), las=2, cex.axis = 0.7)
+      }
+    }
+    
+    aov_v <- foreach(i=1:length(config$CategoricalColumns), .export=c('config', 'data', 'missingValueReplacement'), .packages=c('DescTools'), .combine='c') %dopar%
+    {
+      get('config')
+      get('data')
+      get('missingValueReplacement')
+      catCols <- config$CategoricalColumns
+      numCols <- config$NumericalColumns
+
+      col1 <- data[[catCols[i]]]
+      index1 <- is.na(col1)
+      col1[index1] <- missingValueReplacement
+      x <- factor(data[[catCols[i]]])
+      if (nlevels(x) >= 2 & nlevels(x) <=500)
+      {
+        fit <- aov(data[['label_IsOver50K']]~ x)
+        tryCatch(EtaSq(fit)[1], error=function(e) 0)   
+      } else{
+        0
+      }
+      
+    }
+    names(aov_v) <- config$CategoricalColumns
+    aov_v <- subset(aov_v, names(aov_v)!='label_IsOver50K')
+    aov_v <- sort(aov_v, decreasing = TRUE)
+    if (length(aov_v) > 0){
+      barplot(head(aov_v, 5), xlab = 'Eta-squared value', beside=TRUE, main = paste('Top', length(head(aov_v, 5)), 'Associated Categorical Variables'), las=2, cex.axis = 0.7)
+    }
+  }
+  stopCluster(cluster)
+  
+
+#' ## Visualize interactions between two categorical variables
+#+ echo=FALSE
+  library(vcd)
+  par(mfrow=c(1,1)) 
+  mosaicplot(table(data[['label_IsOver50K']], data[['workclass']]),  shade=TRUE, xlab='label_IsOver50K', ylab='workclass', main=paste('label_IsOver50K','VS', 'workclass'))
+   
+
+#' ## Calculate the correlations (pearson, kendall, or spearman) between numerical variables
+#+ echo=FALSE
+    library(corrgram)
+    library(corrplot)
+    par(mfrow=c(1,1))
+    data[is.na(data)] <- missingValueReplacement
+    c <- cor(data[,config$NumericalColumns], method = 'pearson')
+    c[is.na(c)] <- missingValueReplacement
+    corrplot(c, method='circle', order = 'AOE', insig = 'p-value',  sig.level=-1, type = 'full')
+    
+
+#' ## Visualize interactions between numeric and categorical variables via box plots
+#' X axis is the level of categorical variables. This helps you to understand whether the distribution of the numeric variable is significantly different at different levels #' of the categorical variable. 
+#' We test hypothesis 0 (h0) that the numeric variable has the same mean values across the different levels of the categorical variable. 
+#+ echo=FALSE
+    
+    par(mfrow=c(1,1)) 
+    fit <- aov(data[['age']] ~ data[['label_IsOver50K']])
+    test_results <- drop1(fit,~.,test='F')
+    p_value <- round(test_results[[6]][2],4)
+    if (p_value < 0.05){
+    h0 <- 'Rejected'
+    color <- 'red'
+    } else{
+    h0 <- 'Accepted'
+    color <- 'blue'
+    }
+    f <- as.formula(paste('age','~','label_IsOver50K'))
+    boxplot(f, data= data, xlab = 'label_IsOver50K', ylab='age')
+    title(main=paste('h0', h0, '( p-value=', p_value, ')'), col.main=color)
+    
+
+#' ## Visualize interactions between numeric and categorical variables via box plots
+#' X axis is the level of categorical variables. This helps you to understand whether the distribution of the numeric variable is significantly different at different levels #' of the categorical variable. 
+#' We test hypothesis 0 (h0) that the numeric variable has the same mean values across the different levels of the categorical variable. 
+#+ echo=FALSE
+    
+    par(mfrow=c(1,1)) 
+    fit <- aov(data[['educationnum']] ~ data[['label_IsOver50K']])
+    test_results <- drop1(fit,~.,test='F')
+    p_value <- round(test_results[[6]][2],4)
+    if (p_value < 0.05){
+    h0 <- 'Rejected'
+    color <- 'red'
+    } else{
+    h0 <- 'Accepted'
+    color <- 'blue'
+    }
+    f <- as.formula(paste('educationnum','~','label_IsOver50K'))
+    boxplot(f, data= data, xlab = 'label_IsOver50K', ylab='educationnum')
+    title(main=paste('h0', h0, '( p-value=', p_value, ')'), col.main=color)
+    
+
+#' ## Project numeric variables to principal components, and visualize
+#+ echo=FALSE
+par(mfrow=c(1,2))
+# plot percentage of variance explained for each principal component
+ylimit <- ceil(max(p.variance.explained)*100/5)*5
+barplot(100*p.variance.explained, las=2, xlab='Principal Components', ylab='% Variance Explained', xaxt='n', yaxt='n')
+axis(2, pretty(c(0,ylimit)), col='blue')
+box()
+par(new=TRUE)
+plot(1:num_numericvars, p.variance.cumsum, type='l', col='black', ylab='', xlab='', las=1, axes=FALSE, ylim=c(0,100), xaxt='n')
+axis(4, pretty(c(0,100)), col='black',col.axis='black',las=1, axes=F)
+num_pcs_80 <- sum(p.variance.cumsum <= 80)
+num_pcs_90 <- sum(p.variance.cumsum <= 90)
+num_pcs_95 <- sum(p.variance.cumsum <= 95)
+text(num_numericvars/10*3, 80, paste('80% by', num_pcs_80, 'pcs'))
+text(num_numericvars/10*3, 85, paste('90% by', num_pcs_90, 'pcs'))
+text(num_numericvars/10*3, 90, paste('95% by', num_pcs_95, 'pcs'))
+data[['label_IsOver50K']] <- factor(data[['label_IsOver50K']])
+plot(loadings[,as.numeric('1')], loadings[,as.numeric('2')], type='p', pch=20, col=as.numeric(data[['label_IsOver50K']]), xlab=paste('PC', '1', sep=''), ylab=paste('PC', '2', sep=''))
+legend('topright', cex=.8,  legend = levels(data[['label_IsOver50K']]), fill = 1:nlevels(data[['label_IsOver50K']]), merge = F, bty = 'n')
+    
+
+#' ## Project numeric variables to principal components, and visualize
+#+ echo=FALSE
+    x <- loadings[,as.numeric('1')]
+    y <- loadings[,as.numeric('2')]
+    z <- loadings[,as.numeric('3')]
+    data[['label_IsOver50K']] <- factor(data[['label_IsOver50K']])
+    par(mfrow=c(1,1))
+    DF <- data.frame(x = x, y = y, z = z, group = data[['label_IsOver50K']])
+    # create the plot, you can be more adventurous with colour if you wish
+    s3d <- with(DF, scatterplot3d(x, y, z, xlab=paste0('PC','1'), ylab=paste0('PC','2'), zlab=paste0('PC', '3'), color = as.numeric(group), pch = 19, angle = as.numeric('40')))
+    legend('topleft', cex=.8,  legend = levels(data[['label_IsOver50K']]), fill = 1:nlevels(data[['label_IsOver50K']]), merge = F, bty = 'n')
+    
+
+#' ## Project mixture of numerical and categorical variables to 3D principal components, and visualize
+#+ echo=FALSE
+    x11 <- loadings11[,as.numeric('1')]
+    y11 <- loadings11[,as.numeric('2')]
+    z11 <- loadings11[,as.numeric('3')]
+    data[['label_IsOver50K']] <- factor(data[['label_IsOver50K']])
+    par(mfrow=c(1,1))
+    DF <- data.frame(x = x11, y = y11, z = z11, group = data[['label_IsOver50K']])
+    # create the plot, you can be more adventurous with colour if you wish
+    s3d <- with(DF, scatterplot3d(x, y, z, xlab=paste0('PC','1'), ylab=paste0('PC','2'), zlab=paste0('PC', '3'), color = as.numeric(group), pch = 19, angle = as.numeric('40')))
+    legend('topleft', cex=.8,  legend = levels(data[['label_IsOver50K']]), fill = 1:nlevels(data[['label_IsOver50K']]), merge = F, bty = 'n')
+    

@@ -1,0 +1,218 @@
+---
+title: "Preprocessing with vtreat"
+output:
+  rmdformats::readthedown:
+    highlight: pygments
+---
+
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 12px;
+}
+body{ /* Normal  */
+   font-size: 12px;
+}
+td {  /* Table  */
+   font-size: 10px;
+}
+h1 { /* Header 1 */
+ font-size: 26px;
+ color: #4294ce;
+}
+h2 { /* Header 2 */
+ font-size: 22px;
+}
+h3 { /* Header 3 */
+ font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 10px;
+}
+pre { /* Code block */
+  font-size: 10px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("vtreat", "caret", "gbm", "WVPlots", prompt = FALSE)
+# for WVPlots see https://github.com/WinVector/WVPlots
+# Requires latest version on caret from Github - devtools::install_github('topepo/caret/pkg/caret')
+```
+
+# vtreat Introduction
+
+This article is a demonstration the use of the [R](https://cran.r-project.org) [vtreat](https://github.com/WinVector/vtreat) variable preparation package followed by [caret](http://topepo.github.io/caret/index.html) controlled training.  
+
+In this example we are going to show what building a predictive model using `vtreat` best practices
+looks like. This is a simple schematic, not a guide.  This document simply shows how small an effort is required to add `vtreat` to your predictive modeling practice.
+
+# Data
+
+Build a model predicting an income level from other demographic features.  The data is taken from [here](http://archive.ics.uci.edu/ml/machine-learning-databases/adult/).
+
+```{r loaddata}
+# load data
+# data from: http://archive.ics.uci.edu/ml/machine-learning-databases/adult/
+colnames <- c('age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation',  'relationship',
+              'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country', 'class')
+dTrain <- read.table('./data/adult.data.txt', header = FALSE, sep = ',', strip.white = TRUE, 
+                     stringsAsFactors = FALSE, na.strings = c('NA', '?', ''))
+colnames(dTrain) <- colnames
+dTest <- read.table('./data/adult.test.txt', skip = 1, header = FALSE, sep = ',', strip.white = TRUE, stringsAsFactors = FALSE,
+                    na.strings = c('NA', '?', ''))
+colnames(dTest) <- colnames
+```
+
+Use `vtreat` to prepare the data for analysis.  The goal of vtreat is to ensure a ready-to-dance data frame in a statistically valid manner.  Respecting the test/train split and building our data preparation plan only on the training data (though we do apply it to the test data).  This step helps with a huge number of potential problems through automated repairs:
+
+  * re-encoding missing values
+  * dealing with large cardinality categorical variables
+  * dealing with novel levels
+  * fixing variable/column names to be "R safe"
+  * looking for strange column types
+
+A few notes on `vtreat` to help undestand the code below:
+- **treatments** - objects that encapsulate the transformation process from the original variables to the new “clean” variables.
+- **xcoreFrame** - scoreFrame which contains columns:
+  - *varName*: name of new variable
+  - *origName*: name of original variable that the variable was derived from (can repeat).
+  - *code*: what time of treatment was performed to create the derived variable (useful for filtering).
+  - *varMoves*: logical TRUE if the variable varied during training; only variables that move will be in the treated frame.
+  - *sig*: linear significance of regression derived variable against a 0/1 indicator target for numeric targets, logistic regression significance otherwise.
+  - *needsSplit*: is the variable a sub model and require out of sample scoring.
+- **prepare**:  Using the optional scaling feature `prepare` which scales and centers all significant variables to mean 0, and slope 1 with respect to y: In other words, it rescales the variables to “y-units”. This is useful for downstream principal components analysis. Note: variables perfectly uncorrelated with y necessarily have slope 0 and can’t be “scaled” to slope 1, however for the same reason these variables will be insignificant and can be pruned by pruneSig.
+
+# Configure vtreat
+
+```{r model, cache=TRUE}
+# define problem
+yName <- 'class'
+yTarget <- '>50K'
+varNames <- setdiff(colnames,yName)
+
+# build variable encoding plan and prepare simulated out of sample
+# training fame (cross-frame) 
+# http://www.win-vector.com/blog/2016/05/vtreat-cross-frames/
+system.time({
+  cd <- vtreat::mkCrossFrameCExperiment(dTrain, varNames, yName, yTarget)
+  scoreFrame <- cd$treatments$scoreFrame
+  dTrainTreated <- cd$crossFrame
+  # pick our variables
+  newVars <- scoreFrame$varName[scoreFrame$sig < 1/nrow(scoreFrame)]
+  dTestTreated <- vtreat::prepare(cd$treatments, dTest, pruneSig = NULL, varRestriction = newVars)
+})
+print(newVars)
+```
+
+# Models
+
+Train the model.  In this case we are using `caret` to tune parameters.  Will use `gbm` and `xgboost`
+
+## GBM
+
+```{r train_GBM, cache=TRUE}
+# train our model using caret
+
+  yForm <- as.formula(paste(yName,paste(newVars,collapse=' + '),sep=' ~ '))
+  # from: http://topepo.github.io/caret/training.html
+  fitControl <- trainControl(method = "cv", number = 3)
+  model <- train(yForm, data = dTrainTreated, method = "gbm", trControl = fitControl, verbose = FALSE)
+  print(model)
+  dTest$pred <- predict(model, newdata = dTestTreated, type='prob')[,yTarget]
+```
+
+Finally we take a look at the results on the held-out test data.
+
+```{r score}
+WVPlots::ROCPlot(frame = dTest, xvar = "pred", truthVar = yName, truthTarget = ">50K.", title = "predictions on test")
+WVPlots::DoubleDensityPlot(dTest, 'pred', yName, 'predictions on test')
+confusionMatrix <- table(truth = dTest[[yName]], pred = dTest$pred >= 0.5)
+print(confusionMatrix)
+testAccuarcy <- (confusionMatrix[1, 1] + confusionMatrix[2,2])/sum(confusionMatrix)
+testAccuarcy
+```
+
+Notice the achieved test accuracy is in the ballpark of what was reported for this dataset.
+
+    (From http://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.names )
+    Error Accuracy reported as follows, after removal of unknowns from
+     |    train/test sets):
+     |    C4.5       : 84.46+-0.30
+     |    Naive-Bayes: 83.88+-0.30
+     |    NBTree     : 85.90+-0.28
+
+We can also compare accuracy on the "complete cases":
+
+```{r completecases}
+dTestComplete <- dTest[complete.cases(dTest[,varNames]),]
+confusionMatrixComplete <- table(truth=dTestComplete[[yName]], pred=dTestComplete$pred>=0.5)
+print(confusionMatrixComplete)
+testAccuarcyComplete <- (confusionMatrixComplete[1,1]+confusionMatrixComplete[2,2])/sum(confusionMatrixComplete)
+testAccuarcyComplete
+```
+
+## XGBOOST
+
+A small data change is required to support `xgboost`.  Class level values must be valid R variable names (see ?make.names for help).  Therefore the `<=` symbols must be changed.
+
+```{r}
+unique(dTrainTreated$class)
+```
+
+> Cannot `chartr` instead of regex - `chartr` works great but replaces same number of characters as the original string
+
+```{r xgboost_data}
+dTrainTreated$class <- sub("<=", "less_", dTrainTreated$class)
+dTrainTreated$class <- sub(">", "greater_", dTrainTreated$class)
+unique(dTrainTreated$class)
+
+#Below also need to remove the "."
+dTestTreated$class <- sub("<=", "less_", dTestTreated$class)
+dTestTreated$class <- sub(">", "greater_", dTestTreated$class)
+
+dTestTreated$class <- gsub(".", "", dTestTreated$class, fixed=TRUE)
+#fixed	- logical. If TRUE, pattern is a string to be matched as is. Overrides all conflicting arguments
+```
+
+
+```{r model_XGBOOST}
+# work around "levels must be valid R variable names issue"
+dTrainTreated$yLogical = as.factor(paste0('v',as.character(dTrainTreated[[yName]]==yTarget)))
+# could use accuracy as the tuning metric, but going to demonstrate using AUC
+ctrl <- trainControl(method = "cv", number = 5, summaryFunction=twoClassSummary, classProbs=TRUE)
+model_xgboost <- train(x = dTrainTreated[,newVars], y = dTrainTreated$class, method = "xgbTree", metric = "ROC", trControl = ctrl)
+print(model_xgboost$results)
+dTest$pred <- predict(model_xgboost, newdata = dTestTreated[,newVars], type = 'prob')  #[,'vTRUE']
+```
+
+```{r}
+WVPlots::ROCPlot(frame = dTest, xvar = "pred", truthVar = yName, truthTarget = ">50K.", title = "predictions on test")
+```
+
+These two scores are [within noise bounds of each other](http://www.win-vector.com/blog/2015/09/willyourmodelworkpart2/), but it is
+our experience that missingness is often actually informative, so in addition to 
+imputing missing values you would like to preserve some notation indicating the missingness (which
+`vtreat` does in fact do).
+
+And that is all there is to this example.  I'd like to emphasize that vtreat steps were only a few
+lines in one of the blocks of code.  `vtreat` treatment can take some time, but it is usually bearable.  By design it is easy to add vtreat to your predictive analytics projects.
+
+The point is: we got competitive results on real world data, in a single try (using vtreat to prepare data and caret to tune parameters).  The job of the data scientist is to actually work longer on a problem and do better.  But having a good start helps.
+
+# Reference
+https://github.com/WinVector/Examples/blob/master/CensusAdultIncomeExample/ExampleRun.Rmd

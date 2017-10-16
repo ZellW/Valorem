@@ -1,0 +1,866 @@
+ID,Marital Status,Gender,Yearly Income,Children,Education,Occupation,Home Owner,Cars,Commute Distance,Region,Age,BikeBuyer,Scored Labels,Scored Probabilities,ID (2),Latitude,Longitude,City,Zip Code,Country
+13835,Single,Female,20000,0,High School,Manual,No,1,1-2 Miles,Europe,30,No,No,0.00813751574605703,13835,57.61638,47.79779,Brive-la-Gaillarde,25873,France
+12491,Married,Male,40000,0,Bachelors,Professional,Yes,0,0-1 Miles,Europe,40,No,No,0.00152134045492858,12491,-47.04237,-31.85349,Salisbury,DW6D 2CR,United Kingdom
+16254,Single,Female,20000,1,Partial College,Manual,No,1,2-5 Miles,Europe,39,No,No,0.00203777314163744,16254,-45.44002,129.02559,Caen,27964,France
+13781,Married,Female,40000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,39,No,No,0.203753098845482,13781,80.87765,157.02091,Llangollen,ET2 0KW,United Kingdom
+28881,Married,Male,110000,4,Partial College,Professional,Yes,4,5-10 Miles,Europe,50,No,No,0.00011299537436571,28881,-59.15816,144.8104,Bastia,99302,France
+20927,Single,Female,20000,5,High School,Manual,Yes,2,0-1 Miles,Europe,27,No,No,0.0288530699908733,20927,18.36838,-176.06515,Pembroke,K2V 2LO,United Kingdom
+22477,Single,Male,20000,2,High School,Manual,Yes,0,0-1 Miles,Europe,40,Yes,No,0.142066180706024,22477,-39.44704,0.15474,Warminster,JB4D 4DL,United Kingdom
+12656,Married,Male,90000,1,High School,Management,Yes,3,10+ Miles,Europe,57,No,No,0.00291198049671948,12656,81.43426,100.61993,Inverbervie,SF4H 6LX,United Kingdom
+12227,Married,Female,10000,0,Partial College,Manual,Yes,0,0-1 Miles,Europe,49,No,No,0.001348543795757,12227,83.52652,-153.19509,Perpignan,14208,France
+26847,Single,Male,20000,3,High School,Manual,No,0,0-1 Miles,Europe,42,No,No,0.00103776343166828,26847,-76.53481,-29.33395,Cannock,XL9M 2MJ,United Kingdom
+17832,Married,Male,30000,0,Partial College,Clerical,Yes,1,2-5 Miles,Europe,43,No,No,0.0718140006065369,17832,53.23846,113.5382,King's Lynn,BJ2Q 7HP,United Kingdom
+13547,Single,Female,10000,2,High School,Manual,Yes,0,0-1 Miles,Europe,37,No,No,0.00571771385148168,13547,66.29351,-132.8838,Bremen,7683,Germany
+14942,Single,Female,30000,1,Bachelors,Clerical,No,1,1-2 Miles,Europe,40,No,No,0.0119620561599731,14942,-14.65798,-80.28833,Saint-L�,33736,France
+29396,Married,Male,30000,0,Bachelors,Skilled Manual,No,1,0-1 Miles,Europe,72,No,No,0.000694095913786441,29396,84.11316,-110.80185,Schwerin,221,Germany
+27844,Married,Male,10000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,70,No,No,1.27569978758402E-06,27844,56.68285,-43.91865,Hastings,OQ6O 6CW,United Kingdom
+15091,Married,Male,20000,1,Partial College,Manual,Yes,0,2-5 Miles,Europe,38,No,No,0.00489716744050384,15091,-59.9787,-154.83386,Wei?enfels,59590,Germany
+25656,Married,Female,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,44,Yes,Yes,0.997421443462372,25656,69.9783,-157.58289,Hornsea,O88 6CY,United Kingdom
+14826,Married,Female,20000,4,High School,Manual,No,2,0-1 Miles,Europe,27,No,No,3.99265481973998E-05,14826,-79.28253,110.72508,Blieskastel,43806,Germany
+17806,Married,Male,20000,2,High School,Manual,No,2,0-1 Miles,Europe,42,No,No,4.25197613367345E-05,17806,78.71724,168.34363,Hexham,E1Z 5MT,United Kingdom
+25807,Married,Female,90000,0,Partial High School,Skilled Manual,Yes,2,10+ Miles,Europe,59,No,No,3.20312283292878E-05,25807,52.47479,-54.88831,Ahrensburg,47409,Germany
+19513,Married,Male,20000,0,Partial High School,Manual,Yes,2,0-1 Miles,Europe,32,No,No,0.000274699734291062,19513,26.95206,-31.52857,Chesterfield,HO6 5MR,United Kingdom
+27851,Married,Female,20000,0,Bachelors,Clerical,No,0,0-1 Miles,Europe,68,No,No,1.24202533697826E-05,27851,-60.73597,-118.02461,Belfort,97097,France
+15095,Married,Female,70000,1,High School,Professional,No,2,2-5 Miles,Europe,61,Yes,No,0.000219263747567311,15095,-80.54552,-68.68383,Alva,FZ0 6WU,United Kingdom
+19485,Single,Male,30000,2,Partial College,Clerical,Yes,1,0-1 Miles,Europe,41,No,No,0.0231268964707851,19485,20.7379,-95.91451,Belfort,56660,France
+19935,Married,Male,100000,4,Partial College,Professional,Yes,4,10+ Miles,Europe,54,No,No,0.000110064676846378,19935,-55.76986,-142.15312,Albi,73876,France
+12525,Married,Female,40000,1,Bachelors,Skilled Manual,Yes,0,1-2 Miles,Europe,31,No,No,0.41536009311676,12525,62.0681,157.2949,Osnabr?ck,97703,Germany
+28498,Single,Female,10000,1,High School,Manual,No,1,2-5 Miles,Europe,47,No,No,0.000572630378883332,28498,-68.09428,26.29223,Tranent,B48 5BY,United Kingdom
+12721,Single,Female,30000,0,Partial College,Clerical,No,1,1-2 Miles,Europe,32,No,No,0.000427698250859976,12721,-32.973,117.6383,Lisieux,68784,France
+13830,Single,Female,30000,0,Partial College,Clerical,No,1,2-5 Miles,Europe,29,No,No,0.00178323115687817,13830,63.94573,-169.74149,Hamburg,45932,Germany
+17899,Married,Female,20000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,65,No,No,0.108310744166374,17899,-42.37841,157.57529,Darlington,O5 2SN,United Kingdom
+12629,Single,Male,20000,1,Partial College,Manual,No,0,0-1 Miles,Europe,37,No,No,0.00407990533858538,12629,-45.8261,-68.18524,Harlow,E48 5IC,United Kingdom
+18151,Single,Male,80000,0,Partial College,Professional,No,2,10+ Miles,Europe,60,No,No,0.000237124593695626,18151,-26.45313,-139.96944,H�rouville-Saint-Clair,30500,France
+11415,Single,Male,90000,0,Partial College,Professional,No,2,10+ Miles,Europe,62,No,No,0.00404626969248056,11415,-67.35614,-66.70167,Moffat,OT2Q 5LG,United Kingdom
+12555,Married,Male,10000,0,Bachelors,Clerical,Yes,1,2-5 Miles,Europe,67,No,No,5.6381024478469E-05,12555,0.91146,-119.11984,Bolton,W8 1BS,United Kingdom
+24858,Married,Male,130000,4,High School,Professional,Yes,4,0-1 Miles,Europe,52,No,No,0.000298833328997716,24858,-63.23284,138.71179,Hexham,SD5G 8JJ,United Kingdom
+22420,Single,Male,10000,1,High School,Manual,No,1,1-2 Miles,Europe,47,No,No,0.00248665385879576,22420,-76.20747,-162.75282,Pau,90813,France
+17709,Married,Male,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,45,No,No,0.00124159501865506,17709,-65.13822,45.73939,Brighton,GU7R 3FU,United Kingdom
+22533,Married,Male,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,32,No,No,7.01431199559011E-05,22533,60.53852,-97.85764,Karlsruhe,2930,Germany
+20053,Single,Male,40000,2,Partial College,Clerical,Yes,0,0-1 Miles,Europe,34,No,No,0.0225993078202009,20053,28.17794,23.90339,Rodgau,68906,Germany
+21077,Single,Female,10000,2,Partial High School,Manual,Yes,2,0-1 Miles,Europe,42,No,No,0.000974607188254595,21077,87.96413,57.92899,Crawley,O28 0VA,United Kingdom
+11586,Married,Male,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,40,No,No,0.0695816799998283,11586,-44.1101,78.04815,Montigny-l�s-Metz,47571,France
+19358,Single,Male,20000,0,High School,Manual,Yes,1,2-5 Miles,Europe,28,No,No,0.000460104027297348,19358,7.67531,-7.16879,Neustadt,3617,Germany
+28912,Married,Male,100000,4,Partial College,Management,Yes,4,10+ Miles,Europe,56,No,No,1.93291998584755E-05,28912,23.78226,-178.45823,Berlin,42392,Germany
+17748,Single,Male,10000,1,High School,Manual,No,1,1-2 Miles,Europe,47,No,No,0.0224605891853571,17748,14.28799,52.38674,Rennes,27973,France
+17224,Married,Female,90000,1,Partial High School,Skilled Manual,Yes,4,10+ Miles,Europe,58,No,No,0.000181142488145269,17224,34.43178,137.21022,Naumburg,95045,Germany
+19329,Single,Female,20000,2,High School,Manual,Yes,0,0-1 Miles,Europe,41,Yes,No,0.0107775637879968,19329,18.72249,82.07073,Ajaccio,43423,France
+14172,Single,Female,130000,4,Bachelors,Management,No,4,0-1 Miles,Europe,62,No,No,0.000555738981347531,14172,78.5103,20.76409,Poitiers,16153,France
+12844,Married,Male,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,41,No,No,0.00147193891461939,12844,85.39064,42.99582,Hamburg,12690,Germany
+16037,Married,Female,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,45,No,No,0.000276888895314187,16037,-11.07786,-9.12039,Ross-on-Wye,EA9 0AN,United Kingdom
+21074,Married,Female,30000,1,Bachelors,Skilled Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.0219264831393957,21074,-60.42652,129.88702,Nantes,2214,France
+16275,Married,Female,20000,2,High School,Manual,No,2,0-1 Miles,Europe,42,Yes,No,4.28053681389429E-05,16275,-14.28468,-83.0796,Quickborn,37858,Germany
+13611,Married,Male,90000,1,High School,Management,Yes,3,10+ Miles,Europe,58,No,No,0.00217307871207595,13611,79.72354,24.40365,Whitehaven,JL9R 1IB,United Kingdom
+19317,Single,Female,20000,1,Partial College,Manual,No,1,2-5 Miles,Europe,39,No,Yes,0.62482738494873,19317,66.12784,52.3464,S�te,1401,France
+12488,Single,Male,20000,3,High School,Manual,Yes,2,0-1 Miles,Europe,43,No,No,0.00527389440685511,12488,-28.19666,-60.36529,Schwerin,49360,Germany
+14963,Married,Female,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,41,No,No,0.014036962762475,14963,-37.82078,48.8693,Sarreguemines,42139,France
+12818,Married,Male,20000,1,High School,Manual,Yes,1,2-5 Miles,Europe,40,No,No,0.00242089387029409,12818,14.97168,95.29793,Clackmannan,KT2R 2KZ,United Kingdom
+13694,Single,Female,30000,0,High School,Manual,Yes,1,2-5 Miles,Europe,34,No,No,0.0113483117893338,13694,-35.00471,133.60735,Drancy,92116,France
+28888,Married,Female,80000,0,Bachelors,Management,Yes,2,10+ Miles,Europe,62,No,No,1.29378868223284E-05,28888,-65.20912,55.14096,Kingussie,QP9G 4DM,United Kingdom
+23768,Single,Male,10000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,35,No,No,0.000305106048472226,23768,54.55638,38.72934,Inveraray,T12 4JQ,United Kingdom
+25297,Single,Male,30000,0,Partial College,Clerical,Yes,1,2-5 Miles,Europe,32,No,No,0.00428718887269497,25297,9.28423,-34.71636,Antibes,41323,France
+22620,Single,Female,50000,0,Graduate Degree,Skilled Manual,No,0,0-1 Miles,Europe,37,Yes,Yes,0.828734815120697,22620,-11.08475,55.52304,Rothesay,W2C 3YS,United Kingdom
+19178,Single,Female,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,34,No,No,0.000265516777290031,19178,43.70553,-85.48894,Dreux,37851,France
+12235,Married,Female,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,68,No,No,3.88174848922063E-05,12235,65.65251,-172.44253,Greifswald,66802,Germany
+26208,Single,Female,160000,3,Partial College,Professional,No,4,0-1 Miles,Europe,48,No,No,0.00169745646417141,26208,-81.12065,-102.08222,M?nchengladbach,94022,Germany
+16579,Married,Male,70000,3,High School,Professional,Yes,1,10+ Miles,Europe,53,No,No,0.00174997909925878,16579,-48.62735,140.12218,Wellingborough,NM2Z 0MA,United Kingdom
+24879,Married,Female,90000,1,Partial High School,Skilled Manual,Yes,4,10+ Miles,Europe,58,No,No,8.23250520625152E-05,24879,35.48928,-30.68401,Le Mans,87731,France
+18042,Single,Male,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,33,No,No,0.000837440311443061,18042,-14.6958,-146.22896,Tourcoing,94968,France
+16035,Married,Male,20000,0,Graduate Degree,Manual,Yes,0,0-1 Miles,Europe,44,No,No,0.00894457567483187,16035,-28.97033,86.55776,Delitzsch,63583,Germany
+13674,Single,Male,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,26,No,No,0.00288025522604585,13674,12.59383,-164.78357,Sangerhausen,11836,Germany
+27926,Single,Male,100000,3,High School,Professional,Yes,4,5-10 Miles,Europe,50,No,No,0.0239164792001247,27926,59.82748,166.26842,Parchim	City,77438,Germany
+15103,Married,Male,80000,2,Partial College,Professional,Yes,2,10+ Miles,Europe,53,No,No,0.000491303158923984,15103,56.34633,-22.98956,Rennes,72293,France
+12601,Married,Male,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,46,No,No,0.00272506033070385,12601,56.51075,88.57004,Cambridge,A6D 7KG,United Kingdom
+22431,Single,Female,10000,1,High School,Manual,No,1,1-2 Miles,Europe,36,No,No,0.0736079439520836,22431,46.92327,105.35428,Jou�-l�s-Tours,30216,France
+17649,Single,Male,40000,2,Partial College,Clerical,Yes,1,0-1 Miles,Europe,35,No,No,0.0113456165418029,17649,76.70078,120.36295,Angoul�me,30864,France
+21134,Single,Male,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,26,No,No,0.000102571160823572,21134,-16.81393,89.31497,Kircudbright,MC0 5NL,United Kingdom
+22474,Single,Female,10000,4,Partial High School,Manual,Yes,2,0-1 Miles,Europe,39,No,Yes,0.886902570724487,22474,-64.83355,14.17541,Taunusstein,39061,Germany
+20176,Single,Male,20000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,25,No,No,0.000383843958843499,20176,-73.23354,-88.46343,Newcastle-upon-Tyne,QT55 2MK,United Kingdom
+13804,Married,Female,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,41,No,No,0.0192925538867712,13804,55.75617,42.10507,Dole,8404,France
+12564,Married,Male,30000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,65,No,No,0.00465506454929709,12564,-70.44051,121.64613,Freital,29001,Germany
+16537,Single,Male,20000,1,Partial College,Manual,No,0,0-1 Miles,Europe,46,No,No,0.29366859793663,16537,18.92011,-171.95928,Crieff,X7T 5KO,United Kingdom
+15355,Married,Female,100000,3,Partial College,Professional,Yes,4,2-5 Miles,Europe,50,No,No,0.0039774258621037,15355,-54.12307,89.566,M�rignac,87380,France
+13663,Single,Male,10000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,33,No,No,0.00426637381315231,13663,-66.31631,-86.82109,Strasbourg,27291,France
+27333,Married,Female,100000,4,Partial College,Management,Yes,4,10+ Miles,Europe,58,No,No,3.52312490576878E-05,27333,-79.41684,-43.79462,Cagnes-sur-Mer,95363,France
+12552,Married,Male,20000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,68,No,No,0.000285222224192694,12552,-83.97844,-11.55916,Saumur,62708,France
+16467,Single,Male,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,32,No,No,0.241036608815193,16467,-85.09199,134.49643,Lutterworth,UN65 8BF,United Kingdom
+29472,Married,Female,10000,1,High School,Manual,No,1,1-2 Miles,Europe,46,No,No,0.000434934918303043,29472,-49.777,-57.09436,Krefeld,38010,Germany
+20723,Single,Male,20000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,34,No,No,0.000233707381994464,20723,69.26251,88.73113,Fr�jus,82167,France
+16591,Married,Male,160000,4,Bachelors,Management,Yes,4,0-1 Miles,Europe,53,No,No,0.01297711674124,16591,-49.46776,-144.42212,Bremen,86157,Germany
+20140,Married,Male,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,48,No,No,4.84075462736655E-05,20140,-43.61939,6.38851,Le Puy-en-Velay,44753,France
+14703,Single,Male,30000,0,High School,Manual,No,1,2-5 Miles,Europe,34,No,No,0.00102079019416124,14703,30.73427,73.28446,Folkestone,H91 9VT,United Kingdom
+19509,Single,Female,30000,0,Partial College,Clerical,No,1,2-5 Miles,Europe,30,No,No,0.00252361036837101,19509,-77.7997,30.22124,St. Clears,F5 6AB,United Kingdom
+21100,Single,Female,30000,3,Partial College,Clerical,Yes,1,0-1 Miles,Europe,27,Yes,No,0.000993095920421183,21100,81.00406,-73.60572,Caerphilly,M3 2LS,United Kingdom
+26858,Married,Male,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,41,Yes,Yes,0.969974637031555,26858,-17.39879,58.81377,Fulda,66419,Germany
+29402,Single,Male,30000,2,Partial College,Clerical,No,2,0-1 Miles,Europe,42,No,No,0.00525813596323133,29402,-76.02704,56.21447,Taunton,I12 7DK,United Kingdom
+18159,Married,Female,100000,4,High School,Professional,Yes,3,10+ Miles,Europe,52,No,No,9.18318401090801E-05,18159,11.23364,172.11242,Ch�lons-en-Champagne,95459,France
+17723,Married,Male,30000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,64,No,No,0.0242092050611973,17723,-55.4646,89.99357,Hemel Hempstead,AJ9 6JA,United Kingdom
+27320,Married,Male,70000,3,High School,Professional,Yes,1,10+ Miles,Europe,53,No,No,0.00131683680228889,27320,5.43313,-62.82804,Le Grand-Quevilly,7148,France
+15629,Single,Female,10000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,35,No,No,0.00266597326844931,15629,-8.04697,154.79465,La Rochelle,19238,France
+26834,Married,Female,30000,1,Bachelors,Skilled Manual,Yes,2,0-1 Miles,Europe,40,No,No,0.0106238098815084,26834,80.84191,-115.46099,Draguignan,75513,France
+20849,Single,Female,20000,0,Partial College,Manual,Yes,1,2-5 Miles,Europe,36,No,No,0.0262065529823303,20849,61.01868,52.06941,Cherbourg-Octeville,71937,France
+27831,Single,Male,20000,0,Partial High School,Manual,No,1,5-10 Miles,Europe,30,No,No,8.36265917314449E-06,27831,-77.39733,-154.34245,Penicuik,G56 9OM,United Kingdom
+16303,Single,Female,20000,5,High School,Manual,Yes,2,0-1 Miles,Europe,27,No,No,0.00184787891339511,16303,-77.41276,163.95731,Huntingdon,S45 3BU,United Kingdom
+23770,Single,Male,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,35,No,No,0.000415273039834574,23770,-17.82425,-174.96192,Anklam,84696,Germany
+20897,Married,Female,30000,1,Bachelors,Skilled Manual,Yes,2,0-1 Miles,Europe,40,No,No,0.0300716459751129,20897,-84.37849,-160.35407,Aachen,30937,Germany
+16187,Single,Male,20000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,26,No,No,0.00839814450591803,16187,10.401,76.73848,Hamburg,78688,Germany
+27303,Married,Male,110000,4,Partial College,Professional,Yes,3,5-10 Miles,Europe,49,No,No,0.00144053797703236,27303,19.05299,85.5859,Heidelberg,21539,Germany
+24095,Single,Female,30000,0,Partial College,Clerical,No,1,2-5 Miles,Europe,44,No,No,0.045153547078371,24095,30.79492,88.76194,Reims,34525,France
+15442,Married,Male,10000,0,Graduate Degree,Manual,Yes,0,0-1 Miles,Europe,44,No,No,0.000208280107472092,15442,49.12259,-134.33567,Lochranza,B3P 9FF,United Kingdom
+23943,Married,Female,30000,4,Partial College,Clerical,Yes,2,0-1 Miles,Europe,28,No,No,0.00019430038810242,23943,-30.72109,2.86283,B�gles,28850,France
+14848,Single,Male,30000,0,Partial College,Clerical,No,1,2-5 Miles,Europe,31,Yes,No,0.00359830097295344,14848,31.64638,29.6555,Leeds,ZA6I 3TV,United Kingdom
+22659,Single,Female,20000,2,High School,Manual,Yes,2,0-1 Miles,Europe,42,No,No,0.00177353341132402,22659,-23.63092,-103.5138,Cottbus,28407,Germany
+20065,Married,Male,40000,2,Partial College,Clerical,No,1,0-1 Miles,Europe,34,No,No,0.00309818750247359,20065,36.88322,90.95885,Keith,O8 3HV,United Kingdom
+26379,Single,Female,130000,4,Partial College,Professional,No,2,0-1 Miles,Europe,48,Yes,Yes,0.977465391159058,26379,-12.88053,70.10946,Quickborn,73047,Germany
+20971,Single,Male,10000,0,Bachelors,Clerical,Yes,1,0-1 Miles,Europe,69,No,No,2.19242174352985E-05,20971,-87.65762,58.96918,Witney,UV10 6QB,United Kingdom
+23601,Single,Female,120000,4,High School,Professional,No,4,5-10 Miles,Europe,50,No,No,0.000374051567632705,23601,-47.0791,90.7255,Zwickau,52227,Germany
+23613,Married,Male,130000,4,Bachelors,Management,Yes,4,0-1 Miles,Europe,62,No,No,0.00151408975943923,23613,28.31903,0.00018,Al�s,12734,France
+29470,Single,Male,10000,1,High School,Manual,No,1,1-2 Miles,Europe,46,No,No,0.000304012501146644,29470,-35.47176,108.25552,Marcq-en-Baroeul,85584,France
+26418,Single,Male,90000,0,Partial High School,Skilled Manual,No,2,5-10 Miles,Europe,59,No,No,0.000268401869107038,26418,-50.91109,153.33561,Coalville,S2P 7GY,United Kingdom
+11543,Married,Female,20000,1,Partial College,Manual,Yes,1,2-5 Miles,Europe,38,No,No,0.0506756380200386,11543,27.77579,108.12355,Brive-la-Gaillarde,2457,France
+21824,Married,Male,150000,4,High School,Professional,Yes,3,5-10 Miles,Europe,50,No,No,0.0722508728504181,21824,-0.93141,-108.47832,Creil,35908,France
+14715,Married,Male,40000,2,Partial College,Clerical,No,0,0-1 Miles,Europe,35,No,No,0.0247193332761526,14715,-49.97248,-63.41124,Pontarlier,54403,France
+15065,Single,Male,10000,1,High School,Manual,No,1,2-5 Miles,Europe,36,No,No,0.000146863923873752,15065,-27.23411,-160.98825,Stendal,69071,Germany
+16569,Single,Female,10000,0,Partial College,Manual,Yes,2,0-1 Miles,Europe,54,Yes,Yes,0.998050570487976,16569,-71.58963,-150.81953,Lanark,AU32 5ZG,United Kingdom
+12260,Married,Female,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,45,No,No,0.0143491914495826,12260,15.59846,-157.20383,Rouen,18058,France
+11393,Single,Male,10000,2,High School,Manual,Yes,0,0-1 Miles,Europe,37,No,No,0.0328081510961056,11393,75.56414,98.22024,Besan�on,95580,France
+12562,Married,Female,10000,0,Partial College,Manual,Yes,1,2-5 Miles,Europe,64,No,No,0.000158715221914463,12562,40.93064,-16.84172,Cardiff,M4X 5ZP,United Kingdom
+15694,Married,Female,80000,2,Partial College,Professional,Yes,2,2-5 Miles,Europe,53,No,No,0.297577083110809,15694,-73.43002,49.9637,St. Andrews,X99 3MH,United Kingdom
+12314,Married,Female,110000,5,Bachelors,Management,Yes,1,10+ Miles,Europe,53,Yes,No,0.0337888635694981,12314,-77.91863,161.75406,Kinross,O00 3IA,United Kingdom
+26893,Married,Female,40000,1,Bachelors,Skilled Manual,No,0,0-1 Miles,Europe,30,No,No,0.178591594099998,26893,-45.15237,-102.32249,Goslar,92406,Germany
+28552,Single,Female,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,34,No,No,0.00012698007049039,28552,-65.90755,2.387,Dumbarton,GF5 1AZ,United Kingdom
+29444,Married,Female,20000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,50,No,No,0.00424685562029481,29444,38.56492,-54.28292,Maubeuge,93074,France
+11386,Married,Female,30000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,46,No,No,0.00104451132938266,11386,-75.02496,131.06442,Invergordon,Q22 2CS,United Kingdom
+15690,Single,Male,160000,4,Bachelors,Management,No,4,0-1 Miles,Europe,60,No,No,0.00185680494178087,15690,-47.27386,-133.87674,Cherbourg-Octeville,31229,France
+15448,Married,Male,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,45,No,No,0.00208850833587348,15448,73.91631,-81.18967,Zeitz,3944,Germany
+22534,Single,Female,30000,0,Partial College,Clerical,Yes,1,2-5 Miles,Europe,31,No,No,0.00916214007884264,22534,-82.80722,-86.33309,Peterborough,F0E 0KR,United Kingdom
+22557,Single,Male,10000,0,Partial College,Manual,No,0,0-1 Miles,Europe,49,No,No,0.000654801027849317,22557,1.42099,-109.09094,Dudley,JD2J 0UU,United Kingdom
+27002,Married,Male,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,35,No,No,0.00052716740174219,27002,-46.42932,132.70814,Rennes,3141,France
+25472,Married,Male,30000,1,Bachelors,Skilled Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.00390989938750863,25472,-25.90686,-57.76409,Cupar,KR9 8HR,United Kingdom
+20041,Single,Male,30000,0,High School,Manual,No,1,2-5 Miles,Europe,28,No,No,0.000303405715385452,20041,-27.2881,31.71998,Auxerre,1458,France
+14144,Married,Male,10000,1,High School,Manual,Yes,1,2-5 Miles,Europe,47,No,No,0.00961936637759209,14144,-46.32128,-3.79916,M?lheim,30126,Germany
+24188,Single,Male,20000,0,Partial College,Manual,Yes,1,2-5 Miles,Europe,47,No,No,0.00732404924929142,24188,-14.14598,-4.46989,Gifhorn,92329,Germany
+13549,Single,Male,10000,2,High School,Manual,Yes,0,0-1 Miles,Europe,37,No,No,0.00571771385148168,13549,-57.8967,112.79681,Hamburg,94640,Germany
+14166,Married,Female,10000,0,Bachelors,Clerical,No,2,0-1 Miles,Europe,84,No,No,6.62148295305087E-06,14166,80.74142,120.32651,Greenlaw,A16 3LY,United Kingdom
+23749,Single,Female,30000,0,High School,Manual,No,1,1-2 Miles,Europe,28,No,No,0.00147997064050287,23749,-19.0445,176.06686,Hexham,YI6P 0LD,United Kingdom
+22532,Single,Male,30000,0,Partial College,Clerical,No,1,2-5 Miles,Europe,30,No,No,0.00351477763615549,22532,-50.2325,42.13209,Werder,55203,Germany
+26880,Single,Female,20000,0,High School,Manual,Yes,1,2-5 Miles,Europe,30,No,No,0.000483213341794908,26880,-9.06017,30.46795,Hamburg,42373,Germany
+21003,Married,Male,20000,1,Partial College,Manual,Yes,0,1-2 Miles,Europe,45,No,No,0.00457678083330393,21003,67.81428,159.04279,Bury St. Edmunds,Z11 7HC,United Kingdom
+27160,Married,Female,30000,0,High School,Manual,No,1,1-2 Miles,Europe,28,No,No,0.000840590917505324,27160,-75.3236,-34.77926,K?then,10065,Germany
+22819,Married,Female,80000,2,Partial College,Professional,Yes,2,2-5 Miles,Europe,53,No,No,0.0271991211920977,22819,1.43633,147.39478,Drancy,75831,France
+22564,Married,Female,20000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,50,No,No,0.115283444523811,22564,75.06079,-11.97927,Dole,79343,France
+23626,Single,Male,90000,1,High School,Management,Yes,3,10+ Miles,Europe,56,No,No,0.00113126856740564,23626,43.07068,-19.58578,Martigues,26589,France
+22425,Single,Male,20000,0,Partial College,Manual,No,1,2-5 Miles,Europe,48,No,No,0.00363746634684503,22425,6.59031,-170.83611,B�thune,48577,France
+11567,Married,Female,40000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,39,No,No,0.0034943581558764,11567,-33.12248,3.50965,Rostock,50672,Germany
+12311,Single,Male,130000,5,High School,Professional,No,1,0-1 Miles,Europe,52,No,No,0.0179241467267275,12311,2.83656,168.56688,Bedford,CI9 0HC,United Kingdom
+25685,Married,Female,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,43,No,No,0.000209654914215207,25685,-3.99564,25.92527,Pfungstadt,16818,Germany
+22807,Married,Female,130000,4,Bachelors,Management,Yes,4,0-1 Miles,Europe,62,No,No,0.00891826208680868,22807,78.74941,-130.15592,Strasbourg,30432,France
+15712,Married,Female,130000,5,High School,Management,Yes,4,0-1 Miles,Europe,57,No,No,0.00167228071950376,15712,-51.64233,-112.34831,Tain,W60 8XZ,United Kingdom
+14864,Single,Female,40000,2,Partial College,Clerical,Yes,2,1-2 Miles,Europe,35,No,No,0.00579171115532517,14864,-37.87514,-54.20385,M?hlheim am Main,45412,Germany
+11557,Single,Female,30000,1,Bachelors,Clerical,No,0,1-2 Miles,Europe,39,No,No,0.000420802185544744,11557,-61.93718,-113.49072,Glastonbury,UG45 8KX,United Kingdom
+24691,Married,Female,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,26,No,No,0.000163091564900242,24691,-68.33839,100.37841,Aschaffenburg,61775,Germany
+28379,Married,Male,30000,1,Bachelors,Skilled Manual,Yes,2,0-1 Miles,Europe,40,No,No,0.00185401795897633,28379,21.65201,134.00271,Barrow-in-Furness,O3M 9WQ,United Kingdom
+20570,Married,Male,130000,4,Partial College,Professional,Yes,4,0-1 Miles,Europe,60,No,No,0.000731886364519596,20570,36.76794,-128.77205,Barry,NI1 2MI,United Kingdom
+26990,Married,Male,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,34,No,No,0.000458822207292542,26990,-26.27985,166.49834,Nottingham,I7 8KB,United Kingdom
+19495,Single,Male,20000,4,High School,Manual,Yes,2,0-1 Miles,Europe,27,No,No,0.0291377808898687,19495,4.33245,53.09814,Arras,17812,France
+22482,Single,Female,10000,3,Partial High School,Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.0089805144816637,22482,40.08962,-172.38899,Ajaccio,6788,France
+26401,Married,Female,130000,4,High School,Professional,Yes,4,0-1 Miles,Europe,52,No,No,0.000903773936443031,26401,-81.16528,168.37689,Berlin,32325,Germany
+16044,Married,Female,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,48,No,No,0.000276888895314187,16044,-13.275,-63.71876,Hofheim am Taunus,80326,Germany
+27304,Single,Female,110000,4,Partial College,Professional,No,3,5-10 Miles,Europe,49,No,No,0.000516352360136807,27304,68.19349,5.2504,Dijon,22439,France
+13826,Single,Female,30000,0,Partial College,Clerical,No,1,0-1 Miles,Europe,28,No,No,0.0237158853560686,13826,89.64555,64.4163,Brampton,W06 5UI,United Kingdom
+20796,Single,Female,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,45,No,No,0.000982581288553774,20796,8.49964,-100.47869,Paisley,P5 6DW,United Kingdom
+22683,Single,Male,30000,3,Partial College,Clerical,Yes,0,0-1 Miles,Europe,43,No,No,0.16027557849884,22683,-64.59559,-153.75311,Cottbus,87304,Germany
+25549,Single,Female,10000,0,Partial College,Manual,No,1,0-1 Miles,Europe,65,No,Yes,0.655820488929749,25549,-24.64197,-77.46649,Coupar Angus,H7M 7OD,United Kingdom
+17771,Married,Female,10000,0,Partial College,Manual,No,2,0-1 Miles,Europe,54,No,No,0.00177229417022318,17771,68.32017,77.78986,H�rouville-Saint-Clair,52013,France
+13253,Married,Female,130000,4,Partial College,Professional,Yes,2,0-1 Miles,Europe,48,Yes,Yes,0.949975967407227,13253,-72.76701,36.79681,Newport,VH9 3ZZ,United Kingdom
+19078,Single,Female,80000,0,Partial High School,Skilled Manual,Yes,2,10+ Miles,Europe,59,No,No,0.000210483005503193,19078,-51.76698,-97.27348,Buckingham,X9N 6EV,United Kingdom
+17089,Married,Female,10000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,34,No,No,6.19744605501182E-05,17089,-52.06104,-137.94996,Morpeth,HV9 9YS,United Kingdom
+12233,Married,Male,10000,0,Partial College,Manual,Yes,1,1-2 Miles,Europe,51,No,No,0.0012026937911287,12233,-20.07071,-169.13343,Ludwigsburg,76805,Germany
+25673,Single,Male,20000,0,High School,Manual,Yes,1,2-5 Miles,Europe,30,No,No,0.00129923573695123,25673,-81.93645,145.14599,Le Petit-Quevilly,19247,France
+15052,Married,Female,20000,1,Partial College,Manual,Yes,0,2-5 Miles,Europe,46,No,No,0.0485426411032677,15052,33.52794,-140.72809,P�rigueux,78348,France
+14999,Single,Female,10000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,33,No,No,0.00283013889566064,14999,67.23803,5.40591,Greenlaw,YI6Y 8WA,United Kingdom
+27179,Single,Male,30000,0,High School,Manual,No,1,2-5 Miles,Europe,35,Yes,No,0.0476681776344776,27179,-33.92372,158.79039,Saint-Di�-des-Vosges,38595,France
+15074,Married,Female,10000,0,Bachelors,Clerical,No,2,0-1 Miles,Europe,86,No,No,9.03836507859523E-07,15074,-48.63405,-104.26865,Brodick,KL4 7KI,United Kingdom
+22584,Single,Female,20000,1,Partial College,Manual,Yes,0,1-2 Miles,Europe,45,No,No,0.0270761251449585,22584,66.71067,135.26724,G?ppingen,68879,Germany
+24074,Single,Female,10000,3,Partial High School,Manual,No,2,0-1 Miles,Europe,41,No,No,0.0009489557123743,24074,47.43362,134.64309,Amlwch,S87 6OE,United Kingdom
+12651,Single,Male,90000,1,High School,Management,Yes,3,10+ Miles,Europe,56,No,No,0.00291893631219864,12651,-67.5446,-167.17584,Heilbronn,28896,Germany
+14693,Single,Male,30000,0,High School,Manual,No,1,2-5 Miles,Europe,33,No,No,0.000642757164314389,14693,26.23912,99.26111,Besan�on,64667,France
+28546,Married,Female,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,26,No,No,5.3421641496243E-05,28546,-87.043,-15.03934,Stourbridge,YG6X 9HN,United Kingdom
+13598,Married,Male,120000,5,Partial College,Professional,Yes,3,10+ Miles,Europe,55,No,No,0.000851544144097716,13598,62.85792,18.11939,Draguignan,70027,France
+17939,Single,Female,10000,1,High School,Manual,No,1,2-5 Miles,Europe,47,No,No,0.00285387667827308,17939,-51.84423,-42.2797,Saint-Malo,2155,France
+12543,Married,Male,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,48,No,No,0.00065784971229732,12543,81.60312,33.89872,Holyhead,ZR67 8YO,United Kingdom
+24078,Married,Male,30000,1,Bachelors,Skilled Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.00390989938750863,24078,-83.88857,-124.89173,Strasbourg,66973,France
+26849,Married,Male,10000,2,Partial High School,Manual,Yes,2,0-1 Miles,Europe,43,No,No,6.74676775815897E-05,26849,62.54546,65.5296,Bergisch Gladbach,58616,Germany
+28473,Single,Male,20000,0,Bachelors,Clerical,No,0,0-1 Miles,Europe,67,No,No,1.24745129141957E-05,28473,21.09978,-22.72281,Paderborn,76594,Germany
+24567,Married,Female,80000,1,High School,Professional,Yes,3,10+ Miles,Europe,55,No,No,0.000174704051460139,24567,-45.27887,135.86186,Sotteville-l�s-Rouen,68529,France
+14694,Single,Female,30000,0,High School,Manual,Yes,1,2-5 Miles,Europe,33,No,No,0.00717449095100164,14694,-17.9959,87.14787,Itzehoe,88207,Germany
+24126,Single,Male,20000,0,High School,Manual,No,1,2-5 Miles,Europe,29,No,No,9.61977639235556E-05,24126,-69.80529,-115.14561,Roubaix,47988,France
+14695,Single,Male,10000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,34,No,No,0.0012448001652956,14695,5.63009,-44.80739,Newbury,DV8F 8WX,United Kingdom
+24146,Single,Male,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,45,No,No,0.00279454328119755,24146,58.2294,6.65742,Coupar Angus,DQ5T 5OJ,United Kingdom
+16450,Single,Female,30000,5,Partial College,Clerical,Yes,2,0-1 Miles,Europe,29,No,No,0.00047184995491989,16450,-74.77245,-169.37204,Bergisch Gladbach,35632,Germany
+16941,Married,Female,10000,0,Partial College,Manual,Yes,0,0-1 Miles,Europe,50,No,No,0.00180504191666842,16941,-77.80563,78.8163,Montb�liard,61832,France
+22454,Married,Female,10000,0,Partial College,Manual,No,2,0-1 Miles,Europe,54,No,No,0.00186474295333028,22454,52.63686,165.35699,St. Clears,AO1 6WL,United Kingdom
+25142,Single,Female,30000,0,Partial College,Clerical,Yes,1,2-5 Miles,Europe,32,No,No,0.00428718887269497,25142,-57.11633,134.98861,Hof,37737,Germany
+26844,Single,Female,20000,0,Partial College,Manual,No,1,1-2 Miles,Europe,76,No,No,1.95105276361573E-05,26844,4.18998,125.36887,V?lklingen,76350,Germany
+16300,Single,Male,20000,0,High School,Manual,No,1,1-2 Miles,Europe,29,No,No,0.000797249609604478,16300,-36.77938,-131.03861,Tarbes,88427,France
+12729,Single,Male,30000,0,Partial College,Clerical,No,1,2-5 Miles,Europe,27,No,No,0.000344646803569049,12729,65.63949,-112.60881,Bremerhaven,98514,Germany
+18173,Single,Male,130000,5,High School,Professional,No,3,0-1 Miles,Europe,55,Yes,No,0.0326838530600071,18173,3.27199,-101.07109,Ludwigshafen,2247,Germany
+29370,Single,Male,30000,0,Bachelors,Clerical,No,1,2-5 Miles,Europe,79,No,No,2.21210325435095E-06,29370,-45.41168,179.01999,Blairgowrie,FV5N 1WO,United Kingdom
+17223,Married,Male,80000,1,High School,Management,Yes,4,10+ Miles,Europe,58,No,No,0.000189403188414872,17223,75.07442,-80.02566,Haguenau,19743,France
+28550,Single,Male,10000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,33,No,No,8.18946573417634E-05,28550,-89.26133,154.52271,Berlin,30521,Germany
+19066,Married,Male,130000,5,Partial College,Professional,No,3,10+ Miles,Europe,54,No,No,2.03955532924738E-05,19066,44.9753,3.53515,Saarlouis,48759,Germany
+14543,Married,Female,10000,0,Partial College,Manual,Yes,0,0-1 Miles,Europe,49,No,No,0.000665267114527524,14543,-66.03997,-155.20967,Le Puy-en-Velay,25505,France
+24130,Married,Female,10000,0,Partial High School,Manual,Yes,2,0-1 Miles,Europe,32,No,No,6.26023393124342E-05,24130,-75.21536,68.54756,Liverpool,FC8Q 3CY,United Kingdom
+14202,Single,Male,90000,1,Partial High School,Skilled Manual,Yes,4,10+ Miles,Europe,58,No,No,0.000967108586337417,14202,51.71573,130.51499,Lunel,31859,France
+27826,Single,Male,30000,4,Partial College,Clerical,No,1,0-1 Miles,Europe,28,No,No,0.00980668421834707,27826,82.34766,-145.43878,Rosenheim,76974,Germany
+17757,Single,Male,20000,0,Partial College,Manual,Yes,1,2-5 Miles,Europe,36,No,No,0.00465933373197913,17757,-53.2484,86.96077,Parchim	City,57549,Germany
+28910,Single,Female,90000,1,High School,Management,Yes,3,10+ Miles,Europe,56,No,No,5.67541501368396E-05,28910,-59.53206,-130.18564,Limoges,2997,France
+25791,Single,Male,100000,4,Bachelors,Management,No,4,2-5 Miles,Europe,53,No,No,0.000993677414953709,25791,-44.31507,133.51713,Hamburg,17475,Germany
+12714,Single,Female,30000,0,Partial College,Clerical,No,1,2-5 Miles,Europe,33,No,No,0.0016983849927783,12714,-64.97725,-130.87994,Mulhouse,4419,France
+25487,Married,Female,30000,2,Partial College,Clerical,Yes,2,0-1 Miles,Europe,41,No,No,0.00201560230925679,25487,-21.00836,-33.11422,Berlin,53040,Germany
+17764,Married,Male,30000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,37,Yes,Yes,0.995811223983765,17764,-55.39588,-131.96725,Bautzen,67359,Germany
+21135,Married,Male,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,26,No,No,5.92206306464504E-05,21135,59.90207,-29.76016,Ludwigsfelde,1308,Germany
+12458,Married,Female,30000,0,Bachelors,Clerical,Yes,0,1-2 Miles,Europe,38,No,No,0.0312316585332155,12458,-75.50078,57.40601,Bremen,61989,Germany
+23918,Single,Female,20000,3,High School,Manual,Yes,2,0-1 Miles,Europe,43,No,No,0.0095630856230855,23918,58.35903,40.75339,Saltcoats,KO7U 5VG,United Kingdom
+28406,Married,Male,30000,2,Partial College,Clerical,Yes,2,0-1 Miles,Europe,43,No,No,0.000692097470164299,28406,56.31494,50.07099,Rothes,XP57 2JA,United Kingdom
+22825,Single,Female,120000,5,Partial College,Professional,Yes,3,10+ Miles,Europe,54,No,No,0.000964377948548645,22825,18.80236,-57.27503,Stroud,WO3X 4JI,United Kingdom
+24042,Married,Male,10000,2,High School,Manual,Yes,1,0-1 Miles,Europe,38,No,No,0.395454794168472,24042,9.15535,57.39796,Marlborough,O6G 5CG,United Kingdom
+20055,Single,Male,20000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,35,No,No,0.000233707381994464,20055,75.1685,-117.09052,Bedford,T9 2OQ,United Kingdom
+21740,Married,Female,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,44,No,No,0.00184331380296499,21740,10.69038,-70.53772,Durness,P98 5BN,United Kingdom
+24033,Single,Female,30000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,36,Yes,Yes,0.9999960064888,24033,-82.05105,-43.79716,Speyer,67050,Germany
+21116,Married,Male,20000,0,High School,Manual,No,1,2-5 Miles,Europe,29,No,No,1.519773468317E-05,21116,30.20974,-107.00799,Bridlington,B9 2CP,United Kingdom
+16937,Married,Male,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,44,Yes,Yes,0.524240553379059,16937,21.39758,135.42845,Fishguard,L1W 7SI,United Kingdom
+12406,Single,Male,50000,0,Graduate Degree,Skilled Manual,No,0,1-2 Miles,Europe,36,No,No,0.00650619203224778,12406,68.83023,-87.44799,Kircudbright,R0W 7XU,United Kingdom
+27783,Married,Female,30000,1,Bachelors,Skilled Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.00471709063276649,27783,66.8914,122.09116,Watford,X8 8BT,United Kingdom
+21032,Single,Male,20000,0,Partial College,Manual,Yes,1,2-5 Miles,Europe,37,No,No,0.0733701214194298,21032,5.19229,-100.44091,Rosenheim,97190,Germany
+26221,Single,Female,30000,0,High School,Manual,No,1,2-5 Miles,Europe,34,Yes,No,0.128435671329498,26221,61.17208,79.47035,H�rouville-Saint-Clair,64300,France
+17840,Single,Male,10000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,31,No,No,5.32636149728205E-05,17840,-17.17481,-117.61762,Tregaron,AQ7G 0ZX,United Kingdom
+20574,Married,Male,130000,4,Partial College,Professional,Yes,4,0-1 Miles,Europe,51,No,No,0.000966782972682267,20574,20.80398,160.10932,Haddington,XE9J 5OT,United Kingdom
+22805,Married,Female,80000,0,Bachelors,Management,Yes,2,10+ Miles,Europe,62,No,No,0.00104745186399668,22805,-17.36238,87.44559,Worms,47697,Germany
+27157,Married,Male,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,26,No,No,9.00859595276415E-05,27157,79.81139,49.23298,Haguenau,39129,France
+27923,Single,Male,130000,3,Bachelors,Management,No,4,5-10 Miles,Europe,48,No,No,0.000494128791615367,27923,66.48491,3.4578,Oranienburg,26277,Germany
+20907,Single,Male,10000,2,Partial High School,Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.00151110929436982,20907,61.3899,-53.64936,Castres,10567,France
+19191,Single,Male,30000,0,High School,Manual,No,1,2-5 Miles,Europe,35,No,No,0.0140815274789929,19191,-53.10353,-153.55349,Hamburg,5552,Germany
+18622,Single,Male,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,33,No,No,0.000211427366593853,18622,9.16984,50.73781,Reims,29896,France
+21531,Married,Female,100000,4,Bachelors,Management,Yes,4,10+ Miles,Europe,53,No,No,5.77266655454878E-05,21531,5.08661,43.37595,Brodick,N7Q 9UO,United Kingdom
+12325,Married,Female,130000,5,High School,Professional,Yes,3,10+ Miles,Europe,55,No,No,0.000135592141305096,12325,-74.36369,-130.40305,Wittenberg,92940,Germany
+14140,Married,Female,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,45,Yes,No,0.0180127862840891,14140,89.41907,100.27589,Alloa,PA3R 4FD,United Kingdom
+28385,Married,Female,30000,1,Bachelors,Skilled Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.00133044621907175,28385,86.07719,-26.26207,Stralsund,75571,Germany
+22324,Married,Female,40000,2,Partial College,Clerical,No,1,0-1 Miles,Europe,35,No,No,0.00445455638691783,22324,53.86848,-104.37934,Ingolstadt,24532,Germany
+23936,Married,Female,20000,4,High School,Manual,Yes,2,0-1 Miles,Europe,27,No,No,0.0117443054914474,23936,-65.09254,-52.72338,Blankenfelde-Mahlow,20881,Germany
+14989,Single,Female,20000,0,High School,Manual,No,1,5-10 Miles,Europe,30,No,No,8.38187334011309E-05,14989,68.45806,138.89926,Cuxhaven,61145,Germany
+28898,Single,Female,130000,4,Partial College,Professional,No,4,0-1 Miles,Europe,52,No,No,8.06458992883563E-05,28898,-22.55729,92.46331,Illkirch-Graffenstaden,37212,France
+14785,Single,Male,30000,1,Bachelors,Clerical,No,1,1-2 Miles,Europe,39,No,No,0.0057583125308156,14785,-44.27757,-174.71452,Dover,XK1 6KQ,United Kingdom
+19505,Single,Male,30000,4,Partial College,Clerical,Yes,2,0-1 Miles,Europe,28,No,No,0.000503807270433754,19505,-84.99735,-165.95924,Hamburg,53541,Germany
+24125,Single,Female,20000,0,High School,Manual,No,1,5-10 Miles,Europe,30,No,No,7.24167466614745E-06,24125,-68.31688,28.31812,Vannes,90928,France
+17887,Married,Male,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,48,No,No,4.02715049858671E-05,17887,47.94378,53.72738,Appleby,UZ1 7IE,United Kingdom
+12832,Single,Male,20000,3,High School,Manual,Yes,0,0-1 Miles,Europe,42,No,No,0.00375214731320739,12832,-79.1313,137.8125,Bremen,89646,Germany
+18186,Married,Female,130000,5,Partial High School,Professional,Yes,4,10+ Miles,Europe,59,No,No,0.0004263463197276,18186,3.45564,94.98387,Niort,10389,France
+12727,Single,Female,20000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,26,No,No,0.00197502551600337,12727,-39.89424,131.85327,Heilbronn,47275,Germany
+12503,Single,Female,30000,3,Partial College,Clerical,Yes,2,0-1 Miles,Europe,27,No,No,0.00186755915638059,12503,-50.87924,15.67687,Grimma,62235,Germany
+27175,Single,Male,40000,2,Partial College,Clerical,Yes,0,1-2 Miles,Europe,34,Yes,Yes,0.978570222854614,27175,-64.48578,-124.06396,Recklinghausen,46502,Germany
+17104,Single,Male,40000,2,Partial College,Clerical,Yes,0,0-1 Miles,Europe,34,No,No,0.0154592143371701,17104,-88.48958,109.65504,Pontarlier,10581,France
+11558,Single,Male,30000,1,Bachelors,Clerical,No,0,0-1 Miles,Europe,39,No,No,0.000321557425195351,11558,14.085,78.31611,Bad Hersfeld,54285,Germany
+14863,Single,Female,40000,2,Partial College,Clerical,Yes,2,1-2 Miles,Europe,35,No,No,0.00579171115532517,14863,61.42127,127.87497,Niort,32665,France
+20889,Single,Male,20000,1,High School,Manual,No,1,2-5 Miles,Europe,40,No,No,0.000529207056388259,20889,47.96843,89.19452,Forfar,TT38 0FY,United Kingdom
+29476,Married,Female,20000,0,Partial College,Manual,No,1,0-1 Miles,Europe,47,Yes,No,0.0198411755263805,29476,31.42728,151.40989,Skegness,U8H 3NI,United Kingdom
+12387,Single,Female,30000,0,High School,Manual,No,1,2-5 Miles,Europe,33,No,No,0.000180827511940151,12387,-29.54666,7.35516,Ch�tellerault,71071,France
+14699,Married,Male,40000,1,Bachelors,Skilled Manual,Yes,1,1-2 Miles,Europe,33,No,No,0.076907254755497,14699,57.91664,179.42081,Passau,26998,Germany
+20146,Married,Female,10000,0,Partial College,Manual,Yes,1,2-5 Miles,Europe,66,No,No,0.00247949454933405,20146,-12.95322,-145.52646,Camborne,KG5 0HV,United Kingdom
+22314,Married,Female,10000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,34,No,No,3.3185617212439E-05,22314,17.18437,-165.26823,Hamburg,97595,Germany
+24139,Married,Male,10000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,33,No,No,9.72516136243939E-05,24139,-18.04759,98.84714,Durham,X62 5QC,United Kingdom
+14784,Single,Male,30000,1,Bachelors,Clerical,No,0,0-1 Miles,Europe,38,No,No,0.0103226630017161,14784,0.5833,-112.27933,Leipzig,30533,Germany
+25678,Single,Female,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,32,No,No,0.000173055464983918,25678,19.84732,56.51794,Cawdor,EV0P 8UB,United Kingdom
+25771,Single,Female,120000,4,High School,Professional,No,4,5-10 Miles,Europe,50,No,No,0.000245990144321695,25771,-44.93857,110.78535,Millport,W4Y 6NS,United Kingdom
+14206,Married,Male,100000,5,Partial High School,Professional,No,1,5-10 Miles,Europe,59,No,No,0.000414240668760613,14206,-35.52659,-99.83863,Ch�teauroux,81986,France
+19379,Single,Female,10000,0,Partial High School,Manual,Yes,2,0-1 Miles,Europe,31,No,No,0.000111889290565159,19379,-61.65413,170.36442,Toulouse,57053,France
+22806,Married,Female,90000,0,Partial College,Professional,Yes,2,10+ Miles,Europe,62,No,No,0.000148081991937943,22806,-8.02504,-71.82233,Cannes,89081,France
+17839,Single,Female,10000,0,Partial High School,Manual,Yes,2,0-1 Miles,Europe,31,No,No,0.000167688631336205,17839,-30.81913,136.24505,Pirmasens,65365,Germany
+23966,Married,Male,20000,0,Graduate Degree,Manual,No,0,0-1 Miles,Europe,44,No,No,0.000278024293947965,23966,-8.63155,-42.67411,Beauvais,77737,France
+20981,Married,Male,10000,0,Partial College,Manual,Yes,1,0-1 Miles,Europe,64,No,No,0.000271327269729227,20981,16.79347,65.49842,Lanester,38963,France
+25698,Married,Female,10000,0,Partial College,Manual,Yes,0,1-2 Miles,Europe,50,No,No,0.000200225724256597,25698,77.61315,-141.12028,�pernay,86494,France
+27812,Single,Female,20000,0,High School,Manual,No,1,1-2 Miles,Europe,29,No,No,8.00867055659182E-05,27812,40.4671,-165.0948,Salon-de-Provence,36421,France
+17702,Married,Male,10000,0,Graduate Degree,Manual,Yes,0,0-1 Miles,Europe,38,No,No,0.000134224639623426,17702,43.95492,-22.8625,Bastia,80759,France
+26951,Single,Female,10000,2,High School,Manual,No,0,0-1 Miles,Europe,36,No,No,0.048491857945919,26951,24.22961,159.91585,Anklam,14770,Germany
+25494,Married,Male,30000,2,Partial College,Clerical,Yes,2,0-1 Miles,Europe,43,No,No,0.00975311547517776,25494,-23.3244,-90.53801,Tournefeuille,84273,France
+24111,Single,Male,20000,0,High School,Manual,No,1,2-5 Miles,Europe,28,No,No,8.1276404671371E-05,24111,-89.90156,150.41854,Schw?bisch Gm?nd,13158,Germany
+19524,Single,Female,30000,0,High School,Manual,No,1,1-2 Miles,Europe,28,No,No,0.00143392325844616,19524,-19.94932,124.08092,Parchim	City,58675,Germany
+21075,Married,Male,30000,1,Bachelors,Skilled Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.00431018648669124,21075,-41.17341,-178.84025,Dresden,16556,Germany
+27936,Married,Male,60000,1,Partial High School,Skilled Manual,No,4,2-5 Miles,Europe,61,No,No,0.00408812751993537,27936,85.00485,179.3054,Rhyl,EE49 1QE,United Kingdom
+14943,Married,Female,30000,1,Bachelors,Clerical,Yes,1,2-5 Miles,Europe,40,No,No,0.0232522077858448,14943,-62.51224,99.72575,Clackmannan,PB94 5GK,United Kingdom
+11376,Single,Male,40000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,63,No,No,0.0496386401355267,11376,36.63726,27.23557,Hay-on-Wye,G5 0IA,United Kingdom
+12739,Married,Male,40000,1,Bachelors,Skilled Manual,Yes,1,1-2 Miles,Europe,32,No,No,0.0153549173846841,12739,23.54024,-152.14872,Bremerhaven,18385,Germany
+22830,Married,Male,120000,5,Partial College,Management,Yes,3,10+ Miles,Europe,57,No,No,0.000158583134179935,22830,9.82636,34.39064,Haverhill,D19 3YC,United Kingdom
+16459,Married,Female,30000,0,Partial College,Clerical,No,1,0-1 Miles,Europe,30,No,No,0.00523043097928166,16459,15.61841,-156.0613,Hamburg,98656,Germany
+23950,Married,Male,10000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,31,No,No,1.72105355886742E-05,23950,-8.43818,-24.89905,Hagen,3878,Germany
+14814,Single,Female,30000,2,Partial College,Clerical,Yes,0,0-1 Miles,Europe,43,No,No,0.0102161495015025,14814,67.07207,148.99306,Bastia,81673,France
+15353,Single,Female,160000,3,Partial College,Professional,No,4,0-1 Miles,Europe,48,No,No,0.00391972111538053,15353,46.87779,-87.16952,Drancy,93277,France
+14180,Married,Male,100000,3,Bachelors,Management,Yes,4,10+ Miles,Europe,60,No,No,7.29744861018844E-05,14180,31.46922,-3.59613,Shrewsbury,O22 2ZJ,United Kingdom
+26879,Single,Female,20000,0,High School,Manual,No,1,2-5 Miles,Europe,30,No,No,9.04666885617189E-05,26879,-13.36551,-113.86039,Markkleeberg,6955,Germany
+24576,Single,Male,150000,5,High School,Management,No,4,0-1 Miles,Europe,57,No,No,5.59889485884923E-05,24576,37.67213,-161.2297,Tranent,WS6B 5KX,United Kingdom
+14142,Married,Male,10000,1,High School,Manual,Yes,1,2-5 Miles,Europe,46,No,No,0.00961936637759209,14142,-20.57768,-117.56034,Newton Stewart,G69 7DN,United Kingdom
+16455,Married,Female,10000,0,High School,Manual,No,2,0-1 Miles,Europe,95,No,No,5.35861204298271E-07,16455,-43.83546,-177.62811,Ramsey,IH18 9BC,United Kingdom
+28445,Single,Male,30000,0,Partial College,Clerical,No,1,0-1 Miles,Europe,30,No,No,0.447265356779099,28445,60.25095,60.97443,Guildford,VI06 9HV,United Kingdom
+22799,Married,Female,120000,4,Partial High School,Professional,No,4,5-10 Miles,Europe,50,No,No,0.000457379268482327,22799,41.42649,178.15727,Le Mans,25928,France
+22514,Single,Male,20000,0,High School,Manual,Yes,1,2-5 Miles,Europe,29,No,No,0.000641334510874003,22514,-0.71395,-36.32836,Penzance,A96 9SB,United Kingdom
+27314,Single,Male,80000,0,Bachelors,Management,No,2,2-5 Miles,Europe,61,No,No,0.00128178228624165,27314,-38.50581,7.94951,Burntisland,LU5I 4BI,United Kingdom
+27932,Single,Female,110000,4,Partial College,Professional,No,4,5-10 Miles,Europe,51,No,No,0.000288760988041759,27932,15.79052,41.56279,Limoges,39839,France
+29413,Married,Male,30000,3,Partial College,Clerical,Yes,2,0-1 Miles,Europe,28,No,No,8.92143143573776E-05,29413,33.74951,-45.51592,Uppingham. Cottesmore,TO8J 4YD,United Kingdom
+20134,Married,Male,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,44,No,No,0.00184331380296499,20134,-24.54226,155.42253,Llandrindod Wells,LN7Q 6FQ,United Kingdom
+11554,Single,Female,10000,0,High School,Manual,Yes,2,0-1 Miles,Europe,80,No,No,0.0168562214821577,11554,-85.08408,-10.17098,Brest,62682,France
+28373,Single,Male,10000,4,Partial High School,Manual,No,2,0-1 Miles,Europe,40,No,No,0.0112754348665476,28373,-79.68947,-30.59661,Cherbourg-Octeville,45556,France
+13538,Single,Female,20000,0,Partial College,Manual,Yes,1,1-2 Miles,Europe,47,Yes,No,0.0198852606117725,13538,-68.39974,-60.13841,Arbroath,O0 8IW,United Kingdom
+24695,Single,Male,30000,0,High School,Manual,No,1,1-2 Miles,Europe,28,No,No,0.00147997064050287,24695,10.20165,-155.2632,Poitiers,63079,France
+15662,Married,Female,30000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,46,Yes,Yes,0.997502326965332,15662,79.86561,-157.78928,Lehrte,17262,Germany
+28915,Single,Male,80000,1,High School,Management,Yes,3,10+ Miles,Europe,57,No,No,5.67541501368396E-05,28915,-36.23893,-82.21465,Besan�on,59655,France
+12482,Single,Male,10000,2,Partial High School,Manual,Yes,1,0-1 Miles,Europe,42,No,No,0.0535448528826237,12482,4.92643,-167.45474,Pontarlier,36885,France
+11486,Single,Female,10000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,35,No,No,0.00918630696833134,11486,1.47406,157.07151,Llandovery,WX5 1JJ,United Kingdom
+12865,Married,Female,20000,0,High School,Manual,No,1,2-5 Miles,Europe,30,No,No,0.00069979828549549,12865,-16.22165,128.65402,Boulogne-sur-Mer,56308,France
+25505,Married,Male,30000,4,Partial College,Clerical,Yes,3,0-1 Miles,Europe,27,No,No,0.000210247308132239,25505,29.23942,87.38458,Wismar,69421,Germany
+25569,Single,Male,10000,0,Partial College,Manual,No,2,0-1 Miles,Europe,63,No,No,0.184219360351563,25569,-23.02149,-49.56029,Kaiserslauter,64840,Germany
+24559,Married,Female,80000,2,Partial College,Professional,Yes,2,2-5 Miles,Europe,53,No,No,0.0694972574710846,24559,70.37037,-162.0585,Al�s,45141,France
+15452,Married,Female,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,48,No,No,0.000426055659772828,15452,-41.72121,-135.12547,Istres,22991,France
+21076,Single,Male,10000,2,Partial High School,Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.000440885283751413,21076,85.53226,115.5007,Berlin,99249,Germany
+16326,Single,Male,10000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,33,No,No,0.000367418659152463,16326,-12.89764,23.83075,Rueil-Malmaison,51221,France
+15703,Married,Female,80000,2,High School,Professional,Yes,2,10+ Miles,Europe,55,No,No,0.000309385970467702,15703,-9.8036,-82.09185,Milford Haven,EK1L 2AB,United Kingdom
+27840,Single,Male,10000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,33,No,No,0.000106381310615689,27840,-30.10936,149.60084,Berlin,86191,Germany
+12724,Single,Male,20000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,26,No,No,0.00197502551600337,12724,-16.28866,-53.08453,Besan�on,6044,France
+18178,Married,Female,160000,5,Partial College,Management,Yes,3,10+ Miles,Europe,56,No,No,0.000309891533106565,18178,53.86968,-53.42707,Perpignan,44141,France
+24872,Single,Female,90000,1,High School,Management,Yes,3,10+ Miles,Europe,56,No,No,0.000514303450472653,24872,-7.31425,-177.49988,Hamburg,15603,Germany
+11556,Married,Male,20000,1,Partial College,Manual,Yes,1,2-5 Miles,Europe,39,No,No,0.0862704589962959,11556,-54.09703,52.08398,Watford,NE67 6VR,United Kingdom
+23981,Married,Male,10000,0,Partial College,Manual,Yes,0,1-2 Miles,Europe,50,No,No,0.000133755544084124,23981,42.57769,-36.0859,Delmenhorst,62907,Germany
+17083,Single,Female,30000,0,Partial College,Clerical,Yes,1,2-5 Miles,Europe,32,No,No,0.00297993258573115,17083,-66.92948,-106.79968,Alloa,D40 9CG,United Kingdom
+16390,Single,Male,30000,1,Bachelors,Clerical,No,0,0-1 Miles,Europe,38,Yes,No,0.0117355631664395,16390,-26.63413,160.75152,Cherbourg-Octeville,38661,France
+16036,Married,Female,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,44,No,No,0.000413504370953888,16036,10.08735,131.25978,Vannes,91380,France
+11580,Married,Male,30000,0,Bachelors,Skilled Manual,Yes,1,2-5 Miles,Europe,73,No,No,0.000363342056516558,11580,-84.7369,54.59503,Glossop,S2 3DA,United Kingdom
+24862,Married,Female,100000,4,Bachelors,Management,No,3,2-5 Miles,Europe,53,No,No,0.000175665278220549,24862,-29.11607,119.03421,Asni�res-sur-Seine,99268,France
+20554,Married,Female,120000,4,High School,Professional,Yes,4,5-10 Miles,Europe,50,No,No,0.000650679983664304,20554,-20.51471,-12.92763,St. Neots,HI86 4AZ,United Kingdom
+20909,Single,Female,10000,2,Partial High School,Manual,Yes,2,0-1 Miles,Europe,43,No,No,0.00438311137259007,20909,-68.20806,-81.96562,Blankenfelde-Mahlow,73217,Germany
+17197,Single,Female,90000,0,Partial College,Professional,Yes,2,10+ Miles,Europe,62,No,No,0.00106723653152585,17197,-15.82839,78.83486,Talgarth,JV4 9BZ,United Kingdom
+27958,Single,Male,150000,5,Bachelors,Management,No,3,10+ Miles,Europe,55,No,No,0.00861815828830004,27958,-11.12305,171.19363,Rodgau,98817,Germany
+18153,Married,Female,100000,3,Bachelors,Management,Yes,4,10+ Miles,Europe,60,No,No,0.000507470045704395,18153,-57.51672,-174.84588,Cardigan,L4 8TH,United Kingdom
+12258,Married,Female,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,45,No,No,0.0143491914495826,12258,-6.83071,-1.90477,Freital,78891,Germany
+23634,Married,Male,130000,5,High School,Management,No,4,10+ Miles,Europe,57,No,No,6.66138157612295E-06,23634,-61.67071,-68.85221,Brive-la-Gaillarde,48057,France
+19444,Married,Female,10000,2,High School,Manual,No,1,0-1 Miles,Europe,38,No,No,0.0105091966688633,19444,1.77037,165.92912,Bremerhaven,41671,Germany
+17801,Single,Female,20000,2,High School,Manual,Yes,1,0-1 Miles,Europe,41,No,No,0.00894347298890352,17801,-79.76688,-146.91923,Stockton-on-Tees,GM95 6LQ,United Kingdom
+18631,Single,Female,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,35,No,No,0.000265516777290031,18631,22.62752,-58.51469,Ludwigsburg,35402,Germany
+16456,Single,Male,20000,0,High School,Manual,No,1,5-10 Miles,Europe,31,No,No,0.000133646637550555,16456,-11.52302,150.67167,Buckingham,MA03 1LB,United Kingdom
+18156,Married,Female,80000,2,Partial College,Professional,Yes,2,10+ Miles,Europe,53,No,No,0.000259463209658861,18156,-14.19848,35.48915,B�thune,47530,France
+24859,Single,Male,130000,5,High School,Professional,No,0,5-10 Miles,Europe,52,No,No,0.00567046366631985,24859,3.13237,87.90385,Cuxhaven,79550,Germany
+27173,Married,Female,10000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,34,No,No,2.05659707717132E-05,27173,-13.45468,-78.81708,Salon-de-Provence,43707,France
+21510,Married,Female,80000,2,Partial College,Professional,No,1,2-5 Miles,Europe,51,No,No,0.00161535921506584,21510,-75.49109,78.35791,M�con,33055,France
+16568,Married,Female,40000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,84,No,No,0.00074713077628985,16568,5.59916,115.9312,Erlangen,31380,Germany
+14188,Married,Female,80000,1,High School,Professional,Yes,3,10+ Miles,Europe,55,No,No,0.00028781546279788,14188,60.0713,-13.47896,G?strow,20078,Germany
+12598,Married,Female,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,46,No,No,0.00272506033070385,12598,2.59478,-168.25964,Oranienburg,60461,Germany
+21063,Married,Male,10000,4,Partial High School,Manual,No,2,0-1 Miles,Europe,40,No,No,0.00203828327357769,21063,25.67368,-59.08416,�pinal,7960,France
+11589,Married,Female,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,42,No,No,0.0985242873430252,11589,56.61216,-22.68411,St. Clears,W0I 8AN,United Kingdom
+27336,Single,Male,120000,5,High School,Management,Yes,4,10+ Miles,Europe,59,No,No,0.000174211440025829,27336,-37.51133,-170.75515,Vitrolles,88402,France
+27939,Married,Male,130000,4,Partial College,Professional,No,4,5-10 Miles,Europe,60,No,No,6.92854227963835E-05,27939,-85.01402,172.50464,Caen,92328,France
+27937,Single,Female,90000,0,Partial College,Professional,No,2,2-5 Miles,Europe,61,Yes,No,0.00805258471518755,27937,-7.89522,1.74418,Tournefeuille,50540,France
+20798,Married,Male,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,48,No,No,4.84075462736655E-05,20798,79.7339,81.87057,Neuss,80479,Germany
+28522,Married,Female,60000,0,Graduate Degree,Skilled Manual,Yes,0,0-1 Miles,Europe,37,Yes,Yes,0.999950587749481,28522,32.18985,-81.35413,Bremerhaven,18271,Germany
+24853,Single,Male,80000,2,Partial College,Professional,Yes,1,10+ Miles,Europe,52,No,No,0.00213873665779829,24853,-21.64451,-118.27495,Quimper,83109,France
+12744,Single,Female,40000,2,Partial College,Clerical,Yes,0,0-1 Miles,Europe,33,No,No,0.00150413939263672,12744,38.32484,-75.59506,Haverhill,YI92 9JM,United Kingdom
+22386,Married,Male,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,71,No,No,1.44694286063896E-05,22386,63.79877,4.94424,Tongue,Z8Y 7ZV,United Kingdom
+22818,Married,Female,150000,4,Graduate Degree,Management,Yes,4,5-10 Miles,Europe,60,No,No,0.000298792583635077,22818,-36.21204,-60.57163,Sarreguemines,17326,France
+24187,Single,Female,30000,0,Graduate Degree,Clerical,No,0,0-1 Miles,Europe,46,Yes,Yes,0.762597441673279,24187,13.10526,-130.87407,Stirling,WK19 7QH,United Kingdom
+22705,Single,Female,20000,0,Partial High School,Manual,No,1,2-5 Miles,Europe,30,No,No,0.000331870483933017,22705,-39.71276,-149.54142,Chester,T25 3DA,United Kingdom
+11442,Married,Male,90000,0,Partial High School,Skilled Manual,Yes,2,10+ Miles,Europe,58,No,No,0.00155008397996426,11442,73.25631,-35.50667,Cottbus,33234,Germany
+15615,Single,Female,30000,0,High School,Manual,No,1,2-5 Miles,Europe,33,No,No,0.000434070418123156,15615,65.33746,-81.44711,G?rlitz,93524,Germany
+26830,Married,Male,30000,1,Bachelors,Clerical,Yes,1,2-5 Miles,Europe,40,Yes,Yes,0.782777965068817,26830,31.35274,113.90765,Montigny-l�s-Metz,25744,France
+14929,Married,Male,30000,1,Bachelors,Clerical,Yes,0,2-5 Miles,Europe,38,Yes,No,0.271833032369614,14929,-80.99576,111.08367,Bastia,81309,France
+22419,Single,Male,10000,1,High School,Manual,No,1,2-5 Miles,Europe,47,No,No,0.000137564449687488,22419,6.65263,-163.87255,Motherwell,U63 1GT,United Kingdom
+16191,Single,Female,30000,0,High School,Manual,Yes,1,2-5 Miles,Europe,28,No,No,0.00174649304244667,16191,17.58605,-169.5641,Eisenh?ttenstadt,65749,Germany
+24096,Married,Female,30000,0,Bachelors,Skilled Manual,Yes,1,2-5 Miles,Europe,72,No,No,0.00487671745941043,24096,41.99274,167.73579,Kilmarnock,O1 6YB,United Kingdom
+17880,Married,Female,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,44,No,No,0.00167808774858713,17880,-76.78153,154.38278,Krefeld,98113,Germany
+11576,Married,Male,30000,1,Bachelors,Skilled Manual,Yes,2,0-1 Miles,Europe,41,Yes,No,0.192633390426636,11576,29.51012,75.96022,Nevers,31619,France
+22424,Single,Male,20000,0,Partial College,Manual,Yes,1,2-5 Miles,Europe,48,No,No,0.00653276965022087,22424,81.84403,-147.99092,Bremen,5746,Germany
+26410,Single,Male,90000,1,High School,Management,Yes,3,10+ Miles,Europe,56,No,No,0.000299664097838104,26410,-42.93747,-159.11931,Neustadt am R?benberge,21020,Germany
+26872,Married,Male,30000,3,Partial College,Clerical,Yes,3,0-1 Miles,Europe,28,No,No,8.70517396833748E-05,26872,33.52346,-58.95707,Kinross,R24 3PK,United Kingdom
+16193,Single,Male,30000,0,High School,Manual,No,1,1-2 Miles,Europe,28,No,No,0.000270117860054597,16193,57.17255,-104.86173,K?nigs Wusterhausen,33518,Germany
+24878,Married,Female,90000,1,High School,Management,Yes,3,10+ Miles,Europe,58,No,No,7.98481996753253E-05,24878,8.04449,-54.16112,Germersheim,3798,Germany
+13831,Single,Male,20000,0,High School,Manual,Yes,1,2-5 Miles,Europe,30,No,No,0.0230788942426443,13831,40.32838,-103.97271,Crieff,DN74 8GC,United Kingdom
+17092,Married,Male,40000,1,Bachelors,Skilled Manual,Yes,0,1-2 Miles,Europe,32,No,No,0.244435355067253,17092,26.74403,-94.56321,Langen,71287,Germany
+28886,Married,Male,100000,3,High School,Professional,Yes,4,10+ Miles,Europe,51,No,No,1.3906317690271E-05,28886,16.61162,97.18498,Tours,56082,France
+21868,Married,Female,100000,4,High School,Management,Yes,4,10+ Miles,Europe,59,No,No,0.000208582627237774,21868,0.40505,-123.21651,Berlin,39803,Germany
+23748,Single,Female,30000,0,Partial College,Clerical,No,1,2-5 Miles,Europe,28,No,No,0.0018472591182217,23748,-10.40851,92.63253,Le Mans,67274,France
+24119,Single,Male,30000,0,Partial College,Clerical,No,1,2-5 Miles,Europe,29,No,No,0.00218568253330886,24119,72.1492,-176.78857,Castletown,R2R 4HB,United Kingdom
+23631,Single,Male,80000,1,High School,Management,No,3,5-10 Miles,Europe,57,No,No,0.00110995664726943,23631,38.68928,-68.41469,Orl�ans,18565,France
+24147,Married,Female,20000,0,Graduate Degree,Clerical,No,0,0-1 Miles,Europe,71,No,No,1.79047292476753E-05,24147,-52.80358,-11.95573,Cherbourg-Octeville,99822,France
+25515,Single,Female,20000,0,High School,Manual,No,1,5-10 Miles,Europe,29,No,No,7.24167466614745E-06,25515,2.53997,37.04383,Wittenberg,59910,Germany
+16574,Single,Male,20000,1,Partial College,Manual,No,0,1-2 Miles,Europe,38,No,No,0.199692666530609,16574,17.00524,-70.85258,Auldearn,V98 4FW,United Kingdom
+24877,Married,Female,80000,1,High School,Management,Yes,4,10+ Miles,Europe,58,No,No,0.000158551163622178,24877,-46.53981,-51.15946,Sangerhausen,88880,Germany
+26852,Married,Female,20000,3,High School,Manual,Yes,2,0-1 Miles,Europe,43,No,No,0.00024062096781563,26852,37.7214,-4.94273,Bautzen,41509,Germany
+29424,Married,Male,10000,0,Partial High School,Manual,Yes,2,0-1 Miles,Europe,32,No,No,7.53801532482612E-06,29424,43.03843,163.77749,Oberursel,81959,Germany
+23598,Single,Female,150000,3,Partial College,Professional,No,4,5-10 Miles,Europe,48,No,No,0.000687232473865151,23598,-3.47586,63.27941,Thurso,Z7F 2EO,United Kingdom
+14821,Married,Male,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,42,No,No,0.00729531515389681,14821,0.13858,63.07996,Sudbury,N0Z 1WK,United Kingdom
+28920,Single,Female,120000,5,High School,Management,No,4,10+ Miles,Europe,59,No,No,7.79767015046673E-06,28920,4.27755,-132.59971,Friedrichshafen,31173,Germany
+19077,Married,Male,110000,5,High School,Management,Yes,3,10+ Miles,Europe,58,No,No,0.00324729015119374,19077,69.71411,116.24387,Cherbourg-Octeville,26541,France
+11438,Married,Female,130000,5,High School,Management,Yes,4,0-1 Miles,Europe,57,No,No,0.000106190454971511,11438,56.85502,166.44643,Balfour,X4 2IH,United Kingdom
+12595,Single,Male,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,45,No,No,0.00639060465618968,12595,-88.83562,91.01994,Versailles,91532,France
+19448,Single,Female,20000,1,Partial College,Manual,No,1,0-1 Miles,Europe,39,Yes,Yes,0.959803760051727,19448,56.85716,-166.52054,Ch�teauroux,77193,France
+28919,Married,Female,90000,0,Partial High School,Skilled Manual,Yes,2,10+ Miles,Europe,59,No,No,1.53516048158053E-05,28919,13.61793,-46.73237,Bloxham,YM42 0BJ,United Kingdom
+13555,Married,Female,40000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,37,Yes,Yes,0.993559122085571,13555,6.63573,-72.33201,Barrhead,IY22 7WZ,United Kingdom
+13786,Single,Male,30000,1,Bachelors,Clerical,No,1,1-2 Miles,Europe,40,No,No,0.00239107524976134,13786,70.67056,157.94424,Chartres,93712,France
+20929,Single,Male,30000,3,Partial College,Clerical,Yes,2,0-1 Miles,Europe,27,No,No,0.0010539754293859,20929,14.74439,103.88136,Loughborough,SJ7 7HZ,United Kingdom
+24864,Married,Male,90000,1,Partial College,Professional,Yes,2,10+ Miles,Europe,54,No,No,7.5958225352224E-05,24864,-88.82445,79.27819,Ch�tellerault,46737,France
+17881,Married,Female,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,45,No,No,0.00151120009832084,17881,78.69606,128.0188,Clovenfords,A2 4BT,United Kingdom
+12642,Married,Male,100000,4,High School,Professional,Yes,3,2-5 Miles,Europe,52,No,No,0.0035449496936053,12642,-64.98041,56.04255,K?then,46355,Germany
+13764,Married,Female,20000,1,Partial College,Manual,Yes,1,2-5 Miles,Europe,38,No,No,0.00196106405928731,13764,12.66362,26.17692,Senftenberg,71625,Germany
+22661,Married,Female,30000,1,Bachelors,Skilled Manual,Yes,2,0-1 Miles,Europe,42,No,No,0.0288345776498318,22661,55.01521,32.67569,Berlin,88735,Germany
+26889,Single,Female,20000,0,Partial High School,Manual,No,1,5-10 Miles,Europe,32,No,No,1.52810589497676E-05,26889,48.87438,123.54041,W?rzburg,27281,Germany
+22802,Single,Female,120000,4,Partial High School,Professional,Yes,4,10+ Miles,Europe,51,No,No,0.000491981976665556,22802,-49.63378,-0.05152,Llanelli,P26 3MA,United Kingdom
+11405,Single,Female,10000,0,Partial College,Manual,No,2,0-1 Miles,Europe,54,No,Yes,0.997655391693115,11405,-74.51218,155.87707,Herne,65016,Germany
+22528,Single,Female,20000,0,High School,Manual,Yes,1,2-5 Miles,Europe,30,No,No,0.00115810870192945,22528,-30.32231,117.76882,Uppingham. Cottesmore,BD7K 5ZL,United Kingdom
+17710,Married,Female,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,70,No,No,0.000411612360039726,17710,3.5465,-156.47293,Heidenheim,39267,Germany
+17857,Single,Female,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,26,No,No,0.000112644185719546,17857,13.12147,131.07677,Brive-la-Gaillarde,75228,France
+25653,Single,Male,20000,0,High School,Manual,No,1,1-2 Miles,Europe,29,No,No,0.0003553795395419,25653,19.34502,54.87986,Hamburg,30206,Germany
+23441,Single,Male,20000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,33,No,No,0.000210672049433924,23441,-5.5394,119.95346,Clermont-Ferrand,96372,France
+28570,Single,Female,40000,2,Partial College,Clerical,No,2,0-1 Miles,Europe,34,No,No,0.0510778352618217,28570,-55.24467,-102.9181,Aberdeen,EH2X 7XB,United Kingdom
+17204,Single,Female,130000,4,Partial College,Professional,No,4,0-1 Miles,Europe,61,No,No,0.000223286697291769,17204,-38.0896,-175.66025,Rouen,69852,France
+17084,Single,Male,20000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,25,No,No,0.000716615002602339,17084,-28.49866,162.91675,Maidstone,W30 1WS,United Kingdom
+12646,Single,Male,90000,1,High School,Professional,Yes,2,10+ Miles,Europe,54,No,No,0.00613393681123853,12646,-80.13519,-56.03771,La Rochelle,60293,France
+14190,Married,Female,90000,1,High School,Professional,Yes,3,2-5 Miles,Europe,55,No,No,0.0143869128078222,14190,-50.49532,-51.42025,Strasbourg,45970,France
+27838,Married,Female,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,32,No,No,4.19832649640739E-05,27838,-6.35982,120.32983,L?neburg,29908,Germany
+16590,Married,Male,150000,5,Bachelors,Management,Yes,3,10+ Miles,Europe,53,No,No,0.00505794445052743,16590,73.12794,73.77785,Troyes,74330,France
+15689,Single,Female,90000,0,Partial College,Professional,No,2,10+ Miles,Europe,61,No,No,0.00925195310264826,15689,59.21985,116.76038,Celle,76542,Germany
+12743,Married,Male,40000,2,Partial College,Clerical,No,0,0-1 Miles,Europe,33,No,No,0.00116675556637347,12743,-41.85873,44.53031,Hoyerswerda,90176,Germany
+27829,Single,Male,30000,0,Partial College,Clerical,No,1,2-5 Miles,Europe,29,No,No,0.000891859759576619,27829,53.15626,-133.21504,Wilhelmshaven,80262,Germany
+19383,Single,Male,20000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,33,No,No,0.000248135940637439,19383,-23.53437,5.45978,Berlin,78377,Germany
+21097,Married,Male,20000,0,High School,Manual,No,1,2-5 Miles,Europe,29,No,No,1.519773468317E-05,21097,-62.78071,-56.84797,S�te,22460,France
+20803,Single,Female,10000,0,Partial College,Manual,Yes,0,0-1 Miles,Europe,50,No,No,0.000720883719623089,20803,48.05375,111.29757,Ajaccio,3517,France
+20899,Single,Female,10000,3,Partial High School,Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.0137091483920813,20899,17.17783,-96.97039,Agen,81675,France
+29426,Single,Male,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,32,No,No,4.57834503322374E-05,29426,-22.91305,-152.01615,Kinross,Z7 7WL,United Kingdom
+21863,Single,Female,90000,1,Partial High School,Skilled Manual,Yes,4,10+ Miles,Europe,58,No,No,0.000512144062668085,21863,79.24,43.97744,Bastia,65997,France
+23596,Single,Female,110000,4,Partial College,Professional,Yes,3,5-10 Miles,Europe,49,No,No,0.0234854146838188,23596,-73.4833,58.74058,Sens,15172,France
+19939,Married,Male,160000,5,Partial College,Management,Yes,3,10+ Miles,Europe,56,No,No,0.000149473373312503,19939,46.54754,-9.07727,Kinross,B0H 1RQ,United Kingdom
+12476,Single,Male,20000,2,High School,Manual,Yes,0,0-1 Miles,Europe,41,No,No,0.00741462176665664,12476,35.12835,-65.71131,Brighton,NH7 7VX,United Kingdom
+20937,Single,Female,30000,0,Partial College,Clerical,Yes,1,2-5 Miles,Europe,29,No,No,0.00184398586861789,20937,-64.47286,145.26659,Marseille,34126,France
+20939,Single,Male,20000,0,High School,Manual,No,1,1-2 Miles,Europe,30,No,No,0.000287952338112518,20939,-32.99273,-81.87966,Berlin,76826,Germany
+17190,Single,Female,120000,4,Partial High School,Professional,Yes,4,10+ Miles,Europe,51,No,No,0.00114457402378321,17190,-20.91423,105.13897,Delmenhorst,38953,Germany
+18630,Single,Female,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,35,No,No,0.000578084378503263,18630,25.42521,144.18952,Bremen,22951,Germany
+12481,Single,Male,10000,2,Partial High School,Manual,Yes,1,0-1 Miles,Europe,42,No,No,0.0535448528826237,12481,-13.92152,101.39235,Bergerac,57801,France
+22551,Single,Male,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,44,No,No,0.0025660467799753,22551,18.48358,-129.12225,Chalon-sur-Sa�ne,77569,France
+26397,Single,Male,130000,4,Partial College,Professional,No,4,5-10 Miles,Europe,61,No,No,0.0010315157705918,26397,-33.13926,-48.13055,Saarlouis,57356,Germany
+13571,Married,Male,10000,2,High School,Manual,No,1,0-1 Miles,Europe,38,No,No,0.000153755856445059,13571,57.96538,132.34396,Arles,27887,France
+17706,Married,Male,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,45,No,No,4.35563888459001E-05,17706,36.55953,-171.12983,Bristol,DL3 0OO,United Kingdom
+17106,Single,Female,10000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,35,No,No,0.000147237864439376,17106,-2.6713,-168.47718,Flensburg,56137,Germany
+21070,Married,Female,20000,2,High School,Manual,No,1,0-1 Miles,Europe,41,No,No,0.000406363658839837,21070,3.93628,128.88979,Besan�on,5898,France
+22530,Single,Female,20000,0,High School,Manual,No,1,2-5 Miles,Europe,31,No,No,0.000230316538363695,22530,-81.9229,-146.77343,Berlin,68321,Germany
+15463,Single,Male,10000,0,Partial College,Manual,Yes,1,1-2 Miles,Europe,62,Yes,Yes,0.918574810028076,15463,34.71342,-32.76836,Schwedt,17721,Germany
+12590,Single,Male,30000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,63,No,Yes,0.60004049539566,12590,-32.94424,154.77007,Schwerin,57640,Germany
+24531,Married,Male,130000,3,Bachelors,Management,No,4,5-10 Miles,Europe,48,No,No,0.000579131592530757,24531,-81.74318,-172.94196,Hohen Neuendorf,2986,Germany
+24075,Married,Female,10000,3,Partial High School,Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.000317135301884264,24075,62.94793,-112.94192,Laon,46104,France
+21068,Single,Male,10000,3,Partial High School,Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.00124866282567382,21068,37.98357,-26.805,New Quay,HI19 9GH,United Kingdom
+24867,Single,Female,90000,1,High School,Professional,Yes,3,10+ Miles,Europe,55,No,No,0.00116028217598796,24867,76.37672,-60.46089,Ingolstadt,43040,Germany
+21115,Single,Male,30000,0,Partial College,Clerical,Yes,1,2-5 Miles,Europe,29,No,No,0.00184398586861789,21115,7.65846,90.24595,Dunbar,ZM9W 6QF,United Kingdom
+14182,Married,Male,110000,4,Partial College,Professional,Yes,4,10+ Miles,Europe,52,No,No,0.00101442402228713,14182,-71.15045,117.97041,Orl�ans,41439,France
+15443,Married,Male,10000,0,Graduate Degree,Manual,Yes,0,0-1 Miles,Europe,44,No,No,0.000208280107472092,15443,5.84407,-13.76013,Chichester,E7W 3IF,United Kingdom
+11474,Single,Male,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,26,No,No,0.0184534303843975,11474,-57.23664,95.36936,Le Puy-en-Velay,27853,France
+21094,Single,Female,30000,2,Partial College,Clerical,Yes,2,0-1 Miles,Europe,42,No,No,0.00576332025229931,21094,17.71216,122.88639,Saumur,29495,France
+27779,Married,Male,10000,3,Partial High School,Manual,Yes,2,0-1 Miles,Europe,41,No,No,2.31469384743832E-05,27779,-39.63528,-167.13335,Rathenow,26124,Germany
+23965,Single,Male,10000,0,Graduate Degree,Manual,No,0,0-1 Miles,Europe,44,No,No,0.000137887051096186,23965,-42.35495,42.75088,Sotteville-l�s-Rouen,97529,France
+12539,Single,Male,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,71,No,No,0.00010841077164514,12539,21.93728,113.03518,Bath,GF27 4BJ,United Kingdom
+11569,Married,Male,30000,1,Bachelors,Clerical,Yes,1,2-5 Miles,Europe,40,No,No,0.00151491665747017,11569,3.49073,-127.50524,Bastia,24084,France
+21521,Single,Female,80000,0,Partial College,Professional,No,2,2-5 Miles,Europe,60,No,No,0.0170979425311089,21521,83.89537,-44.99636,H�rouville-Saint-Clair,41337,France
+27858,Single,Female,10000,0,Partial College,Manual,No,1,2-5 Miles,Europe,64,No,No,5.85913912800606E-05,27858,-58.05064,125.41508,Llanelli,SQ8Q 2HB,United Kingdom
+23221,Single,Male,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,34,No,No,0.000805748684797436,23221,-58.3182,-102.22058,Pontarlier,15163,France
+18015,Single,Female,30000,2,Partial College,Clerical,Yes,2,0-1 Miles,Europe,42,No,No,0.00784896966069937,18015,-48.87045,-14.78526,Dalkeith,VF7 3NK,United Kingdom
+16438,Married,Female,10000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,30,No,No,0.000144671357702464,16438,87.21745,-81.37429,Hamburg,8400,Germany
+14973,Single,Female,30000,3,Partial College,Clerical,Yes,1,0-1 Miles,Europe,27,No,No,0.00102603668347001,14973,-63.81764,-147.07919,Zittau,96836,Germany
+16198,Single,Male,30000,0,High School,Manual,Yes,1,2-5 Miles,Europe,34,No,No,0.0165974777191877,16198,0.04129,128.75377,Durham,BY0 4LA,United Kingdom
+17108,Single,Female,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,35,No,No,0.000495755695737898,17108,-88.39249,-167.35693,W?rzburg,42855,Germany
+26958,Married,Male,40000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,37,Yes,Yes,0.999972641468048,26958,67.29778,123.80711,Bad Nauheim,66151,Germany
+26882,Single,Female,20000,0,High School,Manual,No,1,5-10 Miles,Europe,30,No,No,5.0749872571032E-06,26882,6.99884,154.68498,Aurillac,6742,France
+14545,Married,Female,10000,0,Partial College,Manual,Yes,0,1-2 Miles,Europe,50,No,No,0.000979470205493271,14545,-38.15017,-131.23335,Salzgitter,67878,Germany
+12467,Single,Female,20000,1,Partial College,Manual,No,1,0-1 Miles,Europe,39,No,No,0.0040334309451282,12467,-59.21409,114.2537,Dijon,93861,France
+11581,Married,Female,40000,0,Bachelors,Professional,Yes,0,0-1 Miles,Europe,40,No,No,0.0578399114310741,11581,23.9401,-171.79263,Fulda,43019,Germany
+12746,Single,Male,10000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,35,No,No,0.00698456028476357,12746,33.1825,-88.50597,Gie?en,23610,Germany
+16936,Married,Female,10000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,70,No,No,9.40428071771748E-06,16936,-12.13243,-65.54476,Pontypridd,P86 8FX,United Kingdom
+19074,Married,Female,70000,1,Partial High School,Skilled Manual,Yes,4,10+ Miles,Europe,58,No,No,0.00130930740851909,19074,-31.58665,-116.57058,Knighton,RS15 0XD,United Kingdom
+26395,Single,Female,90000,0,Partial College,Professional,Yes,2,10+ Miles,Europe,61,No,No,0.00163312489166856,26395,-3.35092,-174.31323,Dalbeattie,VH4 2RB,United Kingdom
+19500,Married,Male,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,43,Yes,Yes,0.984685063362122,19500,44.97888,55.53308,Taunton,LL49 1NU,United Kingdom
+12869,Married,Female,20000,0,High School,Manual,No,1,2-5 Miles,Europe,30,No,No,0.00069979828549549,12869,-2.71449,-155.04836,St. Ives,Z3 1UN,United Kingdom
+20050,Single,Female,30000,0,High School,Manual,No,1,2-5 Miles,Europe,34,No,No,0.0140815274789929,20050,57.77405,37.599,Berlin,23039,Germany
+17776,Single,Female,20000,1,Partial College,Manual,No,1,0-1 Miles,Europe,38,No,No,0.0658474043011665,17776,-44.47322,-12.96446,Agen,60412,France
+20960,Single,Male,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,44,No,No,0.0027742285747081,20960,62.21981,-2.78605,Sankt Ingbert,81323,Germany
+14689,Single,Female,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,25,No,No,0.000278405757853761,14689,-53.89381,-27.4226,Kelso,BW9 2DB,United Kingdom
+25145,Single,Male,30000,0,Partial College,Clerical,Yes,1,2-5 Miles,Europe,32,No,No,0.00428718887269497,25145,0.84359,34.50086,Saint-Brieuc,37033,France
+16545,Married,Female,10000,1,High School,Manual,Yes,1,2-5 Miles,Europe,47,No,No,0.00281472457572818,16545,77.36882,-29.23497,Blaenau Ffestiniog,GV69 9ZC,United Kingdom
+23444,Single,Male,30000,0,Partial College,Clerical,No,1,2-5 Miles,Europe,33,Yes,No,0.0681388154625893,23444,55.00792,20.53344,Berlin,90872,Germany
+25643,Married,Male,30000,2,Partial College,Clerical,Yes,2,0-1 Miles,Europe,42,No,No,0.00284754834137857,25643,-89.52469,-126.23307,Saint-Brieuc,5345,France
+12551,Married,Male,20000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,68,No,No,0.000285222224192694,12551,-73.11704,25.63301,Colombes,73183,France
+13569,Single,Male,10000,2,High School,Manual,Yes,1,0-1 Miles,Europe,38,No,No,0.00953914038836956,13569,-35.23487,-146.17263,Bourges,29648,France
+16544,Married,Male,10000,1,High School,Manual,Yes,1,2-5 Miles,Europe,47,No,No,0.00281472457572818,16544,-65.46323,78.70941,Lingen,1734,Germany
+25554,Single,Male,10000,0,Partial College,Manual,No,1,2-5 Miles,Europe,63,No,No,0.00362124177627265,25554,-13.53958,46.03428,Clermont-Ferrand,86729,France
+23969,Single,Male,10000,0,Bachelors,Manual,No,0,0-1 Miles,Europe,45,No,No,0.000153946617501788,23969,26.27681,127.55704,Aberystwyth,D2L 8GA,United Kingdom
+25144,Single,Male,30000,0,Partial College,Clerical,Yes,1,2-5 Miles,Europe,32,No,No,0.00428718887269497,25144,-85.97179,17.59004,Rodez,89530,France
+17886,Married,Female,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,48,No,No,9.43704944802448E-05,17886,68.15351,139.70831,Stockton-on-Tees,V8C 5CV,United Kingdom
+12733,Single,Female,10000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,34,No,No,0.00698456028476357,12733,40.79657,-158.74591,Macclesfield,BD43 1OK,United Kingdom
+25645,Single,Male,30000,2,Partial College,Clerical,Yes,2,0-1 Miles,Europe,42,No,No,0.0338608473539352,25645,55.94711,-176.10605,Denbigh,L4 7MN,United Kingdom
+13498,Single,Male,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,44,No,No,0.0301147066056728,13498,-74.79252,20.49953,Mainz,10544,Germany
+12568,Married,Female,30000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,64,No,No,0.000861396605614573,12568,54.35761,-40.44155,Bremen,98804,Germany
+14820,Married,Male,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,42,No,No,0.00729531515389681,14820,71.08553,52.16072,Worcester,L3M 5ZP,United Kingdom
+12518,Single,Female,30000,0,Partial College,Clerical,No,1,2-5 Miles,Europe,29,No,No,0.000947552849538624,12518,-73.01102,-148.30998,Villeneuve-d'Ascq,3028,France
+20582,Single,Female,80000,1,High School,Professional,Yes,2,10+ Miles,Europe,54,No,No,0.00112048233859241,20582,-55.10192,23.36871,Kaiserslauter,40709,Germany
+26899,Married,Female,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,45,No,No,7.92867431300692E-05,26899,-11.06879,-174.92383,Colomiers,89749,France
+14707,Single,Female,10000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,35,No,No,0.0012448001652956,14707,-12.09225,-61.3167,Kempten,76697,Germany
+14992,Married,Male,20000,0,Partial High School,Manual,Yes,1,5-10 Miles,Europe,94,No,No,9.5380764832953E-06,14992,-39.11135,-100.67917,Montgomery,G4 3CW,United Kingdom
+13582,Married,Female,130000,4,Partial College,Professional,Yes,4,0-1 Miles,Europe,60,No,No,0.000197071130969562,13582,-70.44539,114.97393,Bernau,56422,Germany
+25310,Single,Female,10000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,35,No,No,9.29293673834763E-05,25310,-29.26697,-178.31469,Creil,40652,France
+23756,Single,Male,20000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,33,No,No,0.000210672049433924,23756,-21.13812,-48.90527,Bergen,57257,Germany
+22832,Married,Male,70000,1,Partial High School,Skilled Manual,Yes,3,5-10 Miles,Europe,58,No,No,0.0483555980026722,22832,-7.9486,-38.25748,Belfort,81985,France
+15109,Married,Female,80000,1,High School,Professional,Yes,2,10+ Miles,Europe,54,No,No,0.000854758021887392,15109,87.57237,39.84601,Lehrte,66975,Germany
+14526,Married,Female,10000,0,Graduate Degree,Manual,Yes,0,0-1 Miles,Europe,44,No,No,0.000154822846525349,14526,77.46294,-130.80733,Crieff,E68 4BT,United Kingdom
+12643,Married,Female,120000,5,Bachelors,Management,Yes,3,10+ Miles,Europe,53,No,No,0.0022952186409384,12643,-29.97858,87.30363,Milford Haven,MI55 8MZ,United Kingdom
+26901,Married,Male,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,45,No,No,0.00147406535688788,26901,27.80966,118.88379,Bad Kreuznach,26244,Germany
+17817,Married,Female,30000,0,Bachelors,Skilled Manual,Yes,1,2-5 Miles,Europe,72,No,No,0.000804580748081207,17817,50.38842,77.85527,Selkirk,PO7N 6RZ,United Kingdom
+29422,Single,Male,20000,0,High School,Manual,Yes,1,2-5 Miles,Europe,30,No,No,0.000203353469260037,29422,-89.98557,-162.02105,Holywell,T6Y 7UP,United Kingdom
+27811,Married,Male,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,43,Yes,Yes,0.999974489212036,27811,-18.66936,-85.43462,Aurillac,53669,France
+22657,Single,Male,10000,2,Partial High School,Manual,Yes,1,0-1 Miles,Europe,42,No,No,0.0548968017101288,22657,67.11611,-111.59574,Marlborough,FE8 4VE,United Kingdom
+25463,Single,Male,20000,2,High School,Manual,Yes,0,0-1 Miles,Europe,40,Yes,No,0.166896313428879,25463,37.70672,4.2596,Rouen,30664,France
+17931,Married,Male,20000,1,Partial College,Manual,Yes,0,1-2 Miles,Europe,45,No,No,0.00532547617331147,17931,53.16181,78.92927,Bastia,72566,France
+24035,Single,Female,10000,0,Bachelors,Clerical,No,2,0-1 Miles,Europe,87,No,No,5.11084090248914E-06,24035,-10.90108,20.79246,Edinburgh,LL4U 4KZ,United Kingdom
+12741,Single,Male,30000,0,High School,Manual,Yes,1,2-5 Miles,Europe,34,No,No,0.00590091664344072,12741,-3.85537,131.07675,Tranent,F11 0VP,United Kingdom
+24106,Single,Male,30000,3,Partial College,Clerical,No,0,0-1 Miles,Europe,42,No,No,0.0250617191195488,24106,-9.33955,-76.40391,R?sselsheim,60983,Germany
+21542,Married,Female,70000,1,Partial High School,Skilled Manual,No,3,5-10 Miles,Europe,57,Yes,No,0.00196154112927616,21542,-62.51708,-150.38823,Berlin,3152,Germany
+25808,Single,Female,90000,0,Partial High School,Skilled Manual,Yes,2,10+ Miles,Europe,59,No,No,0.00015272427117452,25808,22.38131,29.94473,Esslingen,22586,Germany
+12324,Single,Male,90000,1,High School,Professional,Yes,3,10+ Miles,Europe,55,No,No,0.0014138228725642,12324,-87.40109,-59.30871,Orl�ans,59258,France
+19262,Married,Female,30000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,63,No,Yes,0.989057779312134,19262,-45.01361,82.25839,Weston-super-Mare,T9 0PY,United Kingdom
+21818,Married,Male,110000,4,Partial College,Professional,Yes,3,5-10 Miles,Europe,49,No,No,0.00382821680977941,21818,64.30216,-91.68936,Aschersleben,87516,Germany
+18032,Married,Female,20000,0,High School,Manual,No,1,2-5 Miles,Europe,30,No,No,2.74576213996625E-05,18032,-6.70375,-59.35947,Al�s,56928,France
+21039,Single,Female,50000,0,Graduate Degree,Skilled Manual,No,0,0-1 Miles,Europe,37,Yes,Yes,0.930177628993988,21039,21.68743,-107.97775,Saint-L�,65731,France
+16471,Married,Female,10000,0,High School,Manual,No,2,0-1 Miles,Europe,93,No,No,5.35861204298271E-07,16471,88.02985,-160.26269,�vreux,73682,France
+24182,Married,Female,30000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,63,Yes,Yes,0.838856995105743,24182,58.34671,-166.79875,Welshpool,FW1Y 9AS,United Kingdom
+23959,Single,Female,30000,0,Partial College,Clerical,No,1,0-1 Miles,Europe,31,No,No,0.046050351113081,23959,8.57957,92.90538,Saint-�tienne-du-Rouvray,44828,France
+21913,Single,Male,20000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,26,No,No,0.000253773294389248,21913,-8.8352,22.34302,Saint-Herblain,75974,France
+26405,Married,Female,80000,1,Partial College,Professional,Yes,2,10+ Miles,Europe,54,No,No,0.000108555075712502,26405,15.87647,-172.82093,Charleville-M�zi�res,92553,France
+12625,Married,Female,20000,0,Partial College,Manual,Yes,1,0-1 Miles,Europe,54,No,Yes,0.703673958778381,12625,50.24708,-61.30369,Aberdeen,G4 6WO,United Kingdom
+22483,Single,Male,10000,3,Partial High School,Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.00278884125873446,22483,-44.06349,-49.06768,Laon,46344,France
+17953,Single,Female,10000,2,High School,Manual,Yes,0,0-1 Miles,Europe,36,No,No,0.0641322806477547,17953,26.13843,70.45658,Halle,86858,Germany
+13776,Married,Male,30000,0,Bachelors,Clerical,Yes,1,2-5 Miles,Europe,80,No,No,1.65976507560117E-05,13776,79.71298,107.38412,Anglet,19981,France
+26384,Married,Male,110000,4,Partial College,Professional,Yes,4,5-10 Miles,Europe,50,No,No,0.000312769872834906,26384,-88.81628,159.56337,Sudbury,LE1A 8EK,United Kingdom
+20580,Single,Male,80000,1,Partial College,Professional,Yes,2,10+ Miles,Europe,54,No,No,0.00131245574448258,20580,-84.76617,-57.77562,Orvault,42783,France
+19481,Married,Male,30000,0,Partial College,Clerical,Yes,1,2-5 Miles,Europe,44,No,No,0.0818575769662857,19481,-71.54961,102.08114,Ajaccio,95642,France
+27332,Married,Male,90000,1,High School,Management,Yes,3,10+ Miles,Europe,58,No,No,0.00198792945593596,27332,8.04731,27.76031,Castres,33699,France
+20904,Married,Female,30000,1,Bachelors,Skilled Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.0219264831393957,20904,-48.51961,-47.12978,Limoges,91929,France
+23928,Married,Female,30000,2,Partial College,Clerical,Yes,2,0-1 Miles,Europe,42,No,No,0.00266774091869593,23928,73.64309,-104.6039,Market Drayton,FG5 9TP,United Kingdom
+12842,Single,Male,30000,2,Partial College,Clerical,Yes,1,0-1 Miles,Europe,41,No,No,0.0574602633714676,12842,27.06522,84.91754,Wernigerode,83058,Germany
+27155,Married,Male,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,26,No,No,9.00859595276415E-05,27155,-26.96779,30.65799,Bergen,25832,Germany
+16209,Single,Female,50000,0,Graduate Degree,Skilled Manual,Yes,0,1-2 Miles,Europe,36,No,No,0.356261163949966,16209,-23.95778,-1.65442,Mulhouse,91897,France
+28711,Married,Female,30000,0,Bachelors,Clerical,Yes,0,1-2 Miles,Europe,37,Yes,Yes,0.999999463558197,28711,15.43679,56.15438,Spremberg,43509,Germany
+19355,Single,Male,20000,0,High School,Manual,No,1,2-5 Miles,Europe,29,No,No,6.14996679360047E-05,19355,12.35253,-160.83321,Newark,N1 5EK,United Kingdom
+19349,Single,Male,30000,2,Partial College,Clerical,Yes,2,0-1 Miles,Europe,42,No,No,0.00576332025229931,19349,54.6649,-61.59882,Dortmund,92009,Germany
+26392,Single,Female,100000,3,Graduate Degree,Management,No,4,2-5 Miles,Europe,62,No,No,0.00242353742942214,26392,25.7653,8.40954,Leicester,KH3Y 1DQ,United Kingdom
+12509,Married,Male,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,44,No,No,0.00167861219961196,12509,6.14162,73.07741,Montlu�on,50977,France
+19261,Married,Female,20000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,66,No,No,0.0682276412844658,19261,-40.42006,24.37085,Montb�liard,3357,France
+16279,Single,Female,10000,2,Partial High School,Manual,Yes,2,0-1 Miles,Europe,43,No,No,0.0550422370433807,16279,89.27496,-127.67725,Newton Stewart,LW6O 9GK,United Kingdom
+21086,Married,Female,20000,0,Partial College,Manual,Yes,1,2-5 Miles,Europe,73,No,No,1.63406602951E-05,21086,-77.87598,11.47816,Pau,28162,France
+22384,Single,Female,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,45,No,No,0.000908724614419043,22384,38.7939,145.87263,Cowdenbeath,Z2 3LV,United Kingdom
+22387,Married,Female,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,69,No,No,1.52181946759811E-05,22387,-12.67243,-35.42025,Carlisle,N4 8XM,United Kingdom
+24110,Single,Female,20000,4,High School,Manual,Yes,2,0-1 Miles,Europe,27,Yes,Yes,0.996807277202606,24110,41.78141,44.59061,Watford,M1 5MC,United Kingdom
+26894,Single,Female,10000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,33,No,No,0.000125687438412569,26894,-1.65787,-58.35611,Wittenberg,88242,Germany
+17809,Single,Male,10000,2,Partial High School,Manual,Yes,2,0-1 Miles,Europe,43,No,No,0.00357645377516747,17809,13.98611,-5.86475,Carcassonne,70721,France
+12505,Married,Male,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,43,No,No,0.00167861219961196,12505,-60.9744,-10.45506,Talence,86560,France
+27945,Single,Female,130000,5,High School,Professional,No,1,0-1 Miles,Europe,52,No,No,0.00620686309412122,27945,31.0643,92.70697,Pontarlier,92970,France
+17810,Married,Male,10000,2,Partial High School,Manual,No,2,0-1 Miles,Europe,43,No,No,0.00026898126816377,17810,63.39792,24.36215,Crawley,OT7C 8JR,United Kingdom
+22697,Single,Male,20000,0,High School,Manual,No,1,2-5 Miles,Europe,29,No,No,8.57372506288812E-05,22697,66.53273,111.20942,Thionville,91885,France
+11390,Single,Female,10000,1,High School,Manual,No,1,2-5 Miles,Europe,36,No,No,0.00124485755804926,11390,-55.44991,66.08795,Reims,32213,France
+16440,Single,Male,20000,4,High School,Manual,Yes,2,0-1 Miles,Europe,26,No,No,0.00186662434134632,16440,26.35715,23.29242,Limburg a.d. Lahn,14118,Germany
+15687,Married,Male,70000,1,High School,Professional,Yes,2,10+ Miles,Europe,61,Yes,No,0.0282778963446617,15687,89.54526,-142.62159,Rathenow,10340,Germany
+12303,Married,Female,130000,4,Partial College,Professional,Yes,4,0-1 Miles,Europe,60,No,No,0.000215876396396197,12303,-52.83473,-64.11652,Peterborough,O8 5LI,United Kingdom
+18002,Married,Female,20000,0,Partial College,Manual,Yes,1,2-5 Miles,Europe,73,No,No,6.38165802229196E-05,18002,-51.60384,32.49275,Ajaccio,72286,France
+13684,Single,Male,10000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,34,No,No,0.00646853866055608,13684,-27.31888,125.16053,Hamburg,24860,Germany
+25650,Married,Female,30000,3,Partial College,Clerical,Yes,0,0-1 Miles,Europe,43,No,No,0.00222139712423086,25650,2.23586,88.99824,Cherbourg-Octeville,96122,France
+16823,Married,Female,160000,3,Partial College,Professional,No,4,5-10 Miles,Europe,48,Yes,No,0.00839105434715748,16823,-10.40318,-11.45587,Frankfurt am Main,5888,Germany
+25679,Single,Female,30000,0,Partial College,Clerical,No,1,2-5 Miles,Europe,31,No,No,0.0078030307777226,25679,-36.93963,-71.06883,Clydebank,ZD84 3TA,United Kingdom
+11497,Single,Female,40000,2,Partial College,Clerical,Yes,2,1-2 Miles,Europe,35,No,No,0.0106873419135809,11497,49.29556,-147.1102,Brandenburg,92049,Germany
+22512,Single,Female,30000,2,Partial College,Clerical,Yes,2,0-1 Miles,Europe,42,No,No,0.00533203268423676,22512,-8.7358,151.20215,Dreux,66190,France
+16403,Married,Male,20000,1,High School,Manual,Yes,1,2-5 Miles,Europe,40,No,No,0.00253453757613897,16403,8.04642,84.47567,Ch�teauroux,19300,France
+23915,Married,Male,20000,2,High School,Manual,Yes,2,0-1 Miles,Europe,42,No,No,0.00078411033609882,23915,12.12201,46.52365,Guildford,KV3 8VN,United Kingdom
+11565,Single,Male,20000,2,High School,Manual,Yes,0,0-1 Miles,Europe,40,No,No,0.16480715572834,11565,-59.30624,-70.55566,Le Grand-Quevilly,13686,France
+24134,Single,Male,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,32,No,No,0.000173055464983918,24134,7.36958,-139.53467,Clermont-Ferrand,29269,France
+25314,Single,Male,10000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,35,No,No,0.000140115895192139,25314,5.02816,-83.22148,Rez�,38699,France
+12550,Married,Male,10000,0,Partial College,Manual,Yes,1,0-1 Miles,Europe,52,No,No,0.0110710859298706,12550,16.19729,136.37741,Halberstadt,65896,Germany
+27835,Married,Male,20000,0,Partial High School,Manual,Yes,2,0-1 Miles,Europe,32,No,No,9.33971314225346E-05,27835,25.80334,22.62246,Grangemouth,B4N 2VH,United Kingdom
+28465,Married,Female,20000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,50,No,No,0.00681967055425048,28465,-81.05768,-40.89445,Torquay,F92 5BE,United Kingdom
+26211,Single,Female,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,26,Yes,No,0.00114390894304961,26211,-88.42173,55.65945,Aulnay-sous-Bois,81095,France
+24571,Single,Male,90000,1,High School,Management,Yes,3,10+ Miles,Europe,56,No,No,0.000514303450472653,24571,-59.83593,141.002,Charleville-M�zi�res,92263,France
+24156,Married,Male,20000,0,Partial College,Manual,No,0,0-1 Miles,Europe,64,No,No,3.6800996895181E-05,24156,-61.93338,49.1082,Wokingham,TQ54 3RH,United Kingdom
+16454,Married,Male,30000,0,Partial College,Clerical,No,1,0-1 Miles,Europe,29,No,No,0.00118661182932556,16454,77.38993,-95.99935,Dolgellau,AS3 0EX,United Kingdom
+13509,Married,Male,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,69,No,No,0.000103442878753413,13509,-83.65114,138.52948,Bremen,37101,Germany
+28551,Single,Male,10000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,33,No,No,8.18946573417634E-05,28551,-6.64182,-143.71599,Belfort,87253,France
+14849,Single,Male,30000,0,Partial College,Clerical,No,1,0-1 Miles,Europe,31,No,No,0.0207080245018005,14849,-24.36476,163.63619,Cuxhaven,99022,Germany
+17212,Single,Female,80000,1,High School,Professional,Yes,2,10+ Miles,Europe,54,No,No,0.00146801292430609,17212,-66.38191,53.66113,Angoul�me,76681,France
+21663,Single,Male,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,34,No,No,0.00029502940014936,21663,-45.38027,34.38923,Roubaix,1031,France
+16059,Married,Male,20000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,68,No,No,0.000287252245470881,16059,19.72989,-142.88072,Sherborne,VV6N 3AD,United Kingdom
+28453,Married,Female,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,45,No,No,0.000415772257838398,28453,-39.47693,-91.06288,Goslar,69130,Germany
+14556,Married,Male,10000,0,Partial College,Manual,Yes,1,2-5 Miles,Europe,63,No,No,0.00190740812104195,14556,28.22151,90.95431,G?strow,94358,Germany
+28489,Single,Male,20000,0,Partial College,Manual,No,1,0-1 Miles,Europe,63,Yes,No,0.031238991767168,28489,86.15727,-162.31886,Rochester,U7P 5BE,United Kingdom
+24856,Married,Female,130000,4,Partial College,Professional,No,4,5-10 Miles,Europe,52,No,No,6.24581152806059E-05,24856,-60.85063,-161.51759,Saint-Dizier,24458,France
+14786,Married,Male,30000,1,Bachelors,Clerical,Yes,1,2-5 Miles,Europe,39,No,No,0.0180228259414434,14786,64.38824,86.40461,Cannes,43015,France
+27930,Single,Male,110000,4,Partial College,Professional,Yes,4,10+ Miles,Europe,51,No,No,0.000255299732089043,27930,74.20556,-149.38504,Eyemouth,V2 2DG,United Kingdom
+19494,Single,Male,20000,4,High School,Manual,Yes,2,0-1 Miles,Europe,27,No,No,0.0291377808898687,19494,-36.60071,-81.38051,Hy�res,65564,France
+16266,Married,Female,30000,1,Bachelors,Skilled Manual,Yes,1,2-5 Miles,Europe,40,No,No,0.308614701032639,16266,-0.21682,37.25337,Prenzlau,45244,Germany
+24719,Married,Female,40000,2,Partial College,Clerical,Yes,1,0-1 Miles,Europe,35,No,No,0.0773745402693748,24719,49.63065,-142.17847,Selkirk,CK73 5CN,United Kingdom
+16287,Married,Female,40000,0,Bachelors,Professional,Yes,0,0-1 Miles,Europe,40,Yes,No,0.375550001859665,16287,87.16946,-141.37235,Le Puy-en-Velay,90511,France
+21513,Married,Female,70000,1,High School,Professional,Yes,2,10+ Miles,Europe,62,No,No,0.000161510586622171,21513,29.59975,71.77223,Brive-la-Gaillarde,96266,France
+22390,Married,Male,20000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,49,No,No,0.267314076423645,22390,-80.82881,-88.23069,Albi,43841,France
+27804,Single,Male,30000,0,Partial College,Clerical,No,1,0-1 Miles,Europe,44,No,No,0.104718498885632,27804,-10.76213,-23.39171,Vandoeuvre-l�s-Nancy,71824,France
+17721,Married,Female,10000,0,Partial College,Manual,Yes,1,2-5 Miles,Europe,65,No,No,0.00226938421837986,17721,-36.98268,-86.42656,Moffat,CK60 7IB,United Kingdom
+27810,Married,Female,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,42,Yes,Yes,0.99802827835083,27810,-28.85025,-26.84281,Freiburg,21857,Germany
+12836,Single,Male,20000,3,High School,Manual,Yes,2,0-1 Miles,Europe,43,No,No,0.0136300036683679,12836,-69.27005,-104.5059,Saint-Malo,90710,France
+12871,Single,Female,30000,0,Partial College,Clerical,No,1,2-5 Miles,Europe,30,No,No,0.00314079085364938,12871,29.85718,-1.28642,Brandenburg,86684,Germany
+25516,Single,Female,10000,0,Partial High School,Manual,Yes,2,0-1 Miles,Europe,31,No,No,0.000142028133268468,25516,84.7702,-176.29812,Dumbarton,MQ1 7NT,United Kingdom
+21836,Married,Female,120000,4,Bachelors,Management,Yes,4,5-10 Miles,Europe,62,No,No,0.00343142612837255,21836,-80.64082,-23.71049,Ch�lons-en-Champagne,52735,France
+26998,Married,Male,10000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,35,No,No,2.36309788306244E-05,26998,76.45122,162.76447,Linlithgow,N8P 6KH,United Kingdom
+12734,Single,Female,10000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,34,No,No,0.00287511083297431,12734,35.60551,-121.27921,Vandoeuvre-l�s-Nancy,73413,France
+16255,Single,Female,20000,1,Partial College,Manual,No,1,0-1 Miles,Europe,39,No,No,0.00732569815590978,16255,25.53194,-110.0725,Hamburg,60488,Germany
+25638,Single,Male,30000,2,Partial College,Clerical,No,0,0-1 Miles,Europe,41,No,No,0.0146981691941619,25638,-84.59331,-48.98122,Saint-Malo,60006,France
+19457,Single,Female,30000,0,Partial College,Manual,Yes,1,1-2 Miles,Europe,79,No,No,0.000146869962918572,19457,-11.90663,-99.28985,Anklam,98721,Germany
+13827,Married,Male,30000,0,Partial College,Clerical,No,1,0-1 Miles,Europe,29,No,No,0.00110671110451221,13827,-52.00813,-43.36707,Hameln,45955,Germany
+21028,Single,Male,20000,0,Partial College,Manual,Yes,1,2-5 Miles,Europe,36,No,No,0.0262065529823303,21028,59.5385,-32.43816,Lossiemouth,O9 8TM,United Kingdom
+25753,Single,Female,10000,0,High School,Manual,No,2,0-1 Miles,Europe,55,No,No,0.000371449714293703,25753,-6.46481,143.45098,Dijon,25688,France
+12537,Married,Male,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,45,No,No,0.000157276648678817,12537,81.38624,-117.49463,Vichy,48669,France
+19079,Married,Male,80000,1,Partial High School,Skilled Manual,Yes,4,10+ Miles,Europe,59,No,No,9.65062936302274E-05,19079,44.65996,-139.86145,Quedlinburg,84733,Germany
+28555,Married,Female,40000,1,Bachelors,Skilled Manual,Yes,1,1-2 Miles,Europe,33,Yes,Yes,0.999589622020721,28555,15.43198,-92.92651,Saint-Dizier,69947,France
+29423,Single,Male,20000,0,High School,Manual,No,1,2-5 Miles,Europe,30,No,No,2.69573592959205E-05,29423,-24.70509,96.30617,Wolverhampton,LM83 5OR,United Kingdom
+24866,Married,Male,80000,1,High School,Professional,Yes,3,10+ Miles,Europe,55,No,No,0.000174704051460139,24866,22.12232,165.13712,Abergele,JE67 6HD,United Kingdom
+19250,Married,Female,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,45,No,No,0.000136517759528942,19250,-33.45318,-126.48592,Hamilton,U0 4IE,United Kingdom
+24094,Single,Male,30000,0,Partial College,Clerical,Yes,1,2-5 Miles,Europe,44,No,No,0.246448084712029,24094,-77.22806,179.21042,Albi,50643,France
+27947,Single,Female,110000,5,Partial College,Professional,No,2,10+ Miles,Europe,53,No,No,0.00130881031509489,27947,55.76623,111.41013,Neustrelitz,25911,Germany
+12798,Married,Male,20000,1,Partial College,Manual,Yes,1,2-5 Miles,Europe,38,No,No,0.00133708247449249,12798,-87.34422,-64.92076,H�rouville-Saint-Clair,1879,France
+21518,Married,Male,70000,1,High School,Professional,Yes,2,2-5 Miles,Europe,60,No,No,0.00460868468508124,21518,-15.52873,-0.90235,Aubagne,14118,France
+15709,Married,Female,70000,1,Partial High School,Skilled Manual,Yes,3,10+ Miles,Europe,58,No,No,0.113769598305225,15709,-89.69451,-179.7809,Stockton-on-Tees,V53 1YO,United Kingdom
+16448,Married,Female,40000,0,Bachelors,Skilled Manual,Yes,1,0-1 Miles,Europe,44,Yes,Yes,0.893146097660065,16448,-60.88193,129.38088,Dalbeattie,M3A 5FV,United Kingdom
+21113,Single,Female,30000,0,Partial College,Clerical,Yes,1,2-5 Miles,Europe,29,No,No,0.00184398586861789,21113,-46.73216,-97.23246,Carluke,T7 3HJ,United Kingdom
+11396,Married,Male,10000,2,High School,Manual,No,1,0-1 Miles,Europe,37,No,No,3.10906507365871E-05,11396,85.35176,-171.0069,Bremerhaven,41849,Germany
+11585,Married,Female,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,41,No,No,0.0762307271361351,11585,87.71933,-41.32125,M�con,52199,France
+16283,Single,Male,20000,3,High School,Manual,Yes,2,0-1 Miles,Europe,43,No,No,0.00722034694626927,16283,-30.12327,-30.78308,Abbeville,78748,France
+28879,Single,Male,170000,3,Bachelors,Management,No,3,5-10 Miles,Europe,48,No,No,0.00152952480129898,28879,88.59214,-176.72372,Karlsruhe,66407,Germany
+12864,Single,Female,30000,4,Partial College,Clerical,Yes,2,0-1 Miles,Europe,28,No,No,0.00485290354117751,12864,-66.45813,63.32518,March,WY6F 9QP,United Kingdom
+24036,Single,Male,20000,0,Partial College,Manual,No,1,2-5 Miles,Europe,36,Yes,No,0.154255419969559,24036,-27.3787,172.71012,Kilwinning,R40 7LK,United Kingdom
+22698,Married,Male,10000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,31,No,No,1.59699065989116E-05,22698,-31.37496,-63.23859,Wimborne Minster,CS1 9MD,United Kingdom
+20863,Married,Female,40000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,37,Yes,Yes,0.999969005584717,20863,-79.83979,-71.88922,Wittenberg,84740,Germany
+16047,Married,Female,10000,0,Partial College,Manual,Yes,0,0-1 Miles,Europe,49,No,No,0.000749013153836131,16047,-60.63024,163.12147,Cagnes-sur-Mer,75203,France
+17105,Single,Female,10000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,34,No,No,0.000147237864439376,17105,32.85982,-136.31716,Ludwigshafen,26044,Germany
+27313,Married,Female,70000,1,High School,Professional,Yes,3,10+ Miles,Europe,61,No,No,0.00037633630563505,27313,55.76727,-72.40592,�pernay,25514,France
+27326,Single,Female,80000,2,High School,Professional,Yes,2,10+ Miles,Europe,55,No,No,0.00044152420014143,27326,45.44059,-123.06447,Runcorn,XV87 7DL,United Kingdom
+14825,Single,Female,20000,0,High School,Manual,No,1,1-2 Miles,Europe,29,No,No,0.000458262133179232,14825,-20.36977,39.62772,Bayonne,19468,France
+27177,Married,Male,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,35,No,No,0.00052716740174219,27177,-77.29999,36.86421,Auxerre,3501,France
+18624,Single,Male,30000,0,High School,Manual,Yes,1,2-5 Miles,Europe,34,No,No,0.130173876881599,18624,23.7725,-80.83558,Beauvais,3496,France
+22389,Married,Male,20000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,49,No,No,0.267314076423645,22389,39.5152,174.50783,Gretna,P7U 8FU,United Kingdom
+20903,Married,Female,30000,1,Bachelors,Skilled Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.0219264831393957,20903,80.36665,-172.9486,Gifhorn,6996,Germany
+11573,Single,Female,20000,2,High School,Manual,Yes,1,0-1 Miles,Europe,40,No,No,0.0399974845349789,11573,-25.80808,103.13293,Riesa,58162,Germany
+19259,Married,Female,20000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,69,No,No,1.69237209775019E-05,19259,-75.42252,-34.50288,Laval,15228,France
+17638,Single,Male,30000,0,High School,Manual,Yes,1,2-5 Miles,Europe,34,No,No,0.0232410337775946,17638,59.77131,16.75981,Vannes,67736,France
+13496,Married,Male,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,44,No,No,0.00290435692295432,13496,66.36538,-128.18958,Vannes,18173,France
+19039,Married,Male,80000,0,Bachelors,Management,No,2,2-5 Miles,Europe,62,No,No,0.00214550271630287,19039,87.90286,4.78952,Stevenage,JN0Z 1SP,United Kingdom
+17822,Single,Female,30000,2,Partial College,Clerical,Yes,2,0-1 Miles,Europe,43,No,No,0.0168672818690538,17822,28.09262,-65.03102,Saint-Louis,94201,France
+13832,Single,Female,20000,0,High School,Manual,No,1,5-10 Miles,Europe,30,No,No,0.000208625308005139,13832,42.5753,-154.09754,Bastia,25672,France
+26413,Married,Female,80000,1,High School,Management,Yes,3,10+ Miles,Europe,57,No,No,9.58320379140787E-05,26413,87.19187,75.62695,Langenhagen,60385,Germany
+19327,Married,Female,30000,1,Bachelors,Skilled Manual,Yes,2,0-1 Miles,Europe,40,No,No,0.0300716459751129,19327,-35.47515,55.46193,Oranienburg,14160,Germany
+20566,Married,Male,110000,4,Bachelors,Management,No,4,5-10 Miles,Europe,61,No,No,0.000479546142742038,20566,18.8431,-6.76976,Berlin,83591,Germany
+21844,Married,Male,80000,2,Partial College,Professional,Yes,1,2-5 Miles,Europe,52,No,No,0.0342888012528419,21844,71.80637,11.52145,Barrhead,GZ7 2UX,United Kingdom
+17219,Married,Female,80000,1,High School,Management,Yes,3,10+ Miles,Europe,57,No,No,0.000165222983923741,17219,19.68756,-136.50591,Cromer,WX3 9BV,United Kingdom
+26883,Single,Female,20000,0,High School,Manual,No,1,5-10 Miles,Europe,30,No,No,5.0749872571032E-06,26883,-52.41054,6.61807,Stranraer,PS5 0YY,United Kingdom
+19478,Married,Female,60000,0,Graduate Degree,Skilled Manual,Yes,0,0-1 Miles,Europe,39,No,No,0.291093081235886,19478,9.21419,-69.40288,Alen�on,89695,France
+23897,Single,Female,10000,3,Partial High School,Manual,Yes,1,0-1 Miles,Europe,39,No,Yes,0.835315465927124,23897,-57.47461,8.12871,Freising,75397,Germany
+14704,Single,Female,10000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,35,No,No,0.0012448001652956,14704,-18.21494,-6.6449,Mannheim,84162,Germany
+17791,Married,Female,30000,1,Bachelors,Clerical,Yes,1,2-5 Miles,Europe,38,No,Yes,0.539425551891327,17791,61.11342,-82.97294,Konstanz,22306,Germany
+14205,Single,Male,90000,0,Partial High School,Skilled Manual,Yes,2,10+ Miles,Europe,59,No,No,0.000225753552513197,14205,-46.41786,-27.43547,Angoul�me,98724,France
+12567,Married,Female,30000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,64,No,No,0.000861396605614573,12567,38.77551,-94.93052,Woking,OU0 9NQ,United Kingdom
+17760,Single,Female,20000,0,Partial College,Manual,No,1,2-5 Miles,Europe,36,No,No,0.00149866018909961,17760,-11.54333,-51.20503,Alen�on,94573,France
+20946,Single,Female,30000,0,Partial College,Clerical,No,1,2-5 Miles,Europe,30,No,No,0.00252361036837101,20946,-58.37572,-32.43742,Kirkwall,T5T 3XZ,United Kingdom
+27327,Single,Female,110000,5,Partial College,Management,Yes,2,10+ Miles,Europe,56,No,No,0.00563707388937473,27327,20.09147,117.67405,Ch�lons-en-Champagne,79093,France
+19279,Single,Male,20000,1,Partial College,Manual,No,0,1-2 Miles,Europe,46,No,No,0.140294775366783,19279,-18.47253,105.70052,Valenciennes,69669,France
+24554,Married,Female,130000,4,Bachelors,Management,Yes,4,0-1 Miles,Europe,61,No,No,0.00670295534655452,24554,-27.37851,36.02836,Tournefeuille,13333,France
+12719,Single,Female,30000,0,Partial College,Clerical,No,1,0-1 Miles,Europe,31,No,No,0.0119775170460343,12719,-50.81796,31.87358,Bad Hersfeld,29115,Germany
+17933,Married,Female,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,45,Yes,Yes,0.618371903896332,17933,7.04189,-89.62517,Denny,K0Q 0WD,United Kingdom
+26396,Married,Male,100000,3,Bachelors,Management,No,4,2-5 Miles,Europe,61,No,No,0.000516989617608488,26396,42.13936,55.75073,Coalville,NH0S 4GC,United Kingdom
+29379,Married,Male,30000,1,Bachelors,Skilled Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.000588902388699353,29379,-26.94803,130.09192,Leominster,A8 2KR,United Kingdom
+28545,Married,Male,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,26,No,No,5.9107147535542E-05,28545,30.65363,-135.94683,Recklinghausen,49058,Germany
+19054,Single,Male,150000,4,High School,Professional,No,4,0-1 Miles,Europe,52,No,No,0.000199331378098577,19054,-7.41463,-110.23803,Orl�ans,59107,France
+12649,Married,Male,80000,1,High School,Professional,Yes,3,10+ Miles,Europe,54,No,No,0.00148059497587383,12649,-37.48499,26.64709,Belfort,61287,France
+20973,Married,Female,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,68,No,No,0.000589093775488436,20973,-74.88137,-15.91463,East Linton,S0 5UA,United Kingdom
+12477,Married,Female,20000,2,High School,Manual,No,1,0-1 Miles,Europe,40,No,No,0.000158867027494125,12477,-81.33663,84.18884,Brive-la-Gaillarde,71361,France
+29441,Married,Female,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,70,No,No,7.15527221473167E-06,29441,83.23444,-0.22927,Bottrop,75782,Germany
+24215,Married,Female,10000,1,High School,Manual,Yes,2,0-1 Miles,Europe,53,No,No,0.00166635191999376,24215,10.32437,-17.77613,Barmouth,D5 5SI,United Kingdom
+16578,Single,Female,100000,3,Bachelors,Management,Yes,4,10+ Miles,Europe,59,No,No,0.00365795474499464,16578,72.23904,126.53799,Scunthorpe,G32 8XT,United Kingdom
+16441,Married,Male,20000,5,High School,Manual,No,2,0-1 Miles,Europe,27,No,No,2.73743371508317E-05,16441,13.80784,125.95797,Malvern,E76 4NU,United Kingdom
+27815,Married,Female,30000,3,Partial College,Clerical,Yes,2,0-1 Miles,Europe,26,No,No,4.59453694929834E-05,27815,47.47537,-108.56663,Chartres,37925,France
+20596,Married,Female,130000,5,Bachelors,Professional,Yes,4,0-1 Miles,Europe,58,No,No,0.000706717022694647,20596,-24.92879,-177.5423,Hamburg,78618,Germany
+19047,Married,Female,130000,4,Partial College,Professional,Yes,4,0-1 Miles,Europe,60,No,No,0.00054358207853511,19047,-27.40848,156.00633,Telford,L69 0MM,United Kingdom
+27163,Single,Male,10000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,34,No,No,0.000139095267513767,27163,19.38882,-3.65132,Baltasound,A5J 5ID,United Kingdom
+25544,Single,Male,20000,0,Bachelors,Clerical,No,0,0-1 Miles,Europe,49,No,No,0.00201118947006762,25544,-73.216,54.73468,Brive-la-Gaillarde,84474,France
+24690,Single,Male,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,26,Yes,No,0.00124819623306394,24690,77.43142,59.90764,Zeitz,5359,Germany
+25491,Single,Female,30000,2,Partial College,Clerical,Yes,2,0-1 Miles,Europe,42,No,No,0.0338608473539352,25491,-50.39346,138.06794,Coventry,I8 7EC,United Kingdom
+27813,Single,Male,20000,0,High School,Manual,No,1,2-5 Miles,Europe,29,No,No,2.60602701018797E-05,27813,-29.97381,-24.98511,Amiens,34888,France
+12636,Married,Female,100000,3,Bachelors,Management,Yes,4,10+ Miles,Europe,60,No,No,0.00568931503221393,12636,66.49648,-40.88458,Montpellier,56764,France
+21866,Married,Female,80000,0,Partial High School,Skilled Manual,No,2,5-10 Miles,Europe,59,No,No,0.000214922925806604,21866,21.26193,17.38843,Sens,73316,France
+13815,Single,Female,30000,3,Partial College,Clerical,Yes,2,0-1 Miles,Europe,27,No,No,0.0032667345367372,13815,36.20462,-77.6093,Bernburg,37336,Germany
+25796,Married,Male,130000,5,High School,Professional,Yes,3,0-1 Miles,Europe,54,Yes,No,0.41535210609436,25796,33.62059,-60.5177,Wunstorf,63042,Germany
+21838,Married,Male,90000,0,Partial College,Professional,Yes,2,10+ Miles,Europe,61,No,No,0.000138747025630437,21838,59.8709,-114.09677,Schiltigheim,40807,France
+24838,Single,Male,130000,4,Partial College,Professional,No,3,5-10 Miles,Europe,49,No,No,0.00936325173825026,24838,-69.59253,-53.99071,Ch�lons-en-Champagne,88190,France
+28906,Married,Male,80000,2,High School,Professional,Yes,2,10+ Miles,Europe,55,No,No,2.00371578102931E-05,28906,40.65582,118.20682,Teltow,49169,Germany
+13608,Married,Female,120000,5,High School,Management,Yes,3,10+ Miles,Europe,57,No,No,0.000635832780972123,13608,-38.42725,131.92073,Berlin,4832,Germany
+20958,Single,Male,30000,0,Partial College,Clerical,No,1,0-1 Miles,Europe,31,No,No,0.0285970512777567,20958,-24.45367,-2.17577,Burg,54132,Germany
+20054,Single,Male,40000,2,Partial College,Clerical,Yes,0,1-2 Miles,Europe,33,Yes,No,0.222170442342758,20054,-60.24226,-143.25522,Berlin,81619,Germany
+25631,Single,Female,20000,3,High School,Manual,No,2,0-1 Miles,Europe,43,No,No,0.00144912570249289,25631,69.11159,9.92358,Sankt Wendel,44540,Germany
+28442,Single,Male,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,32,No,No,5.85378693358507E-05,28442,83.14692,-138.31352,Saarbr?cken,47156,Germany
+25729,Married,Female,20000,1,Partial College,Manual,Yes,0,1-2 Miles,Europe,46,Yes,No,0.0111717404797673,25729,57.20588,-100.53478,Banbury,PB1 9NY,United Kingdom
+17652,Married,Male,50000,0,Graduate Degree,Skilled Manual,No,0,0-1 Miles,Europe,36,No,No,0.0238088984042406,17652,23.47645,-87.81037,Bastia,26195,France
+27785,Married,Male,30000,0,Bachelors,Skilled Manual,Yes,1,2-5 Miles,Europe,75,No,No,0.000418077310314402,27785,81.34707,-83.512,Tournefeuille,85442,France
+15920,Single,Male,100000,3,Partial College,Professional,Yes,4,5-10 Miles,Europe,49,Yes,Yes,0.877338886260986,15920,19.05334,61.25775,Waiblingen,95637,Germany
+22413,Married,Female,20000,0,Partial College,Manual,Yes,0,1-2 Miles,Europe,62,No,No,0.000598888436798006,22413,4.02693,-46.33495,Bremerhaven,19301,Germany
+12723,Married,Male,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,26,No,No,0.000655017734970897,12723,50.3614,128.25734,Brechin,L5V 4QU,United Kingdom
+25456,Married,Male,10000,4,Partial High School,Manual,Yes,2,0-1 Miles,Europe,40,No,No,0.00707881525158882,25456,20.21288,106.46129,Duns,OJ2 4FQ,United Kingdom
+16563,Single,Female,20000,0,Graduate Degree,Clerical,Yes,1,2-5 Miles,Europe,87,No,No,2.96900307148462E-05,16563,-71.50933,31.49852,Speyer,52284,Germany
+14994,Single,Male,20000,0,Partial High School,Manual,No,1,2-5 Miles,Europe,30,No,No,0.00252771005034447,14994,68.05299,-40.53631,Montigny-l�s-Metz,8902,France
+24542,Single,Male,100000,3,High School,Professional,Yes,4,10+ Miles,Europe,51,No,No,0.000720842508599162,24542,-12.70109,-91.90713,Emden,38940,Germany
+24030,Single,Female,20000,0,Partial College,Manual,No,1,0-1 Miles,Europe,36,Yes,Yes,0.552629172801971,24030,-68.14106,146.13607,Southampton,GK5 7HF,United Kingdom
+15621,Single,Female,50000,0,Graduate Degree,Skilled Manual,Yes,0,1-2 Miles,Europe,33,Yes,No,0.113000065088272,15621,30.6431,178.92857,Saint-L�,31316,France
+19350,Married,Female,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,42,No,No,0.393518447875977,19350,-8.6533,43.89145,Aurillac,29657,France
+13500,Married,Female,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,48,No,No,0.00137223594356328,13500,17.62909,-147.62166,Greifswald,93783,Germany
+15682,Single,Female,80000,0,Bachelors,Management,Yes,2,10+ Miles,Europe,62,No,No,0.00913505628705025,15682,-25.20813,-157.4718,Marcq-en-Baroeul,81709,France
+18025,Single,Male,30000,3,Partial College,Clerical,Yes,2,0-1 Miles,Europe,27,No,No,0.00068744266172871,18025,-7.72376,55.99159,Cambrai,98526,France
+25689,Single,Female,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,44,No,No,0.00310271326452494,25689,-77.76095,-60.11582,Bloxham,HI89 1VC,United Kingdom
+12846,Single,Female,30000,2,Partial College,Clerical,Yes,2,0-1 Miles,Europe,42,Yes,Yes,0.607348561286926,12846,-27.56501,142.18246,Freiberg,61911,Germany
+25582,Married,Male,20000,1,Partial College,Manual,No,0,0-1 Miles,Europe,46,Yes,No,0.0428848378360271,25582,33.98878,-139.13154,Bremerhaven,53408,Germany
+27158,Married,Male,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,26,No,No,9.00859595276415E-05,27158,-66.69543,-66.82627,Retford,PE63 0AV,United Kingdom
+12540,Married,Male,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,70,No,No,3.88174848922063E-05,12540,-12.64364,-78.60994,Frankenthal,77029,Germany
+27849,Married,Male,20000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,51,No,No,0.0254115425050259,27849,38.44799,-46.54419,Bremerhaven,35989,Germany
+25296,Married,Female,100000,3,Partial College,Professional,Yes,4,5-10 Miles,Europe,49,No,No,0.00117346493061632,25296,-66.59832,-176.42296,Chalon-sur-Sa�ne,95036,France
+15104,Married,Female,80000,2,Partial College,Professional,Yes,2,2-5 Miles,Europe,53,No,No,0.0455754920840263,15104,70.90581,-124.53638,Boston,WB69 4ST,United Kingdom
+17653,Single,Female,50000,0,Graduate Degree,Skilled Manual,Yes,0,0-1 Miles,Europe,36,No,Yes,0.758969008922577,17653,71.95484,-139.27029,Portree,AR2E 8AC,United Kingdom
+14173,Married,Female,70000,1,High School,Professional,Yes,3,10+ Miles,Europe,61,No,No,0.00683843391016126,14173,-0.90975,93.23844,Burg,61548,Germany
+16284,Single,Male,20000,3,High School,Manual,Yes,2,0-1 Miles,Europe,43,No,No,0.00722034694626927,16284,-36.13297,47.51576,Belfort,95505,France
+21132,Single,Male,30000,0,Partial College,Clerical,No,1,0-1 Miles,Europe,32,No,No,0.0120695875957608,21132,-31.07281,-26.95954,Hoyerswerda,13681,Germany
+29405,Single,Female,20000,0,High School,Manual,No,1,2-5 Miles,Europe,28,No,No,4.08221530960873E-05,29405,43.42111,15.80141,Trier,68381,Germany
+13843,Single,Male,30000,0,Partial College,Clerical,No,1,0-1 Miles,Europe,31,No,No,0.0361961796879768,13843,27.14749,-118.36142,Macclesfield,HP9 0IJ,United Kingdom
+17995,Single,Female,20000,2,High School,Manual,Yes,2,0-1 Miles,Europe,42,No,No,0.00261512841098011,17995,43.34198,-155.5287,Chichester,NH6 8VX,United Kingdom
+14687,Single,Female,30000,0,Partial College,Clerical,Yes,1,2-5 Miles,Europe,32,No,No,0.00153895677067339,14687,-65.59611,-173.00906,New Galloway,R7 1EO,United Kingdom
+12255,Single,Female,20000,1,Partial College,Manual,No,0,0-1 Miles,Europe,45,Yes,No,0.0806832313537598,12255,6.87296,74.23186,Oakham,N28 8XB,United Kingdom
+20800,Married,Male,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,48,No,No,4.84075462736655E-05,20800,-89.86576,-118.71071,Toulouse,36515,France
+17876,Married,Male,10000,0,Graduate Degree,Manual,Yes,0,0-1 Miles,Europe,44,No,No,9.76588053163141E-05,17876,-37.5077,-46.63983,Chesterfield,IF9I 6FQ,United Kingdom
+16322,Single,Female,10000,0,Partial High School,Manual,Yes,2,0-1 Miles,Europe,32,No,No,0.00551040982827544,16322,-64.14743,179.45859,Le Puy-en-Velay,44799,France
+20951,Single,Male,20000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,32,No,No,0.00256502372212708,20951,-76.14876,-106.92683,Dunkerque,32334,France
+17891,Married,Female,10000,0,Partial College,Manual,Yes,1,0-1 Miles,Europe,51,Yes,No,0.00742965145036578,17891,-14.82802,149.66649,Niort,66246,France
+11404,Single,Female,10000,0,Partial College,Manual,No,2,0-1 Miles,Europe,54,No,Yes,0.997655391693115,11404,-71.41116,72.57697,Galashiels,YQ70 9OC,United Kingdom
+17808,Single,Female,10000,2,Partial High School,Manual,Yes,2,0-1 Miles,Europe,43,No,No,0.0114965876564384,17808,48.51894,-28.52495,Haverfordwest,S9 9UH,United Kingdom
+25782,Married,Male,130000,4,Partial College,Professional,No,4,5-10 Miles,Europe,60,No,No,0.000130950385937467,25782,71.08689,-83.82472,Nantes,5935,France
+25719,Single,Female,20000,0,Partial College,Manual,No,0,0-1 Miles,Europe,63,No,No,0.019117571413517,25719,-44.03339,-6.84692,Wisbech,XT31 1GZ,United Kingdom
+23773,Married,Male,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,35,No,No,0.000830403354484588,23773,-45.51765,118.42515,Rennes,5977,France
+11547,Married,Female,40000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,38,Yes,Yes,0.934485554695129,11547,-2.63104,19.70316,Ilkeston,Q19 6MG,United Kingdom
+16439,Single,Female,20000,4,High School,Manual,Yes,2,0-1 Miles,Europe,27,No,No,0.00186662434134632,16439,-33.49801,-168.15146,Berlin,85384,Germany
+28557,Married,Male,40000,1,Bachelors,Skilled Manual,Yes,1,0-1 Miles,Europe,32,Yes,Yes,0.99662184715271,28557,9.71578,15.29115,Vandoeuvre-l�s-Nancy,36658,France
+15663,Married,Female,30000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,47,Yes,Yes,0.999884247779846,15663,-12.82759,-46.6957,Jedburgh,W1 4JU,United Kingdom
+24713,Single,Male,10000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,90,No,No,6.80082962389861E-07,24713,68.16474,-98.41337,Hamburg,10208,Germany
+11595,Single,Male,20000,5,High School,Manual,Yes,3,0-1 Miles,Europe,27,No,No,0.0221437960863113,11595,11.88795,20.5327,Bremen,80752,Germany
+13588,Married,Female,130000,4,Partial College,Professional,Yes,4,0-1 Miles,Europe,52,No,No,0.000867468188516796,13588,17.51572,-53.61021,Newtonmore,L99 3AP,United Kingdom
+16581,Single,Male,100000,4,High School,Professional,Yes,3,10+ Miles,Europe,52,No,No,0.00169357447884977,16581,-73.45457,-77.70111,Sromness,SV1O 1VM,United Kingdom
+24545,Single,Male,170000,3,High School,Professional,No,4,0-1 Miles,Europe,51,No,No,2.11505011975532E-05,24545,2.34049,-1.98898,Leverkusen,46069,Germany
+14179,Single,Female,100000,3,Bachelors,Management,Yes,4,10+ Miles,Europe,60,No,No,0.00472992472350597,14179,2.5819,41.79971,Wrexham,Q62 1DV,United Kingdom
+20918,Married,Male,30000,2,Partial College,Clerical,No,2,0-1 Miles,Europe,42,No,No,0.000380459066946059,20918,-71.95695,108.1247,�vreux,91820,France
+23600,Married,Male,100000,3,High School,Professional,Yes,4,5-10 Miles,Europe,50,No,No,0.0428921245038509,23600,-64.75592,178.75578,Cherbourg-Octeville,41138,France
+18011,Single,Male,30000,2,Partial College,Clerical,Yes,1,0-1 Miles,Europe,41,Yes,No,0.0231268964707851,18011,53.75497,-79.98368,Sarreguemines,24515,France
+24580,Married,Male,110000,5,Partial High School,Professional,Yes,3,10+ Miles,Europe,59,Yes,No,0.00487900618463755,24580,45.22944,10.17581,Bremerhaven,47072,Germany
+23976,Single,Female,20000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,48,No,No,0.0484786443412304,23976,43.63825,-44.26412,Nevers,77808,France
+18128,Married,Male,90000,1,High School,Professional,No,1,2-5 Miles,Europe,48,No,No,0.00612493697553873,18128,-58.9589,-24.15303,Lisieux,97065,France
+16280,Single,Male,10000,2,Partial High School,Manual,Yes,2,0-1 Miles,Europe,43,No,No,0.0176588986068964,16280,8.27077,-151.59345,Castle Douglas,O72 1PE,United Kingdom
+22496,Married,Female,30000,1,Bachelors,Skilled Manual,Yes,2,0-1 Miles,Europe,42,No,No,0.0288345776498318,22496,-53.76841,-68.87343,Creil,92781,France
+16418,Single,Female,10000,2,Partial High School,Manual,Yes,2,0-1 Miles,Europe,43,No,No,0.0550422370433807,16418,-54.29336,-174.65233,Neum?nster,7563,Germany
+16323,Single,Male,30000,0,Partial College,Clerical,Yes,1,2-5 Miles,Europe,31,No,No,0.00508262496441603,16323,-56.8719,144.51146,Hamburg,50307,Germany
+19449,Married,Male,10000,0,High School,Manual,No,2,0-1 Miles,Europe,80,No,No,2.26548465320775E-07,19449,35.30311,-0.19373,Vitry-sur-Seine,16844,France
+12635,Single,Male,80000,0,Partial College,Professional,No,2,2-5 Miles,Europe,60,No,No,0.202928215265274,12635,59.31963,117.38112,Li�vin,45556,France
+29446,Single,Female,20000,0,Graduate Degree,Clerical,No,0,0-1 Miles,Europe,69,No,No,2.67599352810066E-06,29446,61.73132,-24.53664,Bremerhaven,52767,Germany
+21123,Single,Male,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,32,No,No,0.00420651352033019,21123,81.11324,128.10936,Heide,21564,Germany
+17885,Married,Male,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,44,Yes,Yes,0.642805337905884,17885,-54.6265,59.86834,Villenave-d'Ornon,86479,France
+20950,Single,Male,20000,0,Partial High School,Manual,Yes,2,0-1 Miles,Europe,32,No,No,0.000314481963869184,20950,72.42988,173.45138,Torquay,FB9 0UO,United Kingdom
+16597,Single,Female,100000,4,Partial College,Professional,Yes,4,10+ Miles,Europe,55,No,No,0.000807488802820444,16597,39.31921,12.61305,Worcester,NX28 6LK,United Kingdom
+29381,Married,Male,20000,3,High School,Manual,Yes,0,0-1 Miles,Europe,42,Yes,No,0.000894027587492019,29381,-5.73762,-124.18717,Hamburg,13981,Germany
+12616,Single,Female,20000,0,Partial College,Manual,No,1,0-1 Miles,Europe,37,No,No,0.00436455011367798,12616,-28.72821,-72.26989,Le Mans,75019,France
+16604,Married,Male,120000,5,High School,Management,No,4,10+ Miles,Europe,59,No,No,6.71285215503303E-06,16604,-71.31045,105.93077,Lisieux,3605,France
+25514,Single,Male,20000,0,High School,Manual,No,1,2-5 Miles,Europe,30,No,No,0.000173788183019497,25514,51.92366,48.34733,Merthyr Tydfil,T33 4WU,United Kingdom
+15688,Married,Male,70000,1,High School,Professional,Yes,2,2-5 Miles,Europe,61,Yes,No,0.0401178114116192,15688,81.55861,-125.44526,La Rochelle,85952,France
+21670,Single,Male,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,34,No,No,0.000642317114397883,21670,81.52534,0.28618,Berlin,90927,Germany
+27176,Married,Male,20000,0,Partial High School,Manual,No,2,0-1 Miles,Europe,35,No,No,0.0001094515027944,27176,16.91096,-104.50178,Compi�gne,87176,France
+22868,Single,Male,20000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,26,No,No,0.00125003361608833,22868,71.05285,156.80878,Berlin,58323,Germany
+27787,Married,Male,30000,1,Bachelors,Skilled Manual,No,2,0-1 Miles,Europe,42,No,No,0.00113801471889019,27787,16.79415,96.60363,G?strow,84849,Germany
+12224,Married,Male,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,71,No,No,5.3667878091801E-05,12224,14.48353,168.35582,Saint-�tienne-du-Rouvray,12269,France
+17888,Single,Female,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,48,No,No,0.00105505029205233,17888,68.14824,-66.54344,Hartlepool,HJ5U 6VD,United Kingdom
+22380,Single,Male,10000,0,Graduate Degree,Manual,No,0,0-1 Miles,Europe,44,No,No,0.000430465064710006,22380,68.38185,119.88974,Canterbury,UD1 1YS,United Kingdom
+28440,Single,Female,20000,0,Partial High School,Manual,Yes,1,2-5 Miles,Europe,31,No,No,0.000753259460907429,28440,-39.46615,167.47165,Jou�-l�s-Tours,96341,France
+17704,Married,Male,10000,0,Graduate Degree,Manual,Yes,0,0-1 Miles,Europe,44,No,No,8.0215759226121E-05,17704,37.27233,-117.46061,Uppingham. Cottesmore,KH37 6ZK,United Kingdom
+21819,Married,Female,110000,4,Partial College,Professional,Yes,3,5-10 Miles,Europe,49,No,No,0.00162054842803627,21819,55.8105,-152.18647,Teltow,77937,Germany
+19385,Single,Female,20000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,33,No,No,0.000248135940637439,19385,-87.33654,0.26643,Brora,N4 8PV,United Kingdom
+22521,Single,Female,30000,0,Partial College,Clerical,Yes,1,2-5 Miles,Europe,44,No,No,0.2256960272789,22521,-19.43393,-18.19918,Bernburg,15383,Germany
+14812,Married,Male,40000,0,Bachelors,Professional,Yes,0,0-1 Miles,Europe,40,No,No,0.0143620166927576,14812,40.56738,-93.97801,Swindon,A1D 4ZH,United Kingdom
+12592,Married,Female,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,45,No,No,0.00272506033070385,12592,44.03767,56.30841,Besan�on,78636,France
+24721,Married,Female,40000,2,Partial College,Clerical,Yes,2,1-2 Miles,Europe,35,No,No,0.0303842145949602,24721,-35.84694,69.52182,Recklinghausen,55402,Germany
+12504,Married,Male,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,43,No,No,0.00167861219961196,12504,24.9403,17.77013,Newark,IV5 2IM,United Kingdom
+16934,Single,Female,20000,0,Graduate Degree,Manual,Yes,0,0-1 Miles,Europe,44,No,No,0.00851198937743902,16934,52.60998,-7.8151,Blairgowrie,KL1 9HV,United Kingdom
+13506,Single,Male,10000,0,Partial College,Manual,Yes,0,0-1 Miles,Europe,51,No,Yes,0.990815281867981,13506,-78.28025,57.25233,Jedburgh,SU56 5HX,United Kingdom
+25803,Married,Male,120000,5,High School,Management,Yes,3,10+ Miles,Europe,57,No,No,0.000107747888250742,25803,7.59019,6.31832,Hamburg,35965,Germany
+13791,Single,Female,20000,2,High School,Manual,Yes,1,0-1 Miles,Europe,41,No,No,0.0196215007454157,13791,18.13792,-115.34356,Talgarth,QX0 0QF,United Kingdom
+16398,Single,Male,20000,1,High School,Manual,No,1,2-5 Miles,Europe,38,No,No,0.000730480358470231,16398,18.96916,-176.78331,Bremen,29188,Germany
+18041,Single,Female,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,33,No,No,0.000837440311443061,18041,-12.87628,150.94493,W?rzburg,51131,Germany
+19470,Single,Female,20000,3,High School,Manual,Yes,1,0-1 Miles,Europe,43,No,No,0.246255487203598,19470,-24.3322,-116.53173,N�mes,33947,France
+27118,Married,Female,30000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,36,Yes,Yes,0.999974370002747,27118,-3.26048,34.97298,Fort William,O71 8ZJ,United Kingdom
+21869,Married,Female,100000,4,Partial High School,Professional,Yes,4,5-10 Miles,Europe,59,No,No,0.00189630908425897,21869,-88.08578,-50.91452,M?rfelden-Walldorf,11360,Germany
+28460,Married,Male,20000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,48,No,No,0.0520202368497849,28460,51.32755,-70.33657,Aalen,9283,Germany
+21073,Single,Female,20000,2,High School,Manual,Yes,2,0-1 Miles,Europe,41,No,No,0.00280675408430398,21073,-42.01364,-43.1801,Callander,L0 8KK,United Kingdom
+19378,Single,Male,30000,0,Partial College,Clerical,No,1,2-5 Miles,Europe,30,No,No,0.00252361036837101,19378,-34.67487,-3.57517,Uppingham. Cottesmore,S6 6GT,United Kingdom
+15112,Married,Female,80000,1,High School,Professional,Yes,3,2-5 Miles,Europe,54,No,Yes,0.655624270439148,15112,5.47432,79.18552,Neustadt,43784,Germany
+12624,Married,Female,20000,0,Partial College,Manual,Yes,1,2-5 Miles,Europe,54,Yes,No,0.472779512405396,12624,-27.05238,136.24055,St. Neots,EN6 0KG,United Kingdom
+24566,Single,Female,170000,5,Partial College,Professional,No,4,0-1 Miles,Europe,54,No,No,4.77315006719437E-05,24566,-54.92009,179.03356,Musselburgh,EA7H 9TJ,United Kingdom
+16038,Married,Male,10000,0,Bachelors,Manual,Yes,0,0-1 Miles,Europe,45,No,No,9.17578945518471E-05,16038,-49.1316,0.84874,Cherbourg-Octeville,91285,France
+17708,Married,Male,20000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,45,No,No,0.00124159501865506,17708,63.90855,-111.47123,Ludwigsburg,86053,Germany
+20940,Single,Female,20000,0,High School,Manual,No,1,1-2 Miles,Europe,30,No,No,0.000287952338112518,20940,59.44244,-37.96672,Bautzen,92471,Germany
+12296,Married,Male,70000,1,High School,Professional,No,2,2-5 Miles,Europe,61,Yes,No,0.000201103102881461,12296,10.49309,-89.11508,Dole,63464,France
+17211,Married,Female,100000,4,Bachelors,Management,Yes,3,10+ Miles,Europe,53,No,No,5.07029653817881E-05,17211,-85.11522,-146.62102,Narbonne,41708,France
+24133,Single,Female,20000,0,Partial High School,Manual,Yes,2,1-2 Miles,Europe,32,No,No,0.00119927478954196,24133,80.10657,108.68829,Kettering,T8N 9JV,United Kingdom
+22457,Married,Female,10000,2,High School,Manual,No,1,0-1 Miles,Europe,38,No,No,0.0105091966688633,22457,-65.71327,166.37954,Wernigerode,83680,Germany
+12134,Married,Male,170000,3,High School,Professional,Yes,4,0-1 Miles,Europe,51,No,No,0.00652303919196129,12134,-52.50652,60.92993,B�ziers,59389,France
+23945,Married,Male,30000,5,Partial College,Clerical,Yes,1,0-1 Miles,Europe,28,No,No,0.000145903439261019,23945,-10.12753,-137.51768,Oberhausen,76336,Germany
+27848,Married,Male,10000,0,Partial College,Manual,Yes,0,1-2 Miles,Europe,50,No,No,4.19862553826533E-05,27848,10.96332,148.32573,Bremerhaven,19996,Germany
+23779,Single,Female,40000,2,Partial College,Clerical,Yes,2,0-1 Miles,Europe,35,Yes,No,0.2794289290905,23779,-72.45211,-8.10825,Helmsdale,A6 2OH,United Kingdom
+12663,Married,Female,90000,0,Partial High School,Skilled Manual,Yes,2,10+ Miles,Europe,59,No,No,0.00078627816401422,12663,-68.72282,-73.05747,Thionville,70020,France
+20965,Married,Female,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,71,No,No,0.000560124986805022,20965,-41.69281,-46.59841,Sarreguemines,16269,France
+23985,Married,Female,20000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,69,No,No,0.000617149926256388,23985,-53.02799,27.26196,Perpignan,92198,France
+23978,Married,Male,10000,0,Partial College,Manual,No,0,0-1 Miles,Europe,49,No,No,0.000204437630600296,23978,2.88186,110.90723,Norwich,MX87 1NN,United Kingdom
+19281,Single,Female,20000,0,Partial College,Manual,Yes,1,2-5 Miles,Europe,48,No,No,0.0261800028383732,19281,-69.8904,-102.63169,Bautzen,17281,Germany
+27853,Single,Female,10000,0,Bachelors,Clerical,No,1,0-1 Miles,Europe,66,No,No,0.000406144856242463,27853,43.20016,-63.63058,Stralsund,34706,Germany
+24154,Single,Male,30000,0,Bachelors,Clerical,No,0,0-1 Miles,Europe,65,No,No,0.373165458440781,24154,-20.07066,107.42246,Castres,26962,France
+15676,Single,Male,40000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,37,Yes,Yes,0.999836504459381,15676,-50.15586,-72.58862,Wismar,37496,Germany
+12327,Single,Male,100000,4,Partial College,Management,Yes,4,10+ Miles,Europe,56,No,No,0.000903339183423668,12327,14.12084,0.50231,Cuxhaven,17234,Germany
+27789,Married,Male,20000,3,High School,Manual,Yes,1,0-1 Miles,Europe,43,Yes,Yes,0.65113627910614,27789,-82.45899,66.73785,Butzbach,83273,Germany
+13493,Married,Female,10000,0,Graduate Degree,Manual,Yes,0,0-1 Miles,Europe,42,No,No,0.000379488483304158,13493,72.76068,36.20129,Lowestoft,B5Y 3QH,United Kingdom
+25652,Single,Female,20000,0,High School,Manual,No,1,1-2 Miles,Europe,28,No,No,0.000300268526189029,25652,-88.72795,130.75825,Hamm,48094,Germany
+25546,Single,Female,10000,0,Partial College,Manual,Yes,1,0-1 Miles,Europe,52,Yes,Yes,0.882049798965454,25546,-37.24073,52.37054,L?beck,97755,Germany
+27846,Married,Male,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,44,Yes,Yes,0.976424157619476,27846,-48.03918,86.85383,Berlin,31117,Germany
+17111,Married,Female,40000,2,Partial College,Clerical,No,0,0-1 Miles,Europe,36,No,No,0.0144300824031234,17111,42.0144,-115.74801,Hamburg,86018,Germany
+14986,Married,Male,20000,0,High School,Manual,No,1,2-5 Miles,Europe,30,No,No,0.000292124983388931,14986,6.59773,-98.40129,P�rigueux,82561,France
+16472,Single,Female,20000,0,Partial High School,Manual,No,2,1-2 Miles,Europe,32,No,Yes,0.528907835483551,16472,6.76639,-11.62913,Bexbach,6514,Germany
+19300,Married,Male,10000,0,Partial College,Manual,No,2,0-1 Miles,Europe,54,No,No,0.00186474295333028,19300,-8.49641,90.97756,Halkirk,RC66 5UV,United Kingdom
+20846,Married,Male,30000,0,Bachelors,Clerical,Yes,0,0-1 Miles,Europe,47,Yes,Yes,0.999903857707977,20846,-69.18965,9.68135,Troyes,17213,France
+16539,Single,Female,20000,1,Partial College,Manual,No,0,0-1 Miles,Europe,46,No,No,0.29366859793663,16539,15.76837,-90.16336,Bremerhaven,20881,Germany
+11407,Married,Male,20000,0,Partial College,Manual,Yes,1,0-1 Miles,Europe,54,No,Yes,0.921184241771698,11407,-13.27378,49.88847,Dolgellau,W3 2PH,United Kingdom
+16293,Married,Male,40000,0,Bachelors,Skilled Manual,Yes,0,0-1 Miles,Europe,42,No,No,0.0318314395844936,16293,81.9919,-11.9828,Abingdon,Y4I 9LF,United Kingdom
+14936,Single,Male,30000,1,Bachelors,Clerical,No,1,0-1 Miles,Europe,39,No,No,0.00208899541758001,14936,70.5037,119.60022,Washington,V9 4KB,United Kingdom
+22554,Married,Male,10000,0,Bachelors,Manual,No,0,0-1 Miles,Europe,48,No,No,1.86738125194097E-05,22554,81.99389,-151.8077,Wattrelos,24532,France
+19372,Single,Female,20000,0,High School,Manual,Yes,1,2-5 Miles,Europe,30,No,No,0.000830967910587788,19372,60.40803,-118.022,Nevers,29022,France
+14204,Married,Female,80000,0,Partial High School,Skilled Manual,No,2,5-10 Miles,Europe,59,No,No,0.000415345508372411,14204,-2.51276,-56.58481,Limoges,29936,France
+29421,Single,Male,20000,0,High School,Manual,No,1,2-5 Miles,Europe,30,No,No,2.69573592959205E-05,29421,-19.41759,-85.88991,Felixstowe,O93 1AN,United Kingdom
+28496,Single,Male,10000,1,High School,Manual,Yes,1,2-5 Miles,Europe,46,No,No,0.027363708242774,28496,7.47755,-179.60097,Barmouth,FI78 6KS,United Kingdom
+12541,Married,Male,30000,0,Graduate Degree,Clerical,Yes,0,0-1 Miles,Europe,44,No,No,0.00265743862837553,12541,40.77827,77.17994,�vreux,43549,France
+20550,Married,Female,150000,3,Partial College,Professional,Yes,3,5-10 Miles,Europe,48,No,Yes,0.893131375312805,20550,26.61896,-33.18656,Delitzsch,52938,Germany
+24874,Married,Female,90000,1,High School,Management,No,3,5-10 Miles,Europe,57,No,No,8.95551420398988E-05,24874,56.09799,82.17871,Osnabr?ck,87975,Germany
+25470,Married,Male,20000,2,High School,Manual,Yes,1,0-1 Miles,Europe,41,No,No,0.0225510038435459,25470,51.97744,-97.49477,Whitchurch,BO24 5UT,United Kingdom
+25530,Single,Male,10000,0,Graduate Degree,Manual,No,0,0-1 Miles,Europe,44,No,No,0.000137887051096186,25530,-72.14543,116.95285,Hamilton,JJ4F 7DH,United Kingdom
+17110,Single,Female,30000,0,High School,Manual,Yes,1,2-5 Miles,Europe,35,No,No,0.0232410337775946,17110,-10.79788,10.75269,Tywyn,VF7 5OP,United Kingdom
+14806,Single,Male,10000,2,Partial High School,Manual,Yes,2,0-1 Miles,Europe,43,No,No,0.0195230264216661,14806,-35.0107,78.6079,Falkirk,Z8 0SU,United Kingdom
+20179,Single,Female,30000,0,High School,Manual,No,1,1-2 Miles,Europe,28,No,No,0.00143392325844616,20179,-49.12117,7.811,Barrow-in-Furness,G5 8KV,United Kingdom
+25784,Single,Male,160000,4,Bachelors,Management,No,4,0-1 Miles,Europe,59,No,No,0.000137799099320546,25784,-81.27524,-49.27422,Brest,93091,France
+17788,Married,Male,20000,1,High School,Manual,Yes,1,2-5 Miles,Europe,39,No,No,0.00275062443688512,17788,66.09962,-172.3316,Gelsenkirchen,35603,Germany
+21530,Married,Female,100000,4,Bachelors,Management,No,4,2-5 Miles,Europe,53,No,No,0.000242447888012975,21530,-35.99388,176.14368,Brodick,FL7 0RF,United Kingdom
