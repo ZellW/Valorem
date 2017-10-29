@@ -124,7 +124,7 @@ User information. Note that not every user in the dataset is available. File siz
 - expiration_date: format `%Y%m%d`
 
 ##Data Extraction Details
-The definition of membership expiration date is critical to understnad. Suppose we have a sequence for a user with the tuple of (`transaction date`, `membership expiration date`, and `is_cancel`):
+The definition of membership expiration date is critical to understand. Suppose we have a sequence for a user with the tuple of (`transaction date`, `membership expiration date`, and `is_cancel`):
 
 (2017-01-01, 2017-02-28, false)
 (2017-02-25, 0217-03-15, false)
@@ -153,6 +153,50 @@ Now consider the a sequence indicating the user does not falls in our scope of p
 Note that even the 3rd entry has member ship expiration date falls in 2017-03-16, but the fourth entry extends the membership expiration date to 2017-04-02, not between 2017-03-01 and 2017-03-31, so we will not make a prediction for the user.
 
 ##R Code
+
+### Manage Large File Size
+
+The file size for for transactions.csv is 1.7GB.  Let's break this into smaller individual files.
+
+```{r}
+cat("Set up enviornment\n")
+PATH <- "../input/"
+
+cat("Get train/test ids\n")
+train <- fread(paste0(PATH,"train.csv"), stringsAsFactors = TRUE, select="msno")
+test <- fread(paste0(PATH,"sample_submission_zero.csv"), stringsAsFactors = TRUE, select="msno")
+
+allIDs <- rbind(train, test) %>% unique() #Get train and test msno
+rm(train,test);gc()
+
+
+user_col_names <- c("msno","date","num_25","num_50","num_75","num_985","num_100","num_unq","total_secs")
+
+num_outputs = 50 # Number of files that will be created
+
+nrow_size = 392106543/num_outputs # 392106543 is number of rows in user_logs.csv
+
+for (i in 1:(num_outputs-49)) { # Should be 1:num_outputs -- Changed for successful Kaggle Kernel run
+  cat("Round",i,"-- Uploading user_logs\n")
+  if (i==1) {
+    users <- fread(paste0(PATH,"user_logs.csv"), sep=",", na.strings = "", stringsAsFactors=T, nrow=nrow_size)
+  }
+  else if (i==num_outputs) {
+    users <- fread(paste0(PATH,"user_logs.csv"), stringsAsFactors = TRUE, skip=((i-1)*nrow_size+1), col.names = user_col_names)
+  }
+  else {
+    users <- fread(paste0(PATH,"user_logs.csv"), stringsAsFactors = TRUE, nrow=nrow_size, skip=((i-1)*nrow_size+1), col.names = user_col_names)
+  }
+  cat("Reducing size of users -",i,"\n")  ##Editted below, should work fine (removed allData)
+  users <- users[users$msno %in% allIDs$msno,]
+  cat("Writing user logs subset -", i,"\n")
+  write.table(users, paste0("user_logs_subset_",i), sep=",", dec=".", quote=FALSE, row.names=FALSE)
+  rm(users); gc()
+}
+
+```
+
+
 
 ```{r}
 cat("Init")
