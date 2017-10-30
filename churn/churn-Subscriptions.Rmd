@@ -1,15 +1,9 @@
 ---
-
-title: 'Churn - Subscription'
+title: 'Churn Example - Subscription'
 output:
   html_document:
+    rmdformats::readthedown:
     highlight: pygments
-    theme: spacelab
-    toc: yes
-  pdf_document:
-    toc: yes
-    toc_depth: 3
-header-includes: \usepackage{graphicx} \usepackage{mathtools}
 ---
 
 <style type="text/css">
@@ -60,33 +54,125 @@ packages("data.table","Matrix", "xgboost", "caret", "dplyr", prompt = FALSE)
 ```
 
 ##Introduction
-Predicting if a user will churn after their subscription expires. Specifically, we want to see if a user make a new service subscription transaction within 30 days after their current membership expiration date.
+Predicting if a user will churn after their subscription expires. Specifically, we want to see if a user buys a new service subscription transaction within 30 days after their current membership expiration date.
 
 A music streaming service provider has members subscribe to their service. When the subscription is about to expire, the user can choose to renew, or cancel the service. They also have the option to auto-renew but can still cancel their membership any time. 
 
-The churn/renewal definition can be tricky due to the subscription model. Since the majority of the subscription lengtha are 30 days, many users re-subscribe every month. The key fields to determine churn/renewal are:
+The churn/renewal definition can be tricky due to the subscription model. Since the majority of the subscription lengths are 30 days, many users re-subscribe every month. The key fields to determine churn/renewal are:
 
 - transaction date
 - membership expiration date
 - is_cancel
 
-Note that `is_cancel` indicates whether a user actively cancels a subscription. Note that a cancellation does not imply the user has churned. A user may cancel service subscription due to change of service plans or other reasons. The criteria of *churn* is no new valid service subscription within 30 days after the current membership expires.
+Note that `is_cancel` indicates whether a user actively cancels a subscription. Note that a cancellation does not imply the user has churned. A user may cancel service due to change of service plans or other reasons. The criteria of *churn* is no new valid service subscription within 30 days after the current membership expires.
 
-The train and the test data are selected from users whose membership expire within a certain month. The train data includes users whose subscription expire within the month of February 2017.  The test data contains users whose subscription expires within the month of March 2017. This means we are examining user churn or renewal roughly in the month of March 2017 for train set, and the user churn or renewal roughly in the month of April 2017. Train and test sets are split by transaction date. 
+- The train data includes users whose subscription expires within the month of February 2017
+  - Therefore examine user churn or renewal in the month of March 2017
+- The test data contains users whose subscription expires within the month of March 2017
+  - Therefore examine user churn or renewal in the month of April 2017
 
-The data includes more users behaviors than the ones in train and test datasets, in order to enable participants to explore different user behaviors outside of the train and test sets. For example, a user could actively cancel the subscription, but renew within 30 days.
+> Train and test sets are split by transaction date
 
 ##Data
+
+```{r eval=FALSE}
+# Manage Large File Size - user_logs.csv is 30GB.  
+
+#Read takes 15-16 minutes on fatst PC with 16+ GB RAM
+PATH <- "../data/subscription/"
+
+user_logs <- fread(paste0(PATH,"user_logs.csv"), 
+                   sep = ",", 
+                   select = c('msno', 'num_unq', 'total_secs'),
+                   colClasses=c(msno="factor",num_unq="numeric",total_secs="numeric"),
+                   stringsAsFactors = T)
+                   
+numRows_userlogs <- nrow(user_logs)
+user_logs <- user_logs[,lapply(.SD, mean, na.rm=TRUE), by = msno]
+
+write.table(user_logs, "user_logs_output.csv", sep=",", dec=".", quote=FALSE, row.names=FALSE)
+```
+
+```{r eval=FALSE}
+set.seed(12345)
+PATH <- "../data/subscription/"
+
+train <- fread(paste0(PATH,"train.csv"), sep=",", na.strings = "", stringsAsFactors=T)
+transactions <- fread(paste0(PATH,"transactions.csv"), sep=",", na.strings = "", stringsAsFactors=T)
+members <- fread(paste0(PATH,"members.csv"), sep=",", na.strings = "", stringsAsFactors=T)
+test <- fread(paste0(PATH,"test.csv"), sep=",", na.strings = "", stringsAsFactors=T)
+
+#Combine train and test files
+test$is_churn <- NA
+data <- rbind(train, test)
+data[,is_duplicate := as.numeric(duplicated(as.character(data$msno)) | duplicated(as.character(data$msno),fromLast=T))]
+
+#Format gender and remove NA's
+members[,gender := as.numeric(gender)]
+members$gender[is.na(members$gender)] <- 0
+
+#Format dates and do some feature engineering
+members[,":="(reg_fulldate = members$registration_init_time
+             ,registration_init_time = as.Date(as.character(registration_init_time), '%Y%m%d')
+             ,exp_fulldate = expiration_date
+             ,expiration_date = as.Date(as.character(expiration_date), '%Y%m%d'))]
+members[,":="(reg_year = year(registration_init_time)
+             ,reg_month = month(registration_init_time)
+             ,reg_mday = mday(registration_init_time)
+             ,reg_wday = wday(registration_init_time)
+             ,exp_year = year(expiration_date)
+             ,exp_month = month(expiration_date)
+             ,exp_mday = mday(expiration_date)
+             ,exp_wday = wday(expiration_date)
+             ,date_diff = as.numeric(expiration_date - registration_init_time))]
+members <- subset(members, select = -c(registration_init_time, expiration_date))
+
+#Merge data and members
+data <- merge(data, members, by = "msno", all.x = TRUE)
+
+#Reduce size of transactions
+transactions <- transactions[transactions$msno %in% levels(data$msno),]
+
+#Get amount of transactions per user
+transactions[,n_transactions := .N, by = msno]
+
+#Get difference between plan price and payment amount
+transactions[,payment_price_diff := plan_list_price - actual_amount_paid]
+
+#Aggregate by user, get mean of columns.  The transaction dates are useful for now, so remove them
+transactions <- transactions[,lapply(.SD,mean,na.rm=T), by = msno, .SDcols = names(transactions)[c(2:6,9:11)]]
+
+#Merge data and transactions
+data <- merge(data, transactions, by = "msno", all.x = TRUE)
+
+save(train, test, transactions, data, members, file="../data/subscription/subscrData.RData")
+```
+
+```{r echo=FALSE}
+user_logs <- fread("../data/subscription/user_logs_output.csv") 
+load("../data/subscription/subscrData.RData")
+load("../data/subscription/subscrModel.RData")
+```
+
 ###train.csv
 The train set, containing the user ids and whether they have churned. File size = 46MB
 - msno: user id
 - is_churn: This is the target variable. Churn is defined as whether the user did not continue the subscription within 30 days of expiration. `is_churn = 1` means churn,`is_churn = 0` means renewal.
 
-##sample_submission_zero.csv
-The test set, containing the user ids, in the format that we expect you to submit.  File size = 45MB
+```{r}
+glimpse(train)
+rm(train)
+```
+
+##test.csv
+The test set, containing the user ids.  File size = 45MB
 
 - msno: user id
 - is_churn: This is what you will predict. Churn is defined as whether the user did not continue the subscription within 30 days of expiration. `is_churn = 1` means churn,`is_churn = 0` means renewal.
+
+```{r}
+glimpse(test)
+```
 
 ##transactions.csv
 Transactions of users up until 2/28/2017.  File size = **1.7GB**
@@ -100,8 +186,13 @@ Transactions of users up until 2/28/2017.  File size = **1.7GB**
 - membership_expire_date: format `%Y%m%d`
 - is_cancel: whether or not the user canceled the membership in this transaction.
 
+```{r}
+glimpse(transactions)
+rm(transactions)
+```
+
 ##user_logs.csv
-- daily user logs describing listening behaviors of a user. Data collected until 2/28/2017. File size = **30GB**
+daily user logs describing listening behaviors of a user. Data collected until 2/28/2017. File size = **30GB**
 - msno: user id
 - date: format `%Y%m%d`
 - num_25: # of songs played less than 25% of the song length
@@ -111,6 +202,11 @@ Transactions of users up until 2/28/2017.  File size = **1.7GB**
 - num_100: # of songs played over 98.5% of the song length
 - num_unq: # of unique songs played
 - total_secs: total seconds played
+
+```{r}
+glimpse(user_logs)
+rm(user_logs)
+```
 
 ##members.csv
 User information. Note that not every user in the dataset is available. File size = 361MB
@@ -122,6 +218,23 @@ User information. Note that not every user in the dataset is available. File siz
 - registered_via: registration method
 - registration_init_time: format `%Y%m%d`
 - expiration_date: format `%Y%m%d`
+
+```{r}
+glimpse(members)
+rm(members)
+```
+
+##data
+data is the combination of test, train, transaction and members that was created in R code above.  There are `r nrow(data) ` records.
+
+```{r}
+glimpse(data)
+```
+
+```{r echo=FALSE, message=FALSE}
+gc()
+```
+
 
 ##Data Extraction Details
 The definition of membership expiration date is critical to understand. Suppose we have a sequence for a user with the tuple of (`transaction date`, `membership expiration date`, and `is_cancel`):
@@ -154,109 +267,8 @@ Note that even the 3rd entry has member ship expiration date falls in 2017-03-16
 
 ##R Code
 
-### Manage Large File Size
-
-The file size for for transactions.csv is 1.7GB.  Let's break this into smaller individual files.
-
-```{r}
-cat("Set up enviornment\n")
-PATH <- "../input/"
-
-cat("Get train/test ids\n")
-train <- fread(paste0(PATH,"train.csv"), stringsAsFactors = TRUE, select="msno")
-test <- fread(paste0(PATH,"sample_submission_zero.csv"), stringsAsFactors = TRUE, select="msno")
-
-allIDs <- rbind(train, test) %>% unique() #Get train and test msno
-rm(train,test);gc()
-
-
-user_col_names <- c("msno","date","num_25","num_50","num_75","num_985","num_100","num_unq","total_secs")
-
-num_outputs = 50 # Number of files that will be created
-
-nrow_size = 392106543/num_outputs # 392106543 is number of rows in user_logs.csv
-
-for (i in 1:(num_outputs-49)) { # Should be 1:num_outputs -- Changed for successful Kaggle Kernel run
-  cat("Round",i,"-- Uploading user_logs\n")
-  if (i==1) {
-    users <- fread(paste0(PATH,"user_logs.csv"), sep=",", na.strings = "", stringsAsFactors=T, nrow=nrow_size)
-  }
-  else if (i==num_outputs) {
-    users <- fread(paste0(PATH,"user_logs.csv"), stringsAsFactors = TRUE, skip=((i-1)*nrow_size+1), col.names = user_col_names)
-  }
-  else {
-    users <- fread(paste0(PATH,"user_logs.csv"), stringsAsFactors = TRUE, nrow=nrow_size, skip=((i-1)*nrow_size+1), col.names = user_col_names)
-  }
-  cat("Reducing size of users -",i,"\n")  ##Editted below, should work fine (removed allData)
-  users <- users[users$msno %in% allIDs$msno,]
-  cat("Writing user logs subset -", i,"\n")
-  write.table(users, paste0("user_logs_subset_",i), sep=",", dec=".", quote=FALSE, row.names=FALSE)
-  rm(users); gc()
-}
-
-```
-
-
-
-```{r}
-cat("Init")
-set.seed(12345)
-PATH <- "../input/"
-
-cat("Load data")
-train <- fread(paste0(PATH,"train.csv"), sep=",", na.strings = "", stringsAsFactors=T)
-transactions <- fread(paste0(PATH,"transactions.csv"), sep=",", na.strings = "", stringsAsFactors=T)
-members <- fread(paste0(PATH,"members.csv"), sep=",", na.strings = "", stringsAsFactors=T)
-sample_submission_zero <- fread(paste0(PATH,"sample_submission_zero.csv"), sep=",", na.strings = "", stringsAsFactors=T)
-
-cat("Combine train and test files")
-sample_submission_zero$is_churn <- NA
-data <- rbind(train, sample_submission_zero)
-data[,is_duplicate := as.numeric(duplicated(as.character(data$msno)) | duplicated(as.character(data$msno),fromLast=T))]
-rm(train);gc()
-
-cat("Format gender and remove NA's")
-members[,gender := as.numeric(gender)]
-members$gender[is.na(members$gender)] <- 0
-
-cat("Format dates and do some feature engineering")
-members[,":="(reg_fulldate = members$registration_init_time
-             ,registration_init_time = as.Date(as.character(registration_init_time), '%Y%m%d')
-             ,exp_fulldate = expiration_date
-             ,expiration_date = as.Date(as.character(expiration_date), '%Y%m%d'))]
-members[,":="(reg_year = year(registration_init_time)
-             ,reg_month = month(registration_init_time)
-             ,reg_mday = mday(registration_init_time)
-             ,reg_wday = wday(registration_init_time)
-             ,exp_year = year(expiration_date)
-             ,exp_month = month(expiration_date)
-             ,exp_mday = mday(expiration_date)
-             ,exp_wday = wday(expiration_date)
-             ,date_diff = as.numeric(expiration_date - registration_init_time))]
-members <- subset(members, select = -c(registration_init_time, expiration_date))
-
-cat("Merge data and members")
-data <- merge(data, members, by = "msno", all.x = TRUE)
-rm(members);gc()
-
-cat("Reduce size of transactions a bit")
-transactions <- transactions[transactions$msno %in% levels(data$msno),]
-
-cat("Get amount of transactions per user")
-transactions[,n_transactions := .N, by = msno]
-
-cat("Get difference between plan price and payment amount")
-transactions[,payment_price_diff := plan_list_price - actual_amount_paid]
-
-cat("Aggregate by user, get mean of columns")
-cat("I don't think the transaction dates are useful for now, so let's remove them")
-transactions <- transactions[,lapply(.SD,mean,na.rm=T), by = msno, .SDcols = names(transactions)[c(2:6,9:11)]]
-
-cat("Merge data and transactions")
-data <- merge(data, transactions, by = "msno", all.x = TRUE)
-rm(transactions);gc()
-
-cat("Prepare for xgb")
+```{r eval=FALSE}
+#Prepare for xgb
 cvFolds <- createFolds(data$is_churn[!is.na(data$is_churn)], k=5, list=TRUE, returnTrain=FALSE)
 varnames <- setdiff(colnames(data), c("msno", "is_churn"))
 train_sparse <- Matrix(as.matrix(data[!is.na(is_churn), varnames, with=F]), sparse=TRUE)
@@ -266,58 +278,32 @@ test_ids <- data[is.na(is_churn),msno]
 dtrain <- xgb.DMatrix(data=train_sparse, label=y_train)
 dtest <- xgb.DMatrix(data=test_sparse)
 
-cat("Params for xgb")
-param <- list(booster="gbtree",
-              objective="binary:logistic",
-              eval_metric="logloss",
-              eta = .02,
-              gamma = 1,
-              max_depth = 6,
-              min_child_weight = 1,
-              subsample = .8,
-              colsample_bytree = .8
-)
+#Params for xgb
+param <- list(booster="gbtree", objective="binary:logistic", eval_metric="logloss", 
+              eta = .02, gamma = 1, max_depth = 6, min_child_weight = 1,
+              subsample = .8, colsample_bytree = .8)
 
-cat("Xgb cross-validation, uncomment when running locally")
-# xgb_cv <- xgb.cv(data = dtrain,
-#                  params = param,
-#                  nrounds = 1000,
-#                  maximize = FALSE,
-#                  prediction = TRUE,
-#                  folds = cvFolds,
-#                  print_every_n = 10,
-#                  early_stopping_round = 50)
-# best_iter <- xgb_cv$best_iteration
-best_iter <- 1512
+xgb_cv <- xgb.cv(data = dtrain, params = param, nrounds = 1000, maximize = FALSE, prediction = TRUE,
+                 folds = cvFolds, print_every_n = 10, early_stopping_round = 50)
 
-cat("xgb model")
-xgb_model <- xgb.train(data = dtrain,
-                       params = param,
-                       watchlist = list(train = dtrain),
-                       nrounds = best_iter,
-                       verbose = 1,
-                       print_every_n = 100
-)
+best_iter <- xgb_cv$best_iteration
 
-cat("Feature importance")
+xgb_model <- xgb.train(data = dtrain, params = param, watchlist = list(train = dtrain),
+                       nrounds = best_iter, verbose = 1, print_every_n = 100)
+
 names <- dimnames(train_sparse)[[2]]
 importance_matrix <- xgb.importance(names, model=xgb_model)
 xgb.plot.importance(importance_matrix)
 
-cat("Predict and output csv")
 preds <- data.table(msno=test_ids, is_churn=predict(xgb_model,dtest))
-preds <- merge(sample_submission_zero[,1], preds, by="msno", all.x=T, sort=F)
-write.table(preds, "submission.csv", sep=",", dec=".", quote=FALSE, row.names=FALSE)
+preds <- merge(test[,1], preds, by="msno", all.x=T, sort=F)
+head(preds, 15)
+#write.table(preds, "../data/subscription/predictions.csv", sep=",", dec=".", quote=FALSE, row.names=FALSE)
 ```
 
-
-
-```{r, out.width = "300px", echo=FALSE}
-
-knitr::include_graphics("./images/tsa1.JPG")
-
+```{r echo=FALSE, eval=FALSE}
+save(xgb_cv, best_iter, xgb_model, numRows_userlogs, names, importance_matrix, preds, file="../data/subscription/subscrModel.RData")
 ```
 
-#detach("package:ggmosaic", unload=TRUE)
 
 
