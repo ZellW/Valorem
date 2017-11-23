@@ -1,0 +1,269 @@
+---
+title: "Customer Segmentation Analysis - 2"
+output:
+  rmdformats::readthedown:
+    highlight: pygments
+---
+
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 14px;
+   line-height: 18px;
+}
+body{ /* Normal  */
+   font-size: 14px;
+}
+td {  /* Table  */
+   font-size: 12px;
+}
+h1 { /* Header 1 */
+ font-size: 26px;
+ color: #4294ce;
+}
+h2 { /* Header 2 */
+ font-size: 22px;
+}
+h3 { /* Header 3 */
+ font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 12px;
+}
+pre { /* Code block */
+  font-size: 12px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("dplyr", "tidyr", "ggplot2", "ggvis", "lubridate", "xlsx", "Hmisc", "cluster", prompt = FALSE)
+```
+
+# Business Scenario
+
+This illustrates k-means clustering in R to segment customers into distinct groups based on purchasing habits. k-means clustering is an unsupervised learning technique. All we need is to format the data in a way the algorithm can process, and we’ll let it determine the customer segments or clusters. This makes k-means clustering great for exploratory analysis as well as a jumping-off point for more detailed analysis. We’ll walk through a relevant example using the Cannondale bikes data set from the orderSimulatoR project GitHub repository.
+
+# How K-Means Works 
+The k-means clustering algorithm works by finding like groups based on Euclidean distance, a measure of distance or similarity. The practitioner selects k groups to cluster, and the algorithm finds the best centroids for the k groups. The practitioner can then use those groups to determine which factors group members relate. For customers, these would be their buying preferences.
+
+#Get Data
+To start, we’ll get need some orders to evaluate. If you’d like to follow along, we will be using the [bikes dataset](https://github.com/mdancho84/orderSimulatoR/tree/master/data). Load the data first using `xlsx`.
+
+```{r getData}
+# Read Cannondale orders data --------------------------------------------------
+customers <- read.xlsx("../data/bikeshops.xlsx", sheetIndex = 1)#xlsx
+products <- read.xlsx("../data/bikes.xlsx", sheetIndex = 1) 
+orders <- read.xlsx("../data/bikesorders.xlsx", sheetIndex = 1) 
+```
+
+Transform the data into a usable format.
+
+```{r}
+# Combine orders, customers, and products data frames --------------------------
+orders.extended <- merge(orders, customers, by.x = "customer.id", by.y="bikeshop.id")#dplyr
+orders.extended <- merge(orders.extended, products, by.x = "product.id", by.y = "bike.id")
+
+orders.extended <- orders.extended %>%
+  mutate(price.extended = price * quantity) %>%
+  select(order.date, order.id, order.line, bikeshop.name, model,
+         quantity, price, price.extended, category1, category2, frame) %>%
+  arrange(order.id, order.line)
+
+knitr::kable(head(orders.extended)) # Preview the data
+```
+
+# Developing a Hypothesis for Customer Trends 
+
+Developing a hypothesis is necessary as the hypothesis will guide our decisions on how to formulate the data in such a way to cluster customers. For the Cannondale orders, our hypothesis is that bike shops purchase Cannondale bike models based on features such as Mountain or Road Bikes and price tier (high/premium or low/affordable). Although we will use bike model to cluster on, the bike model features (e.g. price, category, etc) will be used for assessing the preferences of the customer clusters (more on this later).
+
+To start, we’ll need a unit of measure to cluster on. We can select quantity purchased or total value of purchases. We’ll select quantity purchased because total value can be skewed by the bike unit price. For example, a premium bike can be sold for 10X more than an affordable bike, which can mask the quantity buying habits.
+
+# Manipulating the Data Frame 
+
+Next, we need a data manipulation plan of attack to implement clustering on our data. We’ll user our hypothesis to guide us. First, we’ll need to get the data frame into a format conducive to clustering bike models to customer id’s. Second, we’ll need to manipulate price into a categorical variables representing high/premium and low/affordable. Last, we’ll need to scale the bike model quantities purchased by customer so the k-means algorithm weights the purchases of each customer evenly.
+
+We’ll tackle formatting the data frame for clustering first. We need to spread the customers by quantity of bike models purchased.
+
+```{r custTrends, message=FALSE, warning=FALSE}
+# Group by model & model features, summarize by quantity purchased -------------
+# tidyr Needed for spread function
+customerTrends <- orders.extended %>% group_by(bikeshop.name, model, category1, category2, frame, price) %>%
+        summarise(total.qty = sum(quantity)) %>% spread(bikeshop.name, total.qty)
+customerTrends[is.na(customerTrends)] <- 0  # Remove NA's
+```
+
+Next, we need to convert the unit price to categorical high/low variables. One way to do this is with the cut2() function from the Hmisc package. We’ll segment the price into high/low by median price. Selecting g = 2 divides the unit prices into two halves using the median as the split point.
+
+```{r price2Cat, message=FALSE, warning=FALSE}
+# Convert price to binary high/low category ------------------------------------
+customerTrends$price <- cut2(customerTrends$price, g=2) #Hmisc  Needed for cut2 function  
+```
+
+Last, we need to scale the quantity data. Unadjusted quantities presents a problem to the k-means algorithm. Some customers are larger than others meaning they purchase higher volumes. Fortunately, we can resolve this issue by converting the customer order quantities to proportion of the total bikes purchased by a customer. The prop.table() matrix function provides a convenient way to do this. An alternative is to use the scale() function, which normalizes the data. However, this is less interpretable than the proportion format.
+
+```{r}
+# Convert customer purchase quantity to percentage of total quantity -----------
+customerTrends.mat <- as.matrix(customerTrends[,-(1:5)])  # Drop first five columns
+customerTrends.mat <- prop.table(customerTrends.mat, margin = 2)  # column-wise pct
+customerTrends <- bind_cols(customerTrends[,1:5], as.data.frame(customerTrends.mat))
+```
+
+The final data frame (first five rows shown below) is now ready for clustering.
+
+```{r}
+# View data post manipulation --------------------------------------------------
+knitr::kable(head(customerTrends))
+```
+
+# K-Means Clustering 
+
+Now we are ready to perform k-means clustering to segment our customer-base. Think of clusters as groups in the customer-base. Prior to starting we will need to choose the number of customer groups, k, that are to be detected. The best way to do this is to think about the customer-base and our hypothesis. We believe that there are most likely to be at least four customer groups because of mountain bike vs road bike and premium vs affordable preferences. We also believe there could be more as some customers may not care about price but may still prefer a specific bike category. However, we’ll limit the clusters to eight as more is likely to overfit the segments.
+
+## Running the K-Means Algorithm 
+
+The code below does the following:
+
+1. Converts the `customerTrends` data frame into `kmeansDat.t`. The model and features are dropped so the customer columns are all that are left. The data frame is transposed to have the customers as rows and models as columns. `kmeans()` requires this format.
+2. Performs `kmeans()` to cluster the customer segments. Set `minClust = 4` and `maxClust = 8`. From our hypothesis, we expect there to be at least four and at most six groups of customers. This is because customer preference is expected to vary by price (high/low) and category1 (mountain vs bike). There may be other groupings as well. Beyond eight segments may be overfitting the segments.
+3. Uses `silhouette()` to obtain silhouette widths. Silhouette is a technique in clustering that validates the best cluster groups. `silhouette()` from the `cluster` package allows us to get the average width of silhouettes which will be used to programmatically determine the optimal cluster size.
+
+```{r}
+# Running the k-means algorithm -------------------------------------------------
+#cluster Needed for silhouette function
+
+kmeansDat <- customerTrends[,-(1:5)]  # Extract only customer columns
+kmeansDat.t <- t(kmeansDat)  # Get customers in rows and products in columns
+
+# Setup for k-means loop 
+km.out <- list()
+sil.out <- list()
+x <- vector()
+y <- vector()
+minClust <- 4      # Hypothesized minimum number of segments
+maxClust <- 8      # Hypothesized maximum number of segments
+
+# Compute k-means clustering over various clusters, k, from minClust to maxClust
+for (centr in minClust:maxClust) {
+        i <- centr-(minClust-1) # relevels start as 1, and increases with centr
+        set.seed(11) # For reproducibility
+        km.out[i] <- list(kmeans(kmeansDat.t, centers = centr, nstart = 50))
+        sil.out[i] <- list(silhouette(km.out[[i]][[1]], dist(kmeansDat.t)))
+        # Used for plotting silhouette average widths
+        x[i] = centr  # value of k
+        y[i] = summary(sil.out[[i]])[[4]]  # Silhouette average width
+}
+```
+
+Next, we plot the silhouette average widths for the choice of clusters. The best cluster is the one with the largest silhouette average width which turns out to be 5 clusters.
+
+```{r}
+# Plot silhouette results to find best number of clusters; closer to 1 is better
+ggplot(data = data.frame(x, y), aes(x, y)) + 
+  geom_point(size=3) + 
+  geom_line() +
+  xlab("Number of Cluster Centers") +
+  ylab("Silhouette Average Width") +
+  ggtitle("Silhouette Average Width as Cluster Center Varies")
+```
+
+## Which Customers are in Each Segment? 
+
+Now that we have clustered the data, we can inspect the groups find out which customers are grouped together. The code below groups the customer names by cluster X1 through X5.
+
+```{r}
+# Get customer names that are in each segment ----------------------------------
+
+# Get attributes of optimal k-means output
+maxSilRow <- which.max(y)          # Row number of max silhouette value
+optimalClusters <- x[maxSilRow]    # Number of clusters
+km.out.best <- km.out[[maxSilRow]] # k-means output of best cluster
+
+# Create list of customer names for each cluster
+clusterNames <- list()
+clusterList <- list()
+for (clustr in 1:optimalClusters) {
+  clusterNames[clustr] <- paste0("X", clustr)
+  clusterList[clustr] <- list(
+    names(
+        km.out.best$cluster[km.out.best$cluster == clustr]
+        )
+    )
+}
+names(clusterList) <- clusterNames
+
+print(clusterList)
+```
+
+# Determining the Preferences of the Customer Segments
+
+The easiest way to determine the customer preferences is by inspection of factors related to the model (e.g. price point, category of bike, etc). Advanced algorithms to classify the groups can be used if there are many factors, but typically this is not necessary as the trends tend to jump out. 
+
+The code below attaches the k-means centroids to the bike models and categories for trend inspection.
+
+```{r}
+# Combine cluster centroids with bike models for feature inspection ------------
+custSegmentCntrs <- t(km.out.best$centers)  # Get centroids for groups
+colnames(custSegmentCntrs) <- make.names(colnames(custSegmentCntrs))
+customerTrends.clustered <- bind_cols(customerTrends[,1:5], as.data.frame(custSegmentCntrs))
+```
+Now, on to cluster inspection.
+
+## Cluster 1
+
+Order by cluster 1’s top ten bike models in descending order. We can quickly see that the top 10 models purchased are predominantly high-end and mountain. The all but one model has a carbon frame.
+
+```{r}
+# Arrange top 10 bike models by cluster in descending order --------------------
+attach(customerTrends.clustered)  # Allows ordering by column name
+knitr::kable(head(customerTrends.clustered[order(-X1), c(1:5, 6)], 10))
+```
+
+## Cluster 2
+
+Inspect cluster 2. We can see that the top models are all low-end/affordable models. There’s a mix of road and mountain for the primariy category and a mix of frame material as well.
+
+```{r}
+# Arrange top 10 bike models by cluster in descending order
+knitr::kable(head(customerTrends.clustered[order(-X2), c(1:5, 7)], 10))
+```
+
+```{r}
+detach(customerTrends.clustered)
+```
+
+## Clusters 3, 4 & 5
+
+Inspecting clusters 3, 4 and 5 produce interesting results. For brevity, we won’t display the tables. Here’s the results:
+
+- Cluster 3: Tends to prefer road bikes that are low-end.
+- Cluster 4: Is very similar to Cluster 2 with the majority of bikes in the low-end price range.
+- Cluster 5: Tends to refer road bikes that are high-end.
+
+# Reviewing Results 
+
+Once the clustering is finished, it’s a good idea to take a step back and review what the algorithm is saying. For our analysis, we got clear trends for four of five groups, but two groups (clusters 2 and 4) are very similar. Because of this, it may make sense to combine these two groups or to switch from k = 5 to k = 4 results.
+
+# Recap 
+
+The customer segmentation process can be performed with various clustering algorithms. In this post, we focused on k-means clustering in `R`. While the algorithm is quite simple to implement, half the battle is getting the data into the correct format and interpreting the results. We went over formatting the order data, running `kmeans()`  to cluster the data with several hypothetical k clusters, using `silhouette()` from the `cluster` package to determine the optimal number of k clusters, and interpreting the results by inspection of the k-means centroids.
+
+August 28, 2016: There was an issue with the set.seed() being outside of the for-loop in the k-means algorithm preventing the kmeans output from being completely reproducible. The set.seed() was moved inside the for-loop.
+August 16, 2017: There is an issue with cbind() from base R that resulted in data frames binding incorrectly. The bind_cols() function from dplyr is used instead.
+
+#Reference
+
+http://www.business-science.io/business/2016/08/07/CustomerSegmentationPt1.html

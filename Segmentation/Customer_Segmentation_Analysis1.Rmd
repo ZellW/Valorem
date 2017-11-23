@@ -1,0 +1,605 @@
+---
+title: "Customer Segmentation Analysis"
+output:
+  rmdformats::readthedown:
+    highlight: pygments
+---
+
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 14px;
+   line-height: 18px;
+}
+body{ /* Normal  */
+   font-size: 14px;
+}
+td {  /* Table  */
+   font-size: 12px;
+}
+h1 { /* Header 1 */
+ font-size: 26px;
+ color: #4294ce;
+}
+h2 { /* Header 2 */
+ font-size: 22px;
+}
+h3 { /* Header 3 */
+ font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 12px;
+}
+pre { /* Code block */
+  font-size: 12px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("dplyr", "tidyr", "ggplot2", "ggvis", "lubridate", "VIM", "mice", "plotly", "nnet", "scales",  prompt = FALSE)
+```
+
+#Introduction
+
+##Business Case
+
+Imagine a medium-sized business in a large city. Over the 20 years the business has been in operation, the leadership never leveraged the data it has collected over this period of time. Because the sales have started to decline, a new manager started to study customer purchasing patterns.
+
+The manager realized the company has a treasure trove of data but lacks the skills and people to analyze and learn from the data. The manager asked Valorem to evaluate the data and propose data-driven solutions that might help him better target his customers, reduce marketing expenses and improve sales.
+
+##Business Problem
+
+The sales are not growing and forecasts are regularly missed. In the last few years the store has developed marketing and sales campaigns and even  free parking but sales stagnated and the forecast is not looking positive..
+
+The business leadership it its manager have no analytics experience. **The company does not truly know their customers or how the company should allocate their marketing budget**.
+
+##Proposed Solution
+
+Deriving insight from the stores data will enable the company to visualize and understand customer.  Valorem will also  create targeted marketing segmentations and a new forecasting capability based on a data-driven strategy.
+
+#Data Exploration
+
+Valorem first looks at the company's data.  While Valorem would like to enrich the data with external data local demographics information, the project timeline is tight.  Valorem needs to improve operations before recommending ways to optimize the proposed solution. 
+
+At first glance, the data seems limiting:
+
+```{r, getOrdersData, echo=FALSE, message=F, warning=F}
+# Download database
+Orders <- read.csv("../data/Segmentation_Orderst.csv", header = TRUE, sep = ";")
+# Set Date as Date rather than factor
+Orders$Date = as.Date(Orders$Date, "%d/%m/%y")
+head(Orders)
+```
+
+Looking at the 51,243 records from the past 10 years in a different way provides Valorem a bit more insight.
+
+```{r, odersDataSum, echo=FALSE, message=F, warning=F}
+summary(Orders)
+```
+
+Valorem now knows:
+
+- In 10 years 264,200 customers spent on average $39.00. 
+- Data issue:  474 missing values
+- Data issue:  outliers in Total
+
+Valorem explains to the company because the data is skewed by outliers, the median is better metric to use to understand the distribution parameters.
+
+## Data Visualizations
+
+Data is helpful, but data is better understood and recalled when presented through simple - but powerful - data visualizations.
+
+```{r}
+Orders <- Orders %>% mutate(year_of_purchase = year(Date))
+
+myGroup <- group_by(Orders, year_of_purchase)
+Number_of_Orders <-  summarize(myGroup, counter = n())
+
+AvgTotal <- summarize(myGroup, Total = mean(Total, na.rm=TRUE))
+
+par(mfrow=c(1,2))
+barplot(Number_of_Orders$counter, names.arg = Number_of_Orders$year_of_purchase, main="Number of Orders", col="#2C3E50")
+barplot(AvgTotal$Total, names.arg = AvgTotal$year_of_purchase, main = "Average per Orders ($)", col="#2C3E50")
+```
+
+A few generalizations may be deduced from the plots above:
+
+- Order number appear to be stagnating
+- The average revenue per order has trended upward
+
+Combining the information above into a new plot shows there overall revenue trend:
+
+```{r, echo=FALSE, message=F, warning=F, fig.width=10}
+Ordersplot <- Orders %>% group_by(year_of_purchase) %>% summarize(sum=sum(Total, na.rm=TRUE))
+p1 <- ggplot(Ordersplot, aes(as.character(Ordersplot$year_of_purchase), Ordersplot$sum)) + geom_bar(stat="identity", fill = "#2C3E50") +
+    xlab("Order Year") + ylab("Revenue") +  ggtitle("Revenue by Year") + theme_minimal() + scale_y_continuous(labels = comma)
+p1
+```
+
+Overall, it does not appear too bad - the total revenue has increased in the last few years.  What does the future look like?  What does the data tell us?
+
+Before diving deeper into the data, there are some data corrections that must be considered.
+
+## Handling data issues
+
+### Missing Values
+
+Count the missing values per columns and see how they are distributed within the dataset:
+
+```{r, echo=FALSE, message=F, warning=F}
+# apply(is.na(Orders),2,sum)
+# # Visualisation
+# md.pattern(Orders)
+```
+```{r, missingData, message=F, warning=F}
+aggr(Orders, prop = F, numbers = T)
+```
+
+Missing values are only found in the total column, not within the date or the customer ID column. After discussing with the manager Valorem learned this is due to a change in  their ERP system. To handle theses missing values, Valorem was advised to replace them with the median value. 
+
+Now we have no more missing values:
+
+```{r, removeMissing, message=F, warning=F}
+Orders[is.na(Orders)] <- 39
+apply(is.na(Orders),2,sum)
+```
+
+### Outliers
+
+Valorem identified outliers as a data problem earlier.  The visualization below makes identifying these outliers simple.
+
+```{r, plotOutliers, message=F, warning=F}
+p2 <- ggplot(Orders, aes(Date, Total)) + geom_point(alpha = 0.1)
+p2 <- p2 +geom_text(data=subset(Orders, Total > 10000 | Total < 0), aes(Date, Total, label=Total))
+p2
+```
+
+After presenting this to the manager, Valorem was informed to remove the outliers and the negative value.  Below the Y-Axis scale has changed because the extreme values have been removed.
+
+```{r, echo=FALSE, message=F, warning=F}
+Orders <- Orders %>% filter(Total>=0)
+Orders <- Orders %>% filter(Total<10000)
+p2 <- ggplot(Orders, aes(Date, Total)) + geom_point(alpha = 0.1)
+p2
+```
+
+
+#Segmentation
+
+##What is Customer Segmentation
+
+The company should not treat all customers the same way, offer them the same product or charge the same price, because this leaves too much value on the table. Valorem will  build relevant customer segments and use them to improve the company's customer relationship, offers and campaigns. 
+
+A good segmentation strategy gathers similar entities together and separates different ones. It enables managers to treat the customer segments differently without drilling down to the individual level which will be to hard to manage. 
+
+Once a segment is defined, it needs to describe it in simple terms. This enable managers to see the customer needs, desires and habits differently. This allows a company to  customize offerings, adapt customer messages and optimize marketing campaigns.
+
+## Statistics & Segmentation
+
+Customers may be similar but based on what characteristics or variables? Much of this is dependent on the business and the business question sought.  
+
+[RFM](https://en.wikipedia.org/wiki/RFM_%28customer_value%29) is a method used for analyzing customer value. It is commonly used in database marketing and direct marketing and has received particular attention in retail and professional services industries.  RFM is an acronym for three dimensions:
+
+- Recency – How recently did the customer purchase?
+- Frequency – How often do they purchase?
+- Monetary Value – How much do they spend?
+
+### RFM Segmentation
+
+The RFM variables are good predictors of future customer profitability and are easy to compute.
+
+> In this exercise, the date is assumed to be January 1, 2017.
+
+```{r, message=T, warning=F, fig.width=10}
+# Compute the number of days from the last order (2017-01-01) and name this variable lastorders
+Orders <- Orders %>% mutate(days_since_lastorders = as.numeric(difftime(time1 = "2017-01-01", time2 = Orders$Date, units = "days")))
+Orders <- Orders %>% mutate_at(5, round, 0)#round days_since_lastorders woth no decimals 
+
+myGrpCustID <- group_by(Orders, Customer_id)
+rfmOrders <- summarize(myGrpCustID, recency = min(days_since_lastorders), frequency = n(), avgorder = mean(Total)) %>% arrange(desc(frequency))
+head(rfmOrders)
+```
+
+Now that the RFM variables are created, Valorem recreated the distributions of the total and average order per customer as was illustrated previously.  Note the RFM variables are not scaled the same so that needs to be corrected.  Valorem took the log of each of the RFM variables to de-skew the distribution and make it more normal. 
+
+```{r, plotDistLog, message=F, warning=F, fig.width=10}
+# Use the logarithm for all the variables:
+Scaled_rfmOrders <- rfmOrders
+Scaled_rfmOrders$frequency <- log(rfmOrders$frequency)
+Scaled_rfmOrders$recency <- log(rfmOrders$recency)
+Scaled_rfmOrders$avgorder <- log(rfmOrders$avgorder)
+
+hist(Scaled_rfmOrders$avgorder, breaks = 25, main = "Log (Average Orders (per customers)) ", xlab = "Log (Average Orders (per customers))", col="#2C3E50")
+```
+
+There are 3 other methods Valorem could have used to transform the RFM data (log is the most common but sometimes it helps to test and compare):
+
++ Normalizing (or standardizing): subtract your data by the mean and divide it by the standard deviation = *standard score*. Data adjusted to a common scale and help compare your data in a meaningful way.
++ Scaling (Min-Max scaling): Available in R with a very simple function scale(). Data will be scaled in a range from 0 to 1 (or -1 to 1).
++ Create bucket: Create a new variable to reinterpret the three variables by creating buckets.
+
+### Customer Clustering
+
+Clustering relies on domain knowledge.  Because the company has been doing business for 20 years, they have noticed naturally differences between their customers and have traditionally thought there were 5 different types of customers.  Naturally, Valorem uses this information to perform segmentation analysis.
+
+However, as a check, Valorem also applies a few methodologies to determine what the data and statics suggests the optimal number of segments.
+
+Before proceeding, a quick introduction to clustering. Valorem is implewmenting k-means clustering segment customers into distinct groups based on purchasing habits. k-means clustering is an unsupervised learning technique, which means we do not need to have a target for clustering. All that is needed is to format the data in a way the algorithm can process and let it determine the customer segments or clusters. This makes k-means clustering great for exploratory analysis as well as a jumping-off point for more detailed analysis. 
+
+The k-means clustering algorithm works by finding like groups based on Euclidean distance, a measure of distance or similarity. Working with industry/domain experts, the data scientist selects k groups to cluster and the algorithm finds the best centroids for the k groups. The data scientist  then uses those groups to determine which factors group members relate.
+
+```{r kmeansData, echo=FALSE}
+# 1. Run K-means (nstart = 20) and 5 different groups
+Scaled_rfmOrders <- Scaled_rfmOrders %>% filter(frequency>0)
+Scaled_rfmOrders_ <- Scaled_rfmOrders %>% select(recency:avgorder)
+Scaled_rfmOrders_km <- kmeans(Scaled_rfmOrders_, centers = 5, nstart = 20)
+```
+
+#### Calculate Number of Segments
+
+The first method, called the elbow method, supports the company's belief there are 5 distinct groupings within their customer base.
+
+```{r elbowMethod, message=FALSE, warning=FALSE}
+library(factoextra)
+library(NbClust)
+
+Scaled_rfmOrders <- Scaled_rfmOrders %>% filter(frequency>0)
+Scaled_rfmOrders_ <- Scaled_rfmOrders %>% select(recency:avgorder)
+
+tmpdf <- sample_n(Scaled_rfmOrders_, 1000)
+
+fviz_nbclust(tmpdf, kmeans, method="wss") + geom_vline(xintercept = 5, linetype = 2) + labs(subtotle = "Elbow Mthod")
+```
+
+The second method provides a different suggestion.  This method runs an ensemble of methodologies and then totals up the winners.  Below it appears that 3 groupings exist but 4 or 5 are also possible.
+
+```{r nbclustHidden, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+nbclust <- NbClust(tmpdf, distance = "euclidean", min.nc = 3, max.nc = 6, method = "kmeans")
+```
+```{r nbclustPlot}
+fviz_nbclust(nbclust)
+```
+
+```{r detach1, echo=FALSE, message=FALSE, warning=FALSE}
+detach("package:factoextra", unload=TRUE)
+detach("package:NbClust", unload=TRUE)
+```
+
+Continuing on with the Valorem analysis, an interactive visualization is prepared illustrating the 5 clusters of customers.
+
+> Without the re-scaling process different clusters than the ones below may have been found - erroneously!.
+
+```{r, kmeans, message=F, warning=F, fig.width=10}
+Scaled_rfmOrders_km <- kmeans(Scaled_rfmOrders_, centers = 5, nstart = 20)
+# Plot using plotly 
+p <- plot_ly(Scaled_rfmOrders, x = ~recency, y = ~avgorder, z = ~frequency, type = "scatter3d", mode = "markers", color=Scaled_rfmOrders_km$cluster) %>% layout(showlegend = FALSE)
+p
+```
+
+Below, the data is interpreted by the variance between the values in each variable:
+
+- There is a strong separation on the recency variables
+- The variation (or separation) is more nuanced for frequency and average ordered variables.
+
+```{r, message=F, warning=F, fig.width=10}
+Scaled_rfmOrders_km$centers
+```
+
+**Conclusion:** The clustering analysis yielded results enabling Valorem to create targeted marketing segments. This information can be leveraged to improve the business.
+
+```{r clearObjects, echo=FALSE}
+rm(list=ls()[!grepl('^Orders$',ls())]) 
+```
+
+## Apply Customer Segmentation
+
+The next goal is to build segments of customers that are easily manageable and understood. Valorem adds a new  variable derived from the first purchase of every customer to measure loyalty.  The values returned are a count of days.
+
+```{r, echo=FALSE, message=F, warning=F, fig.width=10}
+myGrpCustID <- group_by(Orders, Customer_id, year_of_purchase)
+customers_all <- summarize(myGrpCustID, recency = min(days_since_lastorders), first_purchase = max(days_since_lastorders), frequency = n(), avg_amount = mean(Total),
+                           max_amount = max(Total))#max_amount will be used later in the busniess case
+head(customers_all)
+```
+
+> The optimal segmentation solution will vary over time requiring the code to be re-run to update the segmentation. 
+
+With this information, the company and Valorem collaborate to define the five customer segments:
+
+- *Active* customer as someone that purchased something within the last 12 months
+- *Warm* who made a purchase in the prior year (between 13 and 24 months)
+- *Cold* is defines as someone whose last purchase was between two and three years ago
+- *Inactive* is someone that has not purchased anything for more than three years
+- *Hi* value segments have average purchase amounts greater than $89
+
+```{r, message=F, warning=F}
+# Complete segment solution using which, and exploiting previous test as input
+customers_all$Segment = "NA"
+customers_all$Segment[which(customers_all$recency > 365*3)] = "inactive"
+
+customers_all$Segment[which(customers_all$recency <= 365 & customers_all$avg_amount < 90)] = "active low value"
+customers_all$Segment[which(customers_all$recency <= 365 & customers_all$avg_amount > 89)] = "active hi value"
+
+customers_all$Segment[which(customers_all$recency <= 365*3 & customers_all$recency > 365*2)] = "cold"
+
+customers_all$Segment[which(customers_all$recency <= 365*2 & customers_all$recency > 365*1 & customers_all$avg_amount < 90)] = "warm low value"
+customers_all$Segment[which(customers_all$recency <= 365*2 & customers_all$recency > 365*1 & customers_all$avg_amount > 89)] = "warm hi value"
+
+customers_all$Segment = factor(x = customers_all$Segment, levels = c("inactive", "cold", "warm hi value", "warm low value", "active hi value", "active low value"))
+
+myGrpSegment <- dplyr::group_by(customers_all, Segment)
+customers_all_avg <- summarize(myGrpSegment, avg_recency = mean(recency), avg_first_purchase = mean(first_purchase), avg_frequency = mean(frequency), avg_amount = mean(avg_amount))
+#customers_all <-  dplyr::rename(customers_all, Segments = segment)
+head(customers_all_avg)
+```
+
+The final segmentation is composed of 6 segments. These can improve management decisions on every level. Next, determine how customers are different.
+
+Valorem collected the revenue for each segment through 2015.  Valorem compares that data with the same data from 2016 to identify which customers are changing segments and when. 
+
+```{r, message=F, warning=F, fig.width=10}
+par(mfrow=c(1,1))
+
+#myGrpCustID <- group_by(customers_all, Customer_id)
+#customers_2yrs <- summarize(myGrpCustID2, recency = min(days_since), first_purchase = max(days_since), frequency = n(), amount = sum(Total, na.rm = TRUE))
+
+since2years <- customers_all %>% filter(recency < 720)
+since2years <- since2years %>% group_by(Segment) %>% summarize(sum = sum(avg_amount, na.rm=TRUE))
+
+ggplot(since2years, aes(Segment, sum )) + geom_bar(stat="identity", fill = "#2C3E50") +
+    xlab("Segment") + ylab("2015 Revenue") +  ggtitle("Through 2015 Revenue by Segment") + theme_minimal() 
+```
+
+**Conclusion:** with these segmentation methods,the company will be able to treat different customers uniquely. For example the company can send special offers to recently acquired customers, or meet them in person to push them to become loyal. The company can also identify which customers are high value. That is crucial to develop profitable relationships.
+
+> Segments have to be statistically and managerially relevant.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+rm(list= ls()[!(ls() %in% c('Orders','customers_all'))])
+```
+
+# Targeting and Scoring 
+
+Valorem builds a model to predict how much money customers are going to spend over the next 12 months. To to this, three new variables must be calculated: 
+
+1. maximum amount spend
+2. revenue from 2016
+3. a binary variable that signals if a customer bought anything in 2016 (1) or not (0)
+
+```{r, message=F, warning=F, fig.width=10}
+# Extract the predictors: (from 2015)
+customers_2015 <- filter(customers_all, year_of_purchase == 2015)
+
+# Compute revenues generated by customers in 2016
+Rev2016 <- filter(Orders, year_of_purchase == 2016)
+myGrpCustID <- dplyr::group_by(Rev2016, Customer_id)
+revenue_2016 <- summarize(myGrpCustID, revenue_2016 = sum(Total))
+
+# Merge 2015 customers and 2016 revenue
+mergedData <- left_join(customers_2015, revenue_2016)
+mergedData$revenue_2016[is.na(mergedData$revenue_2016)] = 0#Means customer did not buy anything in 2016 
+mergedData$active_2015 = as.numeric(mergedData$revenue_2016 > 0)#Only interested in customer that made a purchase in 2015 (binary 0 -1)
+
+# Display calibration (mergedData) data
+head(mergedData)
+```
+
+## Model Building - Multinomial Logistic Regression
+
+Valorem leverages a neural net (`nnet`) to build a classification model.  The output will identify the most important variables
+
+>  Multinomial logistic regression is a classification method that generalizes logistic regression to multiclass problems, i.e. with more than two possible discrete outcomes.
+
+The model predicts customer probabilities. The importance of each predictor is shown by weights. If the weight are large (+ or -) it suggests they are good predictors. If not, it means the variables contribute little to the predictions.
+
+```{r, message=F, warning=F, echo=FALSE}
+prob.model = multinom(formula = active_2015 ~ recency + first_purchase + frequency + avg_amount + max_amount, data = mergedData)
+```
+
+```{r, message=F, warning=F}
+coef = summary(prob.model)$coefficients
+std  = summary(prob.model)$standard.errors
+# Ratio 
+print(coef / std)
+```
+
+Our results show to which extent each parameters are significant. `recency` and `frequency` are the most meaningful predictors in our model (`first_purchase` is not too far behind).
+
+To develop a monetary model, Valorem selects only those records where the customer made  a purchase using the binary variable we created earlier. This will all the company to predict how much *active customers* are going to spend next year. (Use log again to reduce the influence power from the few outliers.) 
+
+The results of the model are displayed followed by a plot of the outcome.
+
+```{r, message=F, warning=F, fig.width=10}
+# Select only active customer: 
+active_2015 = which(mergedData$active_2015 == 1)
+
+# Calibrate the monetary model, using a log-transform
+amount.model = lm(formula = log(revenue_2016) ~ log(avg_amount) + log(max_amount), data = mergedData[active_2015, ])
+summary(amount.model)
+```
+
+```{r, message=FALSE, warning=FALSE}
+# Plot the results of this new monetary model
+## The fitted values are the value predicted by the model
+plot(x = log(mergedData[active_2015, ]$revenue_2016), y = amount.model$fitted.values, col="#2C3E50", xlab = "Recorded 2016 Revenue", ylab = "Model Prediction")
+```
+
+```{r echo=FALSE}
+rm(list= ls()[!(ls() %in% c('Orders', 'customers_2015', 'amount.model', 'prob.model', 'customers_all'))])
+```
+
+## Apply the Models
+
+All the modeling above may see m a bit confusing, but now Valorem brings it all together.
+
+The company is predicting two things:
+
+- the probability that an active customer will buy 
+- the amount they will spend
+
+Below, the current RFM variables are computed.  Recall the output is in terms of probabilities.  This is actionable information!
+
+```{r, message=F, warning=F, fig.width=10}
+customers_all$prob_predicted = predict(object = prob.model, newdata = customers_all, type = "probs")
+# To get the real value from the logarithm we have to use the exponent:
+customers_all$revenue_predicted = exp(predict(object = amount.model, newdata = customers_all))
+customers_all$predicted_spend = customers_all$prob_predicted * customers_all$revenue_predicted
+
+# Predicted probabilities:
+head(customers_all)
+```
+
+Below the company learns on average their customers will spend `r as.character(round(summary(customers_all$revenue_predicted)[4],2))` dollars. We also have more information about the distribution.
+
+```{r}
+summary(customers_all$revenue_predicted)
+```
+
+The third thing we predict is called **predicted_spend** and it is the product of the two first predicted values. It is the predicted average spend for every customer next year. The distribution of this spending goes from near 0 to extreme values.
+
+```{r}
+summary(customers_all$predicted_spend)
+```
+
+This last figure is important as it the company how many customers have an expected revenue of more than 50 dollars. These individual customers can be identified. There are `r nrow(filter(customers_all, predicted_spend > 50))` customers that have an expected revenue of more than 50 dollars.  Here is a sample of the data:
+
+```{r}
+head(filter(customers_all, predicted_spend > 50))
+```
+
+```{r message=FALSE, warning=FALSE}
+rm(list= ls()[!(ls() %in% c('Orders', 'amount.model', 'prob.model', 'customers_all'))])
+```
+
+# Customer Lifetime Value
+
+The goal of customer lifetime value models (CLV) is to calculate the average value of each customer from the first purchase to the last. Valorem analyzes what is happening today and what has happened in the recent past in order to predict the revenues customers will generate in the future.
+
+```{r}
+#CHANGE ALL THE DATE!!
+myGrpCustID <- dplyr::group_by(Orders, Customer_id)
+customers_2016 <- summarize(myGrpCustID, recency = min(days_since_lastorders), first_purchase = max(days_since_lastorders), frequency = n(), avg_amount = mean(Total))
+ 
+customers_2016$Segment = "NA"
+customers_2016$Segment[which(customers_2016$recency > 365*3)] = "inactive"
+customers_2016$Segment[which(customers_2016$recency <= 365*3 & customers_2016$recency > 365*2)] = "cold"
+
+customers_2016$Segment[which(customers_2016$recency <= 365*2 & customers_2016$recency > 365*1 & customers_2016$avg_amount < 90)] = "warm low value"
+customers_2016$Segment[which(customers_2016$recency <= 365*2 & customers_2016$recency > 365*1 & customers_2016$avg_amount > 89)] = "warm hi value"
+
+customers_2016$Segment[which(customers_2016$recency <= 365 & customers_2016$avg_amount < 90)] = "active low value"
+customers_2016$Segment[which(customers_2016$recency <= 365 & customers_2016$avg_amount > 89)] = "active hi value"
+
+customers_2016$Segment = factor(x = customers_2016$Segment, levels = c("inactive", "cold", "warm hi value", "warm low value", "active hi value", "active low value"))
+```
+
+```{r}
+#Segment customers in a year ago
+OrdersYearAgo <- filter(Orders, days_since_lastorders > 365)
+myGrpCustID <- dplyr::group_by(OrdersYearAgo, Customer_id)
+customers_YearAgo <- summarize(myGrpCustID, recency = min(days_since_lastorders) - 365 , first_purchase = max(days_since_lastorders) - 365, frequency = n(), avg_amount = mean(Total), max_amount = max(Total))
+
+customers_YearAgo$Segment = "NA"
+customers_YearAgo$Segment[which(customers_YearAgo$recency > 365*3)] = "inactive"
+customers_YearAgo$Segment[which(customers_YearAgo$recency <= 365*3 & customers_YearAgo$recency > 365*2)] = "cold"
+
+customers_YearAgo$Segment[which(customers_YearAgo$recency <= 365*2 & customers_YearAgo$recency > 365*1 & customers_YearAgo$avg_amount < 90)] = "warm low value"
+customers_YearAgo$Segment[which(customers_YearAgo$recency <= 365*2 & customers_YearAgo$recency > 365*1 & customers_YearAgo$avg_amount > 89)] = "warm hi value"
+
+customers_YearAgo$Segment[which(customers_YearAgo$recency <= 365 & customers_YearAgo$avg_amount < 90)] = "active low value"
+customers_YearAgo$Segment[which(customers_YearAgo$recency <= 365 & customers_YearAgo$avg_amount > 89)] = "active hi value"
+
+customers_YearAgo$Segment = factor(x = customers_YearAgo$Segment, levels = c("inactive", "cold", "warm hi value", "warm low value", "active hi value", "active low value"))
+```
+
+The company uses this data to discover how many customers switch from one segment to another. Below, the rows display 2015 and the column displays 2016. For example, 60 inactive customers in 2015 became active high value in 2016. The next step is to understand why. 
+
+```{r}
+new_data <- left_join(customers_YearAgo, customers_2016, by = "Customer_id")
+transition = table(new_data$Segment.x, new_data$Segment.y)
+transition
+```
+
+> It is interesting to see that many of the warm low value customers became cold (1646 of them). 
+
+To develop the percentage behind this transition matrix divide each row by its sum. If you were an inactive customer in 2015 then you had a 96% chance of remaining inactive. This matrix is useful to make predictions. 
+
+```{r}
+transition = transition / rowSums(transition)
+print(transition)
+```
+
+## Make More Predictions
+
+The company would be thrilled to forecast what customers will likely move from one segment to another in the coming years.
+
+Valorem delivers.  The model below computes the 3 next years (not including new customers in 2016 and 2017). 
+
+```{r, message=F, warning=F, fig.width=10}
+# Initialize a matrix with the number of customers in each segment today and after 3 periods
+segments = matrix(nrow = 6, ncol = 4)
+segments[, 1] = table(customers_2016$Segment)
+colnames(segments) = 2017:2020
+row.names(segments) = levels(customers_2016$Segment)
+
+# Compute for each an every period
+for (i in 2:4) {
+   segments[, i] = segments[, i-1] %*% as.matrix(transition)
+}
+
+# Display how segments will evolve over time
+print(round(segments))
+```
+
+```{r, echo=FALSE, message=F, warning=F, fig.width=10}
+# Plot inactive, active high value customers over time
+par(mfrow=c(2,2))
+barplot(segments[3, ], col="#2C3E50",  main="warm hi value")
+barplot(segments[4, ], col="#2C3E50",  main="warm low value")
+barplot(segments[5, ], col="#2C3E50",  main="active hi value")
+barplot(segments[6, ], col="#2C3E50",  main="active low value")
+```
+
+To conclude this project, Valorem computes the revenue per segment for the next three years. (Note the model does not include new customer that we will start buying in 2017 and after.)
+
+```{r}
+myGrpSegment <- dplyr::group_by(customers_all, Segment)
+ave_order_Segment <- summarize(myGrpSegment, round(mean(avg_amount),2))
+ave_order_Segment[1,2] <- 0 #inactive segment always assumes to be 0 dollars
+ave_order_Segment <- as.data.frame(ave_order_Segment)
+colnames(ave_order_Segment)[2] <- "ave_order_amt"
+ave_order_Segment
+```
+
+```{r, message=F, warning=F, fig.width=10}
+
+revenue_per_segment = ave_order_Segment[, 'ave_order_amt'] * segments
+# https://stackoverflow.com/questions/7070173/r-friendly-way-to-convert-r-data-frame-column-to-a-vector
+print(revenue_per_segment)
+```
+
+# Conclusion
+
+This analysis is a first step toward a **better consumer-oriented & data-driven business**. The company managers can **customize their offering, adapt their messaging and optimize their marketing campaigns** much better than few months ago and in a more accurate  and reproducible manner.
+
+##Next Steps
+
+- More data about the products sold and about the customers
+- Evaluate association rule algorithm to determine what products tends to be bought together and reorganized the store accordingly
+- it would be useful to know the location, sex and age of customers. 
+
+

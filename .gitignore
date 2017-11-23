@@ -6,3 +6,6 @@
 *.RData
 churn/mytmpDB
 churn/mytmpDB-journal
+EeeAttrition_cache/html/__packages
+EeeAttrition_cache/html/naiveBayes_c48ecf6fab584342893f548719859757.rdb
+EeeAttrition_cache/html/naiveBayes_c48ecf6fab584342893f548719859757.rdx

@@ -1,6 +1,5 @@
 #### Functions ####
 
-
 ### Basic Example Functions ###
 
 # User defined functions allow you to easily reuse a piece of code. These are

@@ -1,20 +1,21 @@
 ---
-title: 'Churn Example - Subscription'
+title: 'Churn - Subscription Business Case'
 output:
-  html_document:
     rmdformats::readthedown:
-    highlight: pygments
+      highlight: pygments
+      code_folding: hide
 ---
 
 <style type="text/css">
 p{ /* Normal  */
-   font-size: 12px;
+   font-size: 14px;
+   line-height: 18px;
 }
 body{ /* Normal  */
-   font-size: 12px;
+   font-size: 14px;
 }
 td {  /* Table  */
-   font-size: 10px;
+   font-size: 12px;
 }
 h1 { /* Header 1 */
  font-size: 26px;
@@ -27,10 +28,10 @@ h3 { /* Header 3 */
  font-size: 18px;
 }
 code.r{ /* Code block */
-  font-size: 10px;
+  font-size: 12px;
 }
 pre { /* Code block */
-  font-size: 10px
+  font-size: 12px
 }
 #table-of-contents h2 {
 background-color: #4294ce;
@@ -47,85 +48,73 @@ border-top: ;
 }
 </style>
 
-```{r echo=FALSE, warning=FALSE, message=FALSE}
+```{r loadLibs, echo=FALSE, warning=FALSE, message=FALSE}
 if(!require(easypackages)){install.packages("easypackages")}
 library(easypackages)
-packages("data.table","Matrix", "xgboost", "caret", "dplyr", prompt = FALSE)
+packages("data.table", "Matrix", "xgboost", "caret", "dplyr", "lubridate", prompt = FALSE)
+#data.table used only for fread
 ```
 
-##Introduction
-Predicting if a user will churn after their subscription expires. Specifically, we want to see if a user buys a new service subscription transaction within 30 days after their current membership expiration date.
+```{r loadSavedData, echo=FALSE, message=FALSE, results='hide'}
+user_logs <- fread("../data/subscription/user_logs_output.csv") 
+load("../data/subscription/subscrData2.RData")
+load("../data/subscription/subscrModel2.RData")
+```
 
-A music streaming service provider has members subscribe to their service. When the subscription is about to expire, the user can choose to renew, or cancel the service. They also have the option to auto-renew but can still cancel their membership any time. 
+#Prologue
 
-The churn/renewal definition can be tricky due to the subscription model. Since the majority of the subscription lengths are 30 days, many users re-subscribe every month. The key fields to determine churn/renewal are:
+This document provides examples of key machine learning tasks while exploring a business case centered around customer churn.
 
-- transaction date
-- membership expiration date
-- is_cancel
+- Example of working locally with large data sets.  One of the sources is 30GB.  (Valorem has experience with very large Azure data sources too.)
+- Several tables were joined to develop a working dataset
+- Leverages a machine learning algorithm called `xgboost` - a popular boosted tree algorithm.
+- Reproducible research does not have to be boring.  The format of this document is an example.
+- Emphasizes a common issue in machine learning:  know your data intimately and *clearly define the outcome*.  In this example, note the emphasis on defining `churn`.
 
-Note that `is_cancel` indicates whether a user actively cancels a subscription. Note that a cancellation does not imply the user has churned. A user may cancel service due to change of service plans or other reasons. The criteria of *churn* is no new valid service subscription within 30 days after the current membership expires.
+#Use Case Introduction
 
-- The train data includes users whose subscription expires within the month of February 2017
-  - Therefore examine user churn or renewal in the month of March 2017
-- The test data contains users whose subscription expires within the month of March 2017
-  - Therefore examine user churn or renewal in the month of April 2017
+Valorem worked with Company A, a service provider in the music streaming subscription business.  Company A asked Valorem to identify which current subscribers are likely to stop using Company A's service.
 
-> Train and test sets are split by transaction date
+When a subscription is about to expire, the customer can choose to renew or cancel the service. Customers also have the option to auto-renew but can still cancel their membership any time. Most customer subscription lengths are 30 days with most re-subscribing monthly. 
 
-##Data
+`is_cancel` indicates whether a user actively cancels a subscription. *A cancellation does not imply the user has churned*. A user may cancel service due to change of service plans or other reasons. **The criteria of *churn* is no new valid service subscription within 30 days after the current membership expires**.
 
-```{r eval=FALSE}
-# Manage Large File Size - user_logs.csv is 30GB.  
+# Data
 
-#Read takes 15-16 minutes on fatst PC with 16+ GB RAM
+A number of data files were provided by Company A.  A brief introduction to these tables is introduced below.
+
+```{r ingestData, eval=FALSE}
+# Manage Large File Size - user_logs.csv is 30GB.  #Read takes 15-16 minutes on fatst PC with 16+ GB RAM
 PATH <- "../data/subscription/"
 
-user_logs <- fread(paste0(PATH,"user_logs.csv"), 
-                   sep = ",", 
-                   select = c('msno', 'num_unq', 'total_secs'),
-                   colClasses=c(msno="factor",num_unq="numeric",total_secs="numeric"),
-                   stringsAsFactors = T)
+user_logs <- fread(paste0(PATH,"user_logs.csv"), sep = ",", select = c('msno', 'num_unq', 'total_secs'),
+                   colClasses=c(msno="factor",num_unq="numeric",total_secs="numeric"), stringsAsFactors = T)
                    
 numRows_userlogs <- nrow(user_logs)
 user_logs <- user_logs[,lapply(.SD, mean, na.rm=TRUE), by = msno]
-
-write.table(user_logs, "user_logs_output.csv", sep=",", dec=".", quote=FALSE, row.names=FALSE)
 ```
 
-```{r eval=FALSE}
+```{r readData, eval=FALSE}
 set.seed(12345)
-PATH <- "../data/subscription/"
 
-train <- fread(paste0(PATH,"train.csv"), sep=",", na.strings = "", stringsAsFactors=T)
-transactions <- fread(paste0(PATH,"transactions.csv"), sep=",", na.strings = "", stringsAsFactors=T)
-members <- fread(paste0(PATH,"members.csv"), sep=",", na.strings = "", stringsAsFactors=T)
-test <- fread(paste0(PATH,"test.csv"), sep=",", na.strings = "", stringsAsFactors=T)
+train <- fread(paste0(PATH,"train2.csv"), sep=",", na.strings = "", stringsAsFactors=T)
+transactions <- fread(paste0(PATH,"transactions2.csv"), sep=",", na.strings = "", stringsAsFactors=T)
+members <- fread(paste0(PATH,"members2.csv"), sep=",", na.strings = "", stringsAsFactors=T)
+test <- fread(paste0(PATH,"test0.csv"), sep=",", na.strings = "", stringsAsFactors=T)
 
 #Combine train and test files
 test$is_churn <- NA
 data <- rbind(train, test)
-data[,is_duplicate := as.numeric(duplicated(as.character(data$msno)) | duplicated(as.character(data$msno),fromLast=T))]
+#data1 <- data[,is_duplicate := as.numeric(duplicated(as.character(data$msno)) | duplicated(as.character(data$msno),fromLast=T))]
+data <- mutate(data, is_duplicate = as.numeric(duplicated(msno, fromLast = TRUE)))
+#logical indicating if duplication should be considered from the reverse side, i.e., the last (or rightmost) of identical elements would correspond to duplicated = FALSE
 
-#Format gender and remove NA's
-members[,gender := as.numeric(gender)]
-members$gender[is.na(members$gender)] <- 0
-
-#Format dates and do some feature engineering
-members[,":="(reg_fulldate = members$registration_init_time
-             ,registration_init_time = as.Date(as.character(registration_init_time), '%Y%m%d')
-             ,exp_fulldate = expiration_date
-             ,expiration_date = as.Date(as.character(expiration_date), '%Y%m%d'))]
-members[,":="(reg_year = year(registration_init_time)
-             ,reg_month = month(registration_init_time)
-             ,reg_mday = mday(registration_init_time)
-             ,reg_wday = wday(registration_init_time)
-             ,exp_year = year(expiration_date)
-             ,exp_month = month(expiration_date)
-             ,exp_mday = mday(expiration_date)
-             ,exp_wday = wday(expiration_date)
-             ,date_diff = as.numeric(expiration_date - registration_init_time))]
-members <- subset(members, select = -c(registration_init_time, expiration_date))
+members <- members %>% mutate(gender = as.numeric(members$gender))
+members <- members %>% mutate(gender = if_else(is.na(gender), 0, gender))
+members <- members %>% mutate(reg_fulldate = registration_init_time, registration_init_time = as.Date(as.character(registration_init_time), '%Y%m%d'))
+members <- members %>% mutate(reg_year = year(registration_init_time), reg_month = month(registration_init_time), reg_mday = mday(registration_init_time),
+                        reg_wday = wday(registration_init_time))
+members <- members %>% select(-c(registration_init_time))
 
 #Merge data and members
 data <- merge(data, members, by = "msno", all.x = TRUE)
@@ -133,49 +122,56 @@ data <- merge(data, members, by = "msno", all.x = TRUE)
 #Reduce size of transactions
 transactions <- transactions[transactions$msno %in% levels(data$msno),]
 
-#Get amount of transactions per user
-transactions[,n_transactions := .N, by = msno]
-
-#Get difference between plan price and payment amount
-transactions[,payment_price_diff := plan_list_price - actual_amount_paid]
+transactions <- transactions %>% group_by(msno) %>% mutate(n_transactions = n())
+transactions <- transactions %>% mutate(payment_price_diff = plan_list_price - actual_amount_paid)
 
 #Aggregate by user, get mean of columns.  The transaction dates are useful for now, so remove them
-transactions <- transactions[,lapply(.SD,mean,na.rm=T), by = msno, .SDcols = names(transactions)[c(2:6,9:11)]]
+transactions <- transactions %>% group_by(msno) %>% mutate(payment_plan_days = mean(payment_plan_days))
+transactions <- transactions %>% group_by(msno) %>% mutate(plan_list_price = mean(plan_list_price), actual_amount_paid = mean(actual_amount_paid),
+                                                    payment_price_diff = mean(payment_price_diff))
+transactions <- transactions %>% group_by(msno) %>% mutate(is_auto_renew = mean(is_auto_renew), is_cancel = mean(is_cancel), payment_method_id = mean(payment_method_id))
+
+transactions <- distinct(transactions, msno, .keep_all = TRUE)
+transactions <- transactions %>% select(-c(transaction_date, membership_expire_date))
 
 #Merge data and transactions
 data <- merge(data, transactions, by = "msno", all.x = TRUE)
-
-save(train, test, transactions, data, members, file="../data/subscription/subscrData.RData")
 ```
 
-```{r echo=FALSE}
-user_logs <- fread("../data/subscription/user_logs_output.csv") 
-load("../data/subscription/subscrData.RData")
-load("../data/subscription/subscrModel.RData")
-```
+## The Training Data
 
-###train.csv
-The train set, containing the user ids and whether they have churned. File size = 46MB
+Train and test sets are split by transaction date.
+
+- The train data include users whose subscription expired in February 2017.  (Thus, analyze customer churn or renewal in March 2017.)
+- The test data contain users whose subscription expired in March 2017.  (Thus, analyze customer churn or renewal in April 2017.)
+
+The train set contains the user ids and whether they have churned. File size = 46MB
+
 - msno: user id
 - is_churn: This is the target variable. Churn is defined as whether the user did not continue the subscription within 30 days of expiration. `is_churn = 1` means churn,`is_churn = 0` means renewal.
 
 ```{r}
-glimpse(train)
+head(train)
 rm(train)
 ```
 
-##test.csv
-The test set, containing the user ids.  File size = 45MB
+## The Test Data
+
+The test set contains the user ids.  File size = 45MB
 
 - msno: user id
 - is_churn: This is what you will predict. Churn is defined as whether the user did not continue the subscription within 30 days of expiration. `is_churn = 1` means churn,`is_churn = 0` means renewal.
 
+For the test data, `is_churn` is - `NA`.  This information will be populated during the machine learning modeling effort below.
+
 ```{r}
-glimpse(test)
+head(test)
 ```
 
-##transactions.csv
-Transactions of users up until 2/28/2017.  File size = **1.7GB**
+## The Transactional Data
+
+Transactions of users.  File size = **1.7GB**
+
 - msno: user id
 - payment_method_id: payment method
 - payment_plan_days: length of membership plan in days
@@ -183,16 +179,17 @@ Transactions of users up until 2/28/2017.  File size = **1.7GB**
 - actual_amount_paid: in New Taiwan Dollar (NTD)
 - is_auto_renew
 - transaction_date: format `%Y%m%d`
-- membership_expire_date: format `%Y%m%d`
 - is_cancel: whether or not the user canceled the membership in this transaction.
 
 ```{r}
-glimpse(transactions)
+head(transactions)
 rm(transactions)
 ```
 
-##user_logs.csv
-daily user logs describing listening behaviors of a user. Data collected until 2/28/2017. File size = **30GB**
+## The User Logs
+
+Daily user logs describe the listening behaviors of customers. File size = **30GB**
+
 - msno: user id
 - date: format `%Y%m%d`
 - num_25: # of songs played less than 25% of the song length
@@ -204,12 +201,13 @@ daily user logs describing listening behaviors of a user. Data collected until 2
 - total_secs: total seconds played
 
 ```{r}
-glimpse(user_logs)
+head(user_logs)
 rm(user_logs)
 ```
 
-##members.csv
-User information. Note that not every user in the dataset is available. File size = 361MB
+## The Members Data
+
+User information. File size = 361MB
 
 - msno
 - city 
@@ -217,93 +215,123 @@ User information. Note that not every user in the dataset is available. File siz
 - gender 
 - registered_via: registration method
 - registration_init_time: format `%Y%m%d`
-- expiration_date: format `%Y%m%d`
 
 ```{r}
-glimpse(members)
+head(members)
 rm(members)
 ```
 
-##data
-data is the combination of test, train, transaction and members that was created in R code above.  There are `r nrow(data) ` records.
+## Data - Putting It Altogether
 
-```{r}
-glimpse(data)
+`data` is the combination of test, train, transaction and members that was created in R code.   There are `r nrow(data) ` records.
+
+```{r dataGlimpse}
+head(data)
 ```
 
-```{r echo=FALSE, message=FALSE}
+```{r echo=FALSE, message=FALSE, results='hide'}
 gc()
 ```
 
+# Understanding Churn
 
-##Data Extraction Details
-The definition of membership expiration date is critical to understand. Suppose we have a sequence for a user with the tuple of (`transaction date`, `membership expiration date`, and `is_cancel`):
+To undersntand how Company A defines `churn`, follow the scenarios below. 
 
-(2017-01-01, 2017-02-28, false)
-(2017-02-25, 0217-03-15, false)
-(2017-04-30, 3017-05-20, false) 
+Imagine a customer engagement sequence consisting of `transaction date`, `membership expiration date`, and `is_cancel`):
 
-This user is included in the dataset since the expiration date falls within our time period. Since the subscription transaction is 30 days away from 2017-03-15, the previous expiration date, we will count this user as a churned user.
+| Transaction Date | Membership Expiration Date | Canceled |
+|------------------|----------------------------|----------|
+| 2017-01-01 | 2017-02-28 | False |  
+| 2017-02-25 | 0217-03-15 | False |  
+| 2017-04-30 | 3017-05-20 | False |  
 
-Consider a more complex example.  A user has the following transaction sequence:
+This customer is included in the dataset since the expiration date falls within our time period. Since the subscription transaction is 30 days away from 2017-03-15, the previous expiration date, this record represents a churned user.
 
-(2017-01-01, 2017-02-28, false)
-(2017-02-25, 2017-04-03, false)
-(2017-03-15, 2017-03-16, true)
-(2017-04-01, 3017-06-30, false) 
+Consider a more complex example.  A customer has the following transaction sequence:
 
-The above entries is quite typical for a user who changes his subscription plan. Entry 3 indicates that the membership expiration date is moved from 2017-04-03 back to 2017-03-16 due to the user making an active cancellation on the 15th. On April 1st, the user made a long term (two month subscription), which is 15 days after the "current" expiration date. So this user is not a churn user. 
+| Transaction Date | Membership Expiration Date | Canceled |
+|------------------|----------------------------|----------|
+| 2017-01-01 | 2017-02-28 | False |  
+| 2017-02-25 | 0217-04-03 | False |  
+| 2017-03-15 | 2017-03-16 | True | 
+| 2017-04-01 | 2017-06-30 | False |
 
-> The way **churn** is defined is critical!
+
+The above entries is quite typical for a customer who changes his subscription plan. Entry 3 indicates that the membership expiration date is moved from 2017-04-03 back to 2017-03-16 due to the user making an active cancellation on the 15th. On April 1st, the user made a long term (two month subscription), which is 15 days after the "current" expiration date. So this user is not a churn user. 
 
 Now consider the a sequence indicating the user does not falls in our scope of prediction:
 
-(2017-01-01, 2017-02-28, false)
-(2017-02-25, 2017-04-03, false)
-(2017-03-15, 2017-03-16, true)
-(2017-03-18, 2017-04-02, false)
+| Transaction Date | Membership Expiration Date | Canceled |
+|------------------|----------------------------|----------|
+| 2017-01-01 | 2017-02-28 | False |  
+| 2017-02-25 | 0217-04-03 | False |  
+| 2017-03-15 | 2017-03-16 | True | 
+| 2017-03-18 | 2017-04-02 | False |
 
-Note that even the 3rd entry has member ship expiration date falls in 2017-03-16, but the fourth entry extends the membership expiration date to 2017-04-02, not between 2017-03-01 and 2017-03-31, so we will not make a prediction for the user.
+Note the 3rd entry has member ship expiration date falls in 2017-03-16, but the fourth entry extends the membership expiration date to 2017-04-02, not between 2017-03-01 and 2017-03-31, so we will not make a prediction for the user.
 
-##R Code
+> The way **churn** is defined is critical!
 
-```{r eval=FALSE}
+#Model Code
+
+To model and forecast the customers most likely to leave Company A, Valorem implemented a boosted tree algorithm called XGBoost.  While other models were initially considered, XGBoost provided the speed and accuracy needed.  A detailed explanation on XGBoost is beyond the scope of this business case, but here is a [good resource](https://xgboost.readthedocs.io/en/latest/) to learn about the algorithm (even if you are not a data scientist).
+
+XGBoost output can be challenging to interpret.  However, as an example, here is output that Valorem provides as evidence XGBoost is a good solution for this business case:
+
+```{r}
+xgb_cv$evaluation_log
+```
+
+Note how the loss values decrease significantly from the first test to the last test.
+
+```{r modelDevelopment, eval=FALSE}
 #Prepare for xgb
 cvFolds <- createFolds(data$is_churn[!is.na(data$is_churn)], k=5, list=TRUE, returnTrain=FALSE)
 varnames <- setdiff(colnames(data), c("msno", "is_churn"))
-train_sparse <- Matrix(as.matrix(data[!is.na(is_churn), varnames, with=F]), sparse=TRUE)
-test_sparse <- Matrix(as.matrix(data[is.na(is_churn), varnames, with=F]), sparse=TRUE)
-y_train <- data[!is.na(is_churn),is_churn]
-test_ids <- data[is.na(is_churn),msno]
-dtrain <- xgb.DMatrix(data=train_sparse, label=y_train)
-dtest <- xgb.DMatrix(data=test_sparse)
+#Xgboost manages only numeric vectors.
+train_sparse <- Matrix(as.matrix(data[!is.na(data$is_churn), varnames]), sparse=TRUE)
+test_sparse <- Matrix(as.matrix(data[is.na(data$is_churn), varnames]), sparse=TRUE)
+y_train <- data[!is.na(data$is_churn), 2]
+test_ids <- data[is.na(data$is_churn), 1]
 
-#Params for xgb
-param <- list(booster="gbtree", objective="binary:logistic", eval_metric="logloss", 
-              eta = .02, gamma = 1, max_depth = 6, min_child_weight = 1,
+dtrainObject <- xgb.DMatrix(data = train_sparse, label = y_train)
+dtestObject <- xgb.DMatrix(data = test_sparse)
+
+param <- list(booster = "gbtree", objective = "binary:logistic", eval_metric = "logloss", eta = .02, gamma = 1, max_depth = 6, min_child_weight = 1,
               subsample = .8, colsample_bytree = .8)
 
-xgb_cv <- xgb.cv(data = dtrain, params = param, nrounds = 1000, maximize = FALSE, prediction = TRUE,
-                 folds = cvFolds, print_every_n = 10, early_stopping_round = 50)
+xgb_cv <- xgb.cv(data = dtrainObject, params = param, nrounds = 1000, maximize = FALSE, prediction = TRUE, folds = cvFolds, print_every_n = 10, early_stopping_round = 50)
 
 best_iter <- xgb_cv$best_iteration
 
-xgb_model <- xgb.train(data = dtrain, params = param, watchlist = list(train = dtrain),
-                       nrounds = best_iter, verbose = 1, print_every_n = 100)
+xgb_model <- xgb.train(data = dtrainObject, params = param, watchlist = list(train = dtrainObject), nrounds = best_iter, verbose = 1, print_every_n = 100)
 
 names <- dimnames(train_sparse)[[2]]
-importance_matrix <- xgb.importance(names, model=xgb_model)
+importance_matrix <- xgb.importance(names, model = xgb_model)
+```
+
+While the output data from XGBoost may not be easily interpreted, a plot derived from XGBoost is both intuitive and informative.  Below, XGBoost provides insight into the variables that influence whether a Customer of Company A is likely to churn.
+
+```{r pltImportance}
 xgb.plot.importance(importance_matrix)
+```
 
-preds <- data.table(msno=test_ids, is_churn=predict(xgb_model,dtest))
+Finally, the results from the modeling are actionable.  Valorem provided the information below so Company A could identify which specific customers are most likely to churn - the higher the value - the more likely to drop the music service.  
+
+Armed with this information, Company A developed direct marketing programs and sales to individuals and to the groups of customers most likely to churn based on the information provided by Valorem's customer churn machine learning model.
+
+```{r showResults, eval=FALSE}
+preds <- data.frame(msno = test_ids, is_churn=predict(xgb_model, dtest))
 preds <- merge(test[,1], preds, by="msno", all.x=T, sort=F)
+```
+
+```{r showPredictions}
 head(preds, 15)
-#write.table(preds, "../data/subscription/predictions.csv", sep=",", dec=".", quote=FALSE, row.names=FALSE)
 ```
 
-```{r echo=FALSE, eval=FALSE}
-save(xgb_cv, best_iter, xgb_model, numRows_userlogs, names, importance_matrix, preds, file="../data/subscription/subscrModel.RData")
+```{r saveObjects, echo=FALSE, eval=FALSE}
+write.table(user_logs, "../data/subscriptions/user_logs_output.csv", sep=",", dec=".", quote=FALSE, row.names=FALSE)
+write.table(preds, "../data/subscription/predictions2.csv", sep=",", dec=".", quote=FALSE, row.names=FALSE)
+save(xgb_cv, best_iter, xgb_model, numRows_userlogs, names, importance_matrix, preds, file="../data/subscription/subscrModel2.RData")
+save(train, test, transactions, data, members, file="../data/subscription/subscrData2.RData")
 ```
-
-
-

@@ -1,0 +1,3 @@
+http://radacad.com/create-a-live-stream-weather-station-with-cortana-analytics-part-1
+
+https://www.hackster.io/windowsiot/build-hands-on-lab-iot-weather-station-using-windows-10-5b818f
