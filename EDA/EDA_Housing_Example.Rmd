@@ -1,0 +1,831 @@
+---
+title: "EDA Examples"
+output:
+  rmdformats::readthedown:
+    highlight: pygments
+    code_folding: hide
+---
+
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 14px;
+   line-height: 18px;
+}
+body{ /* Normal  */
+   font-size: 14px;
+}
+td {  /* Table  */
+   font-size: 12px;
+}
+h1 { /* Header 1 */
+ font-size: 26px;
+ color: #4294ce;
+}
+h2 { /* Header 2 */
+ font-size: 22px;
+}
+h3 { /* Header 3 */
+ font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 12px;
+}
+pre { /* Code block */
+  font-size: 12px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+
+```{r loadPackages, warning=FALSE, message=FALSE}
+if(!require(xda)){devtools::install_github("ujjwalkarn/xda")}
+
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("plyr", "reshape2", "data.table","psych",  "readr", "testthat", "gridExtra", "corrplot", "GGally", "ggplot2", "dplyr", "xda", "tidyr", "infotheo", prompt = FALSE)
+```
+
+```{r getData}
+train <- fread("../data/housing_train.csv")
+test <- fread("../data/housing_test.csv")
+```
+
+```{r storeVarTypeNames}
+categorical_var <- names(train)[which(sapply(train, is.character))]
+numeric_var <- names(train)[which(sapply(train, is.numeric))]
+```
+
+# Data Overview
+
+```{r structure}
+dim(train)
+numSummary(train)
+charSummary(train)
+```
+
+# Missing Data
+
+```{r missingOverview}
+# The percentage of data missing in train.
+sum(is.na(train)) / (nrow(train) *ncol(train))
+
+# The percentage of data missing in test.
+sum(is.na(test)) / (nrow(test) * ncol(test))
+```
+
+```{r missingData}
+train %>% select_if(function(x) any(is.na(x))) %>% summarize_all(funs(sum(is.na(.))))
+myTrainNumericNA <- train %>% select_if(is.numeric) %>% select_if(function(x) any(is.na(x))) %>% summarize_all(funs(sum(is.na(.))))
+myTrainCharNA <- train %>% select_if(is.character) %>% select_if(function(x) any(is.na(x))) %>% summarize_all(funs(sum(is.na(.))))
+myTrainFactorNA <- train %>% select_if(is.factor) %>% select_if(function(x) any(is.na(x))) %>% summarize_all(funs(sum(is.na(.))))
+
+if(length(myTrainNumericNA) > 0){
+myTrainNumericNA$Type <- "Numeric"
+gatheredmyTrainNumericNA <- gather(myTrainNumericNA, key, value, -Type)
+}
+
+if(length(myTrainFactorNA) > 0 ){
+myTrainFactorNA$Type <- "Factor"
+gatheredmyTrainFactorNA <- gather(myTrainFactorNA, key, value, -Type)
+}
+
+if(length(myTrainCharNA) > 0){
+myTrainCharNA$Type <- "Character"
+gatheredmyTrainCharNA <- gather(myTrainCharNA, key, value, -Type)
+}
+
+if(exists("gatheredmyTrainFactorNA"))"Yes" else "No"
+
+#combine rows when DF exists
+gatheredData <- rbind(if(exists("gatheredmyTrainNumericNA"))gatheredmyTrainNumericNA, if(exists("gatheredmyTrainCharNA"))gatheredmyTrainCharNA, if(exists("gatheredmyTrainFactorNA"))gatheredmyTrainFactorNA)
+
+myGrp <- group_by(gatheredData, Type)
+myGrpSummaryCnt <- dplyr::summarize(myGrp, MissingData = n())
+myGrpSummaryCnt
+myGrpSummarySum <- dplyr::summarize(myGrp, MissingData = sum(value))
+myGrpSummarySum
+
+ggplot(myGrpSummarySum, aes(Type, MissingData)) + geom_bar(stat = "identity")
+```
+
+## Missing Data Visualizations
+
+```{r missing data_2}
+plot_Missing <- function(data_in, title = NULL){
+  temp_df <- as.data.frame(ifelse(is.na(data_in), 0, 1))
+  temp_df <- temp_df[,order(colSums(temp_df))]
+  data_temp <- expand.grid(list(x = 1:nrow(temp_df), y = colnames(temp_df)))
+  data_temp$m <- as.vector(as.matrix(temp_df))
+  data_temp <- data.frame(x = unlist(data_temp$x), y = unlist(data_temp$y), m = unlist(data_temp$m))
+  ggplot(data_temp) + geom_tile(aes(x=x, y=y, fill=factor(m))) + scale_fill_manual(values=c("white", "black"), name="Missing\n(0=Yes, 1=No)") + theme_light() + ylab("") + xlab("") + ggtitle(title)
+}
+
+plot_Missing(train[, colSums(is.na(train)) > 0, with = FALSE])
+```
+
+# Duplicates
+
+```{r dupes}
+# Check for duplicated rows.
+cat("The number of duplicated rows are", nrow(train) - nrow(unique(train)))
+```
+
+# Char to Factor
+
+```{r charToFactor}
+####Convert character to factors 
+train <- train %>% mutate_if(is.character, as.factor)
+```
+
+# Generic Plot Code
+
+```{r plotCode}
+train_cat <-  train %>% select_if(is.factor)
+train_cont <- train %>% select_if(is.numeric)
+
+plotHist <- function(data_in, i) {
+  data <- data.frame(x=data_in[[i]])
+  p <- ggplot(data=data, aes(x=factor(x))) + stat_count() + xlab(colnames(data_in)[i]) + theme_light() + 
+    theme(axis.text.x = element_text(angle = 90, hjust =1))
+  return (p)
+}
+
+doPlots <- function(data_in, fun, ii, ncol=3) {
+  pp <- list()
+  for (i in ii) {
+    p <- fun(data_in=data_in, i=i)
+    pp <- c(pp, list(p))
+  }
+  do.call("grid.arrange", c(pp, ncol=ncol))
+}
+
+plotDen <- function(data_in, i){
+  data <- data.frame(x=data_in[[i]], SalePrice = data_in$SalePrice)
+  p <- ggplot(data= data) + geom_line(aes(x = x), stat = 'density', size = 1,alpha = 1.0) +
+    xlab(paste0((colnames(data_in)[i]), '\n', 'Skewness: ',round(skewness(data_in[[i]], na.rm = TRUE), 2))) + theme_light() 
+  return(p)
+}
+
+plotCorr <- function(data_in, i){
+  data <- data.frame(x = data_in[[i]], SalePrice = data_in$SalePrice)
+  p <- ggplot(data, aes(x = x, y = SalePrice)) + geom_point(shape = 1, na.rm = TRUE) + geom_smooth(method = lm ) + xlab(paste0(colnames(data_in)[i], '\n', 'R-Squared: ', round(cor(data_in[[i]], data$SalePrice, use = 'complete.obs'), 2))) + theme_light()
+  return(suppressWarnings(p))
+}
+```
+
+## Barplots for Categorical Variables
+
+```{r PlotCategorical}
+cntCat <- length(train_cat)
+#Make plots max 6 at a time - change if needed
+maxPlot = 6
+loopCnt <- cntCat %/% maxPlot
+remainder <- cntCat %% maxPlot
+
+myLoop_DF <- data.frame(x = seq(1, cntCat-remainder, by = maxPlot), y = seq(6, cntCat, by = maxPlot))
+myLoopMax <- max(myLoop_DF)
+
+for(i in 1:nrow(myLoop_DF)){
+  doPlots(train_cat, fun = plotHist, ii = myLoop_DF[i,1]:myLoop_DF[i,2], ncol = 3)
+}
+doPlots(train_cat, fun = plotHist, ii = (myLoopMax+1):(myLoopMax+remainder), ncol = 3)
+```
+
+## Density Plots - Numeric Variables
+
+```{r plotNumeric}
+cntCat <- length(train_cont)
+#Make plots max 6 at a time - change if needed
+maxPlot = 6
+loopCnt <- cntCat %/% maxPlot
+remainder <- cntCat %% maxPlot
+
+myLoop_DF <- data.frame(x = seq(1, cntCat-remainder, by = maxPlot), y = seq(6, cntCat, by = maxPlot))
+myLoopMax <- max(myLoop_DF)
+
+for(i in 1:nrow(myLoop_DF)){
+  doPlots(train_cont, fun = plotDen, ii = myLoop_DF[i,1]:myLoop_DF[i,2], ncol = 3)
+}
+doPlots(train_cont, fun = plotDen, ii = (myLoopMax+1):(myLoopMax+remainder), ncol = 3)
+```
+
+## Explore Correlation
+
+```{r, fig.height= 10, fig.width= 10}
+correlations <- cor(na.omit(train_cont[,-1]))
+
+# correlations
+row_indic <- apply(correlations, 1, function(x) sum(x > 0.3 | x < -0.3) > 1)
+
+correlations<- correlations[row_indic ,row_indic ]
+corrplot(correlations, method="square")
+```
+
+## Scatter Plot - High Correlation.
+
+```{r scatterCorrelation}
+highcorr <- c(names(correlations[,'SalePrice'])[which(correlations[,'SalePrice'] > 0.5)], names(correlations[,'SalePrice'])[which(correlations[,'SalePrice'] < -0.2)])
+ 
+data_corr <- train[, highcorr]
+
+cntCat <- length(highcorr)
+#Make plots max 6 at a time - change if needed
+maxPlot = 6
+loopCnt <- cntCat %/% maxPlot
+remainder <- cntCat %% maxPlot
+
+myLoop_DF <- data.frame(x = seq(1, cntCat-remainder, by = maxPlot), y = seq(6, cntCat, by = maxPlot))
+myLoopMax <- max(myLoop_DF)
+
+for(i in 1:nrow(myLoop_DF)){
+  doPlots(data_corr, fun = plotCorr, ii = myLoop_DF[i,1]:myLoop_DF[i,2], ncol = 3)
+}
+if(remainder > 0)doPlots(data_corr, fun = plotCorr, ii = (myLoopMax+1):(myLoopMax+remainder), ncol = 3)
+```
+
+# Plotting with XDA
+
+```{r xdaPlotting}
+Plot(train, 'SalePrice', range = c(1,2,3,4,9))
+Plot(train_cont, "SalePrice")
+```
+
+------------------------------
+
+# Data Pipeline Functions
+
+## Fix_Date_Features Pipeline
+
+```{r Fix_Date_Features}
+Fix_Date_Features <- function(data_set){
+     #Looks for the feature names that are character or factor
+     text_features <- c(names(data_set[sapply(data_set, is.character)]), names(data_set[sapply(data_set, is.factor)]))
+     #Loop thru each of the feature variables found above
+     for (feature_name in text_features){
+          feature_vector <- as.character(data_set[,feature_name])
+          # assuming date pattern: '01/11/2012'
+          date_pattern <- '[0-9][0-9]/[0-9][0-9]/[0-9][0-9][0-9][0-9]'
+          #10 characters in a properly formatted date like 12/02/1961
+          if(max(nchar(feature_vector)) == 10){
+               #grepl returns true/false list
+               if(sum(grepl(date_pattern, feature_vector)) > 0){
+                    #print(paste('Casting feature to date:', feature_name))#nive to have, not needed
+                    #If the feature variable makes it this far, format like a date
+                    data_set[, feature_name] <-  as.Date(feature_vector, format="% d/%m/%Y")}
+          }
+     }
+     return (data_set)
+}
+```
+
+## Word Count Pipeline
+
+```{r wordcount}
+wordcount <- function(str) {sapply(gregexpr("\\b\\W+\\b", str, perl=TRUE), function(x) sum(x>0) ) + 1}
+```
+
+## Get_Free_Text_Measures Pipeline
+
+```{r Get_Free_Text_Measures}
+# Modified to capture the 1st and 2nd words
+
+Get_Free_Text_Measures <- function(data_set, minimum_unique_threshold=0.9, features_to_ignore=c()){
+     text_features <- c(names(data_set[sapply(data_set, is.character)]), names(data_set[sapply(data_set, is.factor)]))
+     for (f_name in setdiff(text_features, features_to_ignore)){
+          f_vector <- as.character(data_set[,f_name])
+          if (length(unique(as.character(f_vector))) > (nrow(data_set) * minimum_unique_threshold)){
+               data_set[,paste0(f_name, '_word_count')] <- sapply(strsplit(f_vector, " "), length)
+               data_set[,paste0(f_name, '_character_count')] <- nchar(as.character(f_vector))
+               data_set[,paste0(f_name, '_1st_word')] <- sapply(strsplit(as.character(f_vector), " "), `[`, 1)
+               data_set[,paste0(f_name, '_2nd_word')] <- sapply(strsplit(as.character(f_vector), " "), `[`, 2)
+               data_set[,f_name] <- NULL
+          }
+     }
+     return(data_set)
+}
+```
+
+## Binarize_Features Pipeline
+
+```{r Binarize_Features}
+Binarize_Features <- function(data_set, features_to_ignore=c(), leave_out_one_level=FALSE, max_level_count=20){
+     require(dplyr)
+     text_features <- c(names(data_set[sapply(data_set, is.character)]), names(data_set[sapply(data_set, is.factor)]))
+     for (feature_name in setdiff(text_features, features_to_ignore)){
+          feature_vector <- as.character(data_set[,feature_name])
+          # check that data has more than one level
+          if (length(unique(feature_vector)) == 1)
+               next
+          # We set any non-data to text
+          feature_vector[is.na(feature_vector)] <- 'NA'
+          feature_vector[is.infinite(feature_vector)] <- 'INF'
+          feature_vector[is.nan(feature_vector)] <- 'NAN'
+          
+          # only give us the top x most popular categories
+          temp_vect <- data.frame(table(feature_vector)) %>% arrange(desc(Freq)) %>% head(max_level_count)
+          feature_vector <- ifelse(feature_vector %in% temp_vect$feature_vector, feature_vector, 'Other')
+          
+          # loop through each level of a feature and create a new column
+          first_level=TRUE
+          for (newcol in unique(feature_vector)){
+               if (leave_out_one_level & first_level){
+                    # avoid dummy trap and skip first level
+                    first_level=FALSE
+                    next
+               }
+               data_set[,paste0(feature_name,"_",newcol)] <- ifelse(feature_vector==newcol,1,0)
+          }
+          # remove original feature
+          data_set <- data_set[,setdiff(names(data_set),feature_name)]
+     }
+     return (data_set)
+}
+```
+
+## Impute_Features Pipeline
+
+```{r Impute_Features}
+Impute_Features <- function(data_set, features_to_ignore=c(), 
+                            use_mean_instead_of_0=TRUE, 
+                            mark_NAs=FALSE,
+                            remove_zero_variance=FALSE){
+     
+     for(feature_name in setdiff(names(data_set), features_to_ignore)){
+          #print(feature_name)#Nice but not needed
+          # remove any fields with zero variance
+          if(remove_zero_variance){
+               if(length(unique(data_set[, feature_name]))==1){
+                    data_set[, feature_name] <- NULL
+                    next
+               }
+          }
+          if(mark_NAs){
+               # note each field that contains missing or bad data.  is.na catches NA and NaN
+               if(any(is.na(data_set[,feature_name]))){
+                    # create binary column before imputing
+                    newName <- paste0(feature_name, '_NA')
+                    data_set[,newName] <- as.integer(ifelse(is.na(data_set[,feature_name]),1,0)) }
+               
+               if(any(is.infinite(data_set[,feature_name]))){
+                    newName <- paste0(feature_name, '_inf')
+                    data_set[,newName] <- as.integer(ifelse(is.infinite(data_set[, feature_name]),1,0)) }
+          }
+          
+          if (use_mean_instead_of_0){
+               #Need to replace Inf with NA so that na.rm=TRUE works below 0 there is no Inf.rm; NaNs are ok as is
+               data_set[is.infinite(data_set[,feature_name]),feature_name] <- NA
+               data_set[is.na(data_set[,feature_name]),feature_name] <- mean(data_set[,feature_name], na.rm=TRUE)
+          } else {
+               #You deciced to keep 0's rather than mean
+               data_set[is.na(data_set[,feature_name]),feature_name] <- 0
+               data_set[is.infinite(data_set[,feature_name]),feature_name] <- 0
+          }
+     }
+     return(data_set)
+}
+```
+
+## Feature_Engineer_Dates Pipeline
+
+A date field can be cast to an integer representation. Day 0 is 1/1/1970 (beginning of Unix time) - as you can imagine, this is very useful for modeling.
+
+```{r}
+print(as.numeric(as.Date('1970-01-01')))
+```
+
+But a date can yield a lot more data than just its integer representation. We’ll use the lubridate library to assist our extractions:
+
+- Extract day, month, and short and long year
+- Day count in year
+- Day of the week
+- Weekend
+- Quarter
+
+> Note: you will notice that there is an optional parameter to remove the original date. Some visualization
+and modeling tools can handle dates automatically but for simplicity here, we want our entire data set to
+be numerical. If that is an issue or if you want to retain the date for visualization and/or reporting, simply
+turn the remove_original_date off.
+
+```{r Feature_Engineer_Dates}
+
+Feature_Engineer_Dates <- function(data_set, remove_original_date=TRUE) {
+     data_set <- data.frame(data_set)
+     date_features <- names(data_set[sapply(data_set, is.Date)])#is.Date is from lubridate
+     for (feature_name in date_features) {
+          data_set[,paste0(feature_name,'_DateInt')] <- as.numeric(data_set[,feature_name])
+          data_set[,paste0(feature_name,'_Month')] <- as.integer(format(data_set[, feature_name], "%m"))
+          data_set[,paste0(feature_name,'_ShortYear')] <- as.integer(format(data_set[,feature_name], "%y"))
+          data_set[,paste0(feature_name,'_LongYear')] <- as.integer(format(data_set[,feature_name], "%Y"))
+          data_set[,paste0(feature_name,'_Day')] <- as.integer(format(data_set[,feature_name], "%d"))
+          # week day number requires first pulling the weekday label, 
+          # creating the 7 week day levels, and casting to integer
+          data_set[,paste0(feature_name,'_WeekDayNumber')] <- as.factor(weekdays(data_set[, feature_name]))
+          
+          levels(data_set[, paste0(feature_name, '_WeekDayNumber')]) <- 
+               list(Monday=1, Tuesday=2, Wednesday=3, Thursday=4, Friday=5, Saturday=6, Sunday=7)
+          
+          data_set[, paste0(feature_name,'_WeekDayNumber')] <- 
+               as.integer(data_set[,paste0(feature_name,'_WeekDayNumber')])
+          
+          data_set[,paste0(feature_name,'_IsWeekend')] <-  
+               as.numeric(grepl("Saturday|Sunday", weekdays(data_set[, feature_name])))
+          
+          data_set[,paste0(feature_name,'_YearDayCount')] <- yday(data_set[,feature_name])
+          data_set[,paste0(feature_name,'_Quarter')] <- lubridate::quarter(data_set[, feature_name], with_year = FALSE)
+          data_set[,paste0(feature_name,'_Quarter')] <- lubridate::quarter(data_set[, feature_name], with_year = TRUE)
+          if (remove_original_date)#delete the original date column only if remove_original_date=TRUE in function call
+               data_set[, feature_name] <- NULL
+     }
+     return(data_set)
+}
+```
+
+## Feature_Engineer_Integers Pipeline
+
+First thing we have to do to extract additional intelligence out of an integer is to verify that it actually is an integer:
+
+```{r}
+print(is.integer(1))
+print(class(1))
+print(class(1L))
+```
+
+We cannot count on the is.integer function as it requires the value to be declared as an integer literal (L). Instead we will use the round function (in R 3.3.3 and up you can use `is.wholenumber`). We’ll explore some simple feature engineering to capture:
+
+- Is feature equal to zero
+- Is feature positive
+- Binning feature values
+
+```{r Feature_Engineer_Integers}
+
+Feature_Engineer_Integers <- function(data_set, features_to_ignore=c()) {
+     data_set <- data.frame(data_set)
+     for (feature_name in setdiff(names(data_set), features_to_ignore)) {
+          if (class(data_set[,feature_name])=='numeric' | class(data_set[,feature_name])=='integer') {
+               feature_vector <- data_set[,feature_name]
+               if (all((feature_vector - round(feature_vector)) == 0)) {
+                    # make sure we have more than 2 values excluding NAs
+                    if (nrow(data_set %>% filter_(!is.na(feature_name)) %>% distinct_(feature_name)) > 2) {
+                         #print(feature_name)#not really needed/helpful
+                         data_set[,paste0(feature_name,'_IsZero')] <- ifelse(data_set[,feature_name]==0,1,0)
+                         data_set[,paste0(feature_name,'_IsPositive')] <- ifelse(data_set[,feature_name]>=0,1,0)
+                         # separate data into two bins using infotheo
+                         data_discretized <- discretize(data_set[,feature_name], disc='equalfreq', nbins=2)
+                         data_set[,paste0(feature_name,'_2Bins')] <- data_discretized$X
+                         if (nrow(data_set %>% filter_(!is.na(feature_name)) %>% distinct_(feature_name)) > 4) {
+                              # try 4 bins
+                              data_discretized <- discretize(data_set[,feature_name], disc='equalfreq', nbins=4)
+                              data_set[,paste0(feature_name,'_4Bins')] <- data_discretized$X
+                         }
+                    }
+               }
+          }
+     }
+     return (data_set)
+}
+```
+
+## Feature_Engineer_Numbers Pipeline
+
+Feature engineering of numbers is an enormous subject. Most feature engineering should come out of the business context, 
+something we can automate. This pipeline performs some simple transformations that are applicable to a lot of data sets on whole/real numbers.
+
+The Feature_Engineer_Numbers function will only transform features containing real numbers. It then applies a 2-degree polynomial transform, a simple log and exponential transform. It also rounds the data and splits it into two buckets using library infotheo. All these transformations are highly customizable, you could try 3-degree polynomial transform, round only to the 1st or 2nd digit. You could split the data into many more bins. Depending on the data, a few things can break, whether or not you have negative numbers, and too much or too little variation. This would definitely be an ideal candidate for a try/ catch error handling.
+
+For more information on the following transformer functions:
+
+- Log, Exp (http://www.inside-r.org/r-doc/base/log)
+- poly/log (https://stat.ethz.ch/R-manual/R-devel/library/stats/html/poly.html)
+- discretize (http://www.inside-r.org/packages/cran/infotheo/docs/discretize)
+
+```{r Feature_Engineer_Numbers}
+
+Feature_Engineer_Numbers <- function(data_set, features_to_ignore=c()) {
+     data_set <- data.frame(data_set)
+     date_features <- setdiff(names(data_set[sapply(data_set, is.numeric)]), features_to_ignore)
+     for (feature_name in date_features) {
+          feature_vector <- data_set[,feature_name]
+          if (is.integer(feature_vector) | is.numeric(feature_vector)) {
+               if (any((feature_vector - round(feature_vector)) != 0)) {
+                    # make sure we have more than 2 values excluding NAs
+                    if (nrow(data_set %>% filter_(!is.na(feature_name)) %>% distinct_(feature_name)) > 2) {
+                         # print(feature_name)#Not really helpful
+                         # polynomial transformation
+                         poly_vector <- poly(x=feature_vector, degree = 2)
+                         data_set[,paste0(feature_name, "_poly1")] <- poly_vector[,1]
+                         data_set[,paste0(feature_name, "_poly2")] <- poly_vector[,2]
+                         # log transform
+                         data_set[,paste0(feature_name, "_log")] <- log(x = feature_vector)
+                         # exponential transform
+                         data_set[,paste0(feature_name, "_exp")] <- exp(x = feature_vector)
+                         # rounding
+                         data_set[,paste0(feature_name, "_rnd")] <- round(x = feature_vector, digits = 0)
+                         # binning into 2 bins
+                         data_discretized <- discretize(data_set[,feature_name], disc='equalfreq', nbins=2)
+                         data_set[,paste0(feature_name,'_2Bins')] <- data_discretized$X
+                    }
+               }
+          }
+     }
+     return(data_set)
+}
+```
+
+## Get_Fast_Correlations Pipeline
+
+```{r Get_Fast_Correlations}
+
+Get_Fast_Correlations <- function(data_set, features_to_ignore=c(), size_cap=5000) {
+     data_set <- data_set[, setdiff(names(data_set), features_to_ignore)]
+     if (size_cap > nrow(data_set)) {
+          data_set = data_set[sample(nrow(data_set), size_cap),]
+     } else {
+               data_set = data_set[sample(nrow(data_set), nrow(data_set)),]
+          }
+     d_cor <- as.matrix(cor(data_set))
+     d_cor_melt <- arrange(melt(d_cor), -(value))
+     # clean up
+     pair_wise_correlation_matrix <- filter(d_cor_melt, Var1 != Var2)
+     pair_wise_correlation_matrix <- filter(pair_wise_correlation_matrix, is.na(value)==FALSE)
+     # remove pair dups
+     #dim(pair_wise_correlation_matrix)
+     pair_wise_correlation_matrix <- pair_wise_correlation_matrix[seq(1, 
+                                   nrow(pair_wise_correlation_matrix), by=2), ]
+     #dim(pair_wise_correlation_matrix)
+     plot(pair_wise_correlation_matrix$value)#optional
+     return(pair_wise_correlation_matrix) 
+}
+```
+
+## Get_Top_Relationships Pipeline
+
+```{r Get_Top_Relationships}
+
+Get_Top_Relationships <- function(data_set, correlation_abs_threshold=0.8, pvalue_threshold=0.01) {
+     feature_names <- names(data_set)
+     # strip var names to index for pair-wise identification     
+     names(data_set) <- seq(1:ncol(data_set))     
+     # calculate correlation and significance numbers     
+     cor_data_df <-  psych::corr.test(data_set)
+     # apply var names to correlation matrix over index     
+     rownames(cor_data_df$r) <- feature_names
+     colnames(cor_data_df$r) <- feature_names
+     # top cor and sig
+     relationships_set <- cor_data_df$ci[,c('r','p')]
+     # apply var names to data over index pairs
+     relationships_set$feature_1 <- feature_names[as.numeric(sapply(strsplit(rownames(relationships_set), "-"), `[`, 1))]
+     relationships_set$feature_2 <- feature_names[as.numeric(sapply(strsplit(rownames(relationships_set), "-"), `[`, 2))]
+     relationships_set <- select(relationships_set, feature_1, feature_2, r, p) %>% dplyr::rename(correlation=r, pvalue=p)
+     # return only the most insteresting relationships
+     return(filter(relationships_set, abs(correlation) > correlation_abs_threshold | pvalue < pvalue_threshold) %>%
+                 arrange(pvalue))
+}
+```
+
+- If there is a high correlation between your dependent and independent variable, then you are lucky and found a predictive feature for your supervised model. 
+- If there is a lot of correlation between your dependent variables then you found redundant features and you can remove one side of the correlation pair. This is actually recommended in linear models. 
+- Multicollinearity hurts linear models and correlation checks can help clean things up. This is not as important for classification models except when you want to prune your feature set down, or if you want to use variable importance in a report, too many overlapping features will complicate things.
+
+## Identify_Outliers Pipeline
+
+```{r Identify_Outliers}
+
+Identify_Outliers <- function(data_set, features_to_ignore=c(), 
+                              outlier_sd_threshold = 2, remove_outlying_features = FALSE) {
+     # get standard deviation for each feature
+     outliers <- c()
+     for (feature_name in setdiff(names(data_set),features_to_ignore)) {
+          feature_mean <- mean(data_set[,feature_name], na.rm = TRUE)
+          feature_sd <- sd(data_set[,feature_name], na.rm = TRUE)
+          outlier_count <- sum(data_set[,feature_name] > (feature_mean + (feature_sd * outlier_sd_threshold)) | 
+                                    data_set[,feature_name] < (feature_mean - (feature_sd * outlier_sd_threshold))) 
+          if (outlier_count > 0) {
+               outliers <- rbind(outliers, c(feature_name, outlier_count))
+               if (remove_outlying_features)
+                    data_set[, feature_name] <- NULL
+          }
+     } 
+     outliers <- data.frame(outliers) %>% rename(feature_name=X1, outlier_count=X2) %>% 
+          mutate(outlier_count=as.numeric(as.character(outlier_count))) %>% arrange(desc(outlier_count))
+     if (remove_outlying_features) {
+          return(data_set)
+     } else {
+          return(outliers)
+     }
+} 
+```
+
+-------------------------------
+
+# Unbalanced Data Introduction
+
+```{r loadPackages2, message=FALSE, warning=FALSE}
+packages("caret", "randomForest", "ROSE" ,"psych",  "DMwR", prompt = FALSE)
+```
+
+```{r getData}
+#http://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/
+bc_data <- read.table("../data/breast-cancer-wisconsin.txt", header = FALSE, sep = ",")
+colnames(bc_data) <- c("sample_code_number", "clump_thickness", "uniformity_of_cell_size", 
+                       "uniformity_of_cell_shape", "marginal_adhesion", 
+                       "single_epithelial_cell_size", "bare_nuclei", "bland_chromatin", 
+                       "normal_nucleoli", "mitosis", "classes")
+
+bc_data$classes <- ifelse(bc_data$classes == "2", "benign",ifelse(bc_data$classes == "4", "malignant", NA))
+```
+
+It is advised to consider over- or under-sampling when you have unbalanced data sets. It is worthwhile to explain over and under-sampling techniques and show how easily it is to implement with `caret`.
+
+In this context, unbalanced data refers to classification problems where we have unequal instances for different classes. Having unbalanced data is actually very common in general, but it is especially prevalent when working with disease data where we usually have more healthy control samples than disease cases. Even more extreme unbalance is seen with fraud detection, where e.g. most credit card uses are okay and only very few will be fraudulent. In the example I used for my webinar, a breast cancer dataset, we had about twice as many benign than malignant samples.
+
+```{r}
+summary(bc_data$classes)
+```
+
+## Unbalanced Data Problem
+
+Most machine learning classification algorithms are sensitive to unbalance in the predictor classes. Let’s consider an even more extreme example than our breast cancer dataset: assume we had 10 malignant vs 90 benign samples. A machine learning model that has been trained and tested on such a dataset could now predict “benign” for all samples and still gain a very high accuracy. An unbalanced dataset will bias the prediction model towards the more common class!
+
+## How to balance data for modeling
+
+The basic theoretical concepts behind over and under-sampling are very simple:
+
+- With under-sampling, we randomly select a subset of samples from the class with more instances to match the number of samples coming from each class. In our example, we would randomly pick 241 out of the 458 benign cases. The main disadvantage of under-sampling is that we loose potentially relevant information from the left-out samples.
+- With oversampling, we randomly duplicate samples from the class with fewer instances or we generate additional instances based on the data that we have, so as to match the number of samples in each class. While we avoid loosing information with this approach, we also run the risk of overfitting our model as we are more likely to get the same samples in the training and in the test data, i.e. the test data is no longer independent from training data. This would lead to an overestimation of our model’s performance and generalizability.
+
+In reality though, we should not simply perform over- or under-sampling on our training data and then run the model. We need to account for cross-validation and perform over- or under-sampling on each fold independently to get an honest estimate of model performance!
+
+## Modeling Original Data
+
+Here is the same model I used in my webinar example: I randomly divide the data into training and test sets (stratified by class) and perform Random Forest modeling with 10 x 10 repeated cross-validation. Final model performance is then measured on the test set.
+
+```{r defaultModel}
+set.seed(42)
+index <- createDataPartition(bc_data$classes, p = 0.7, list = FALSE)
+train_data <- bc_data[index, ]
+test_data  <- bc_data[-index, ]
+
+model_rf <- caret::train(classes ~ ., data = train_data, method = "rf", 
+          preProcess = c("scale", "center"), trControl = trainControl(method = "repeatedcv", 
+          number = 10, repeats = 10, verboseIter = FALSE))
+
+final <- data.frame(actual = test_data$classes, predict(model_rf, newdata = test_data, type = "prob"))
+final$predict <- ifelse(final$benign > 0.5, "benign", "malignant")
+
+cm_original <- confusionMatrix(final$predict, test_data$classes)
+cm_original
+```
+
+### Under-sampling
+
+Fortunately, `caret` makes it easy to incorporate over- and under-sampling techniques with cross-validation resampling. Simply add the sampling option to `trainControl` and choose `down` for under- (also called down-) sampling. The rest stays the same as with our original model.
+
+```{r underModel}
+ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10, verboseIter = FALSE, sampling = "down")
+
+model_rf_under <- caret::train(classes ~ ., data = train_data, method = "rf", preProcess = c("scale", "center"), trControl = ctrl)
+
+final_under <- data.frame(actual = test_data$classes, predict(model_rf_under, newdata = test_data, type = "prob"))
+
+final_under$predict <- ifelse(final_under$benign > 0.5, "benign", "malignant")
+
+cm_under <- confusionMatrix(final_under$predict, test_data$classes)
+cm_under
+```
+
+### Oversampling
+
+For over- (also called up-) sampling we simply specify sampling = `up`.
+
+```{r overModel, warning=FALSE}
+ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10, verboseIter = FALSE, sampling = "up")
+
+model_rf_over <- caret::train(classes ~ ., data = train_data, method = "rf", preProcess = c("scale", "center"), trControl = ctrl)
+
+final_over <- data.frame(actual = test_data$classes, predict(model_rf_over, newdata = test_data, type = "prob"))
+
+final_over$predict <- ifelse(final_over$benign > 0.5, "benign", "malignant")
+
+cm_over <- confusionMatrix(final_over$predict, test_data$classes)
+cm_over
+```
+
+## ROSE
+
+Besides over- and under-sampling, there are hybrid methods that combine under-sampling with the generation of additional data. Two of the most popular are `ROSE` and `SMOTE`.
+
+*“ROSE: A Package for Binary Imbalanced Learning” (R Journal, 2014, Vol. 6 Issue 1, p. 79): “The ROSE package provides functions to deal with binary classification problems in the presence of imbalanced classes. Artificial balanced samples are generated according to a smoothed bootstrap approach and allow for aiding both the phases of estimation and accuracy evaluation of a binary classifier in the presence of a rare class. Functions that implement more traditional remedies for the class imbalance and different metrics to evaluate accuracy are also provided. These are estimated by holdout, bootstrap, or cross-validation methods.”*
+
+Implement them the same way as before, this time choosing sampling = 'rose`
+
+```{r roseModel, warning=FALSE}
+ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10, verboseIter = FALSE, sampling = "rose")
+
+model_rf_rose <- caret::train(classes ~ ., data = train_data, method = "rf", preProcess = c("scale", "center"), trControl = ctrl)
+
+final_rose <- data.frame(actual = test_data$classes, predict(model_rf_rose, newdata = test_data, type = "prob"))
+
+final_rose$predict <- ifelse(final_rose$benign > 0.5, "benign", "malignant")
+
+cm_rose <- confusionMatrix(final_rose$predict, test_data$classes)
+cm_rose
+```
+
+## SMOTE
+
+Choose sampling = "smote" in the trainControl settings.
+
+*“SMOTE:  “This paper shows that a combination of our method of over-sampling the minority (abnormal) class and under-sampling the majority (normal) class can achieve better classifier performance (in ROC space) than only under-sampling the majority class. This paper also shows that a combination of our method of over-sampling the minority class and under-sampling the majority class can achieve better classifier performance (in ROC space) than varying the loss ratios in Ripper or class priors in Naive Bayes. Our method of over-sampling the minority class involves creating synthetic minority class examples.”*
+
+```{r smoteModel}
+ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10, verboseIter = FALSE, sampling = "smote")
+
+model_rf_smote <- caret::train(classes ~ ., data = train_data, method = "rf", preProcess = c("scale", "center"), trControl = ctrl)
+
+final_smote <- data.frame(actual = test_data$classes, predict(model_rf_smote, newdata = test_data, type = "prob"))
+
+final_smote$predict <- ifelse(final_smote$benign > 0.5, "benign", "malignant")
+
+cm_smote <- confusionMatrix(final_smote$predict, test_data$classes)
+cm_smote
+```
+
+## Predictions
+
+Compare the predictions of all the models:
+
+```{r compareModels}
+models <- list(original = model_rf, under = model_rf_under, over = model_rf_over, smote = model_rf_smote, rose = model_rf_rose)
+
+resampling <- resamples(models)
+bwplot(resampling)
+
+comparison <- data.frame(model = names(models), Sensitivity = rep(NA, length(models)), 
+               Specificity = rep(NA, length(models)),
+               Precision = rep(NA, length(models)), Recall = rep(NA, length(models)), 
+               F1 = rep(NA, length(models)))
+
+for(name in names(models)){
+  model <- get(paste0("cm_", name))
+  myTMP_DF <- as.data.frame(model$byClass)#Need to make DF to avoid error: 
+  #Evaluation error: $ operator is invalid for atomic vectors.
+  
+  comparison[comparison$model == name, ] <- filter(comparison, model == name) %>%
+    dplyr::mutate(Sensitivity = myTMP_DF[1,1], Specificity = myTMP_DF[2,1],
+           Precision = myTMP_DF[5,1], Recall = myTMP_DF[6,1], F1 = myTMP_DF[7,1])
+}
+comparison %>% gather(x, y, Sensitivity:F1) %>% ggplot(aes(x = x, y = y, color = model)) + geom_jitter(width = 0.2, alpha = 0.5, size = 3)
+```
+
+See how the different techniques can influence model performance. Sensitivity (or recall) describes the proportion of benign cases that have been predicted correctly, while specificity describes the proportion of malignant cases that have been predicted correctly. Precision describes the true positives, i.e. the proportion of benign predictions that were actual from benign samples. F1 is the weighted average of precision and sensitivity/ recall.
+
+Here, all four methods improved specificity and precision compared to the original model. Under-sampling, over-sampling and ROSE additionally improved precision and the F1 score.
+
+-----------------------------
+
+# One Hot Encoding
+
+
+-----------------------------
+
+# Data Specific Plot Examples
+
+The histogram for the response variable SalePrice shows that it is skewed. Taking the log of the variable normalizes it. 
+
+```{r message=FALSE}
+library(scales)
+ggplot(train, aes(x=SalePrice)) + geom_histogram(col = 'white') + theme_light() + scale_x_continuous(labels = comma)
+
+#Normalize distribution
+ggplot(train, aes(x=log(SalePrice+1))) + geom_histogram(col = 'white') + theme_light()
+```
+
+```{r}
+train %>% select(LandSlope, Neighborhood, SalePrice) %>% filter(LandSlope == c('Sev', 'Mod')) %>% 
+  arrange(Neighborhood) %>% group_by(Neighborhood, LandSlope) %>% dplyr::summarize(Count = n()) %>% 
+  ggplot(aes(Neighborhood, Count)) + geom_bar(aes(fill = LandSlope), position = 'dodge', stat = 'identity') + 
+  theme_light() +theme(axis.text.x = element_text(angle = 90, hjust =1))
+```
+
+```{r}
+train %>% select(Neighborhood, SalePrice) %>% ggplot(aes(factor(Neighborhood), SalePrice)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 90, hjust =1)) + xlab('Neighborhoods')
+```
+
+
+```{r}
+cat('Percentage of houses remodeled', sum(train[,'YearRemodAdd'] != train[,'YearBuilt'])/ dim(train)[1])
+train %>% select(YearBuilt, YearRemodAdd) %>% mutate(Remodeled = as.integer(YearBuilt != YearRemodAdd)) %>% ggplot(aes(x= factor(x = Remodeled, labels = c( 'No','Yes')))) + geom_bar() + xlab('Remodeled') + theme_light()
+```
+

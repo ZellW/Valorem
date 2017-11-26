@@ -1,0 +1,426 @@
+---
+title: "EDA Kaggle Example"
+output:
+  rmdformats::readthedown:
+    highlight: pygments
+    code_folding: hide
+---
+
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 14px;
+   line-height: 18px;
+}
+body{ /* Normal  */
+   font-size: 14px;
+}
+td {  /* Table  */
+   font-size: 12px;
+}
+h1 { /* Header 1 */
+ font-size: 26px;
+ color: #4294ce;
+}
+h2 { /* Header 2 */
+ font-size: 22px;
+}
+h3 { /* Header 3 */
+ font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 12px;
+}
+pre { /* Code block */
+  font-size: 12px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+```{r loadPackages, warning=FALSE, message=FALSE}
+if(!require(xda)){devtools::install_github("ujjwalkarn/xda")}
+
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("data.table", "dplyr", "MASS", "tidyr","ggplot2",  "fpc", "plotly", "caret", "glmnet", "ranger", "e1071", "clValid",
+         "xda", "gridExtra", "corrplot", prompt = FALSE)
+```
+
+```{r getData}
+train <- fread("../data/Kaggle_Halloween_train.csv")
+test <- fread("../data/Kaggle_Halloween_test.csv")
+#Add column
+train$Dataset <- "train"
+test$Dataset <- "test"
+
+full <- bind_rows(train, test)
+```
+
+```{r loadModels, echo=FALSE}
+#knitr was failing so save algo models to RData file
+load("EDAmodels.RData")
+```
+
+# Introduction
+
+This exercise is based on a [Kaggle Competition](https://www.kaggle.com/c/ghouls-goblins-and-ghosts-boo).  
+
+900 ghouls, ghosts, and goblins are infesting the halls of Valorem and frightening our data scientists. It became clear that machine learning is the only answer to banishing our unwanted guests.
+
+371 of the ghastly creatures have been identified, but your help is needed to vanquish the rest. Only an accurate classification algorithm can thwart them. Use bone length measurements, severity of rot, extent of soullessness, and other characteristics to distinguish (and extinguish) the intruders. 
+
+## File descriptions
+
+- Kaggle_Halloween_train.csv - the training set
+- Kaggle_Halloween_test.csv - the test set
+
+## Data fields
+
+- id - id of the creature
+- bone_length - average length of bone in the creature, normalized between 0 and 1
+- rotting_flesh - percentage of rotting flesh in the creature
+- hair_length - average hair length, normalized between 0 and 1
+- has_soul - percentage of soul in the creature
+- color - dominant color of the creature: 'white','black','clear','blue','green','blood'
+- type - target variable: 'Ghost', 'Goblin', and 'Ghoul'
+
+# Data - Quick Look
+
+```{r summaryXDA}
+str(train)
+numSummary(train)
+charSummary(train)
+```
+
+Good, no missing data.
+
+
+# Data Engineering
+
+## Characters to Factors
+
+Changer character strings to factors.
+
+```{r}
+head(select_if(full,is.character))
+```
+
+```{r}
+####Convert character to factors - use full so all data is treated the same
+full <- full %>% mutate_if(is.character, as.factor)
+str(full)
+```
+
+`color`, `type` and `Dataset` are not factors.
+
+## Data Visualizations
+
+### Plots by Creature Type
+
+Create boxplots to see the differences by creature.
+
+```{r boxPlots1}
+dataViz1 <- full %>% filter(Dataset == "train") %>% ggplot(aes(x = type, y = bone_length, fill = type)) + geom_boxplot() + xlab("Creature") + 
+  ylab("Bone Length") + scale_fill_manual(values = c("#D55E00", "#0072B2", "#009E73"))
+
+dataViz2 <- full %>% filter(Dataset == "train") %>% ggplot(aes(x = type, y = rotting_flesh, fill = type)) + geom_boxplot() + xlab("Creature") + 
+  ylab("Percentage of Rotting Flesh") + scale_fill_manual(values = c("#D55E00", "#0072B2", "#009E73"))
+
+dataViz3 <- full %>% filter(Dataset == "train") %>% ggplot(aes(x = type, y = hair_length, fill = type)) + geom_boxplot() + xlab("Creature") + 
+  ylab("Hair Length") + scale_fill_manual(values = c("#D55E00", "#0072B2", "#009E73"))
+
+dataViz4 <- full %>% filter(Dataset == "train") %>% ggplot(aes(x = type, y = has_soul, fill = type)) + geom_boxplot() + xlab("Creature") + 
+  ylab("Percentage of Soul Present") + scale_fill_manual(values = c("#D55E00", "#0072B2", "#009E73"))
+
+grid.arrange(dataViz1, dataViz2, dataViz3, dataViz4, ncol = 2)
+```
+
+A different view of the data:
+
+```{r}
+p1 <- plot_ly(train, x = train$bone_length, y = train$rotting_flesh, z = train$has_soul, type = "scatter3d", mode = "markers", color=train$type)
+p1
+```
+
+## Plots by Color Distribution
+
+Compare the use of color amongst the creatures.
+
+```{r}
+
+ghost_color <- full %>% filter(Dataset == "train") %>% filter(type == 'Ghost') %>% group_by(color) %>% summarise(count = n())
+
+dataViz5 <-  ggplot(ghost_color, aes(x = color, y = count, fill = color)) + geom_bar(stat = "identity") + 
+  xlab("Color") + ylab("Number of Observations") +  ggtitle("Ghost Colors") +  scale_fill_manual(values = c("Black", "#D55E00", "#0072B2", "#F0E442", "#009E73", "#999999")) + 
+  theme(panel.grid.minor = element_blank()) +   ylim(0, 50)
+
+ghost_color <- full %>% filter(Dataset == "train") %>% filter(type == 'Ghoul') %>% group_by(color) %>% summarise(count = n())
+
+dataViz6 <-  ggplot(ghost_color, aes(x = color, y = count, fill = color)) + geom_bar(stat = "identity") + 
+  xlab("Color") + ylab("Number of Observations") +  ggtitle("Ghoul Colors") +  scale_fill_manual(values = c("Black", "#D55E00", "#0072B2", "#F0E442", "#009E73", "#999999")) + 
+  theme(panel.grid.minor = element_blank()) +   ylim(0, 50)
+
+ghost_color <- full %>% filter(Dataset == "train") %>% filter(type == 'Goblin') %>% group_by(color) %>% summarise(count = n())
+
+dataViz7 <-  ggplot(ghost_color, aes(x = color, y = count, fill = color)) + geom_bar(stat = "identity") + 
+  xlab("Color") + ylab("Number of Observations") +  ggtitle("Goblin Colors") +  scale_fill_manual(values = c("Black", "#D55E00", "#0072B2", "#F0E442", "#009E73", "#999999")) + 
+  theme(panel.grid.minor = element_blank()) +   ylim(0, 50)
+
+grid.arrange(dataViz5, dataViz6, dataViz7, ncol = 2)
+```
+
+Appears ghosts have shorter hair and fewer pieces of soul than ghouls and goblins, but otherwise are pretty close.  Ghouls and goblins are going to be tricky to distinguish.  *Color doesn't appear to help a whole lot as there seems to be a pretty even distribution to these multi-colored creatures*.  (Will likely remove this variable before modeling.) 
+
+Examine is there are any obvious correlations.
+
+```{r}
+pairs(full[,2:5], col = full$type, labels = c("Bone Length", "Rotting Flesh", "Hair Length", "Soul"))
+```
+
+The pairs plot above is not too helpful.  Try a more scholarly approach below.
+
+```{r}
+train_correlation <- train %>% select(bone_length:has_soul)
+train_correlation <- cor(train_correlation)
+# corrplot(train_correlation, method="circle")
+
+# data 
+corrplot::corrplot.mixed(train_correlation)
+#cor(train_correlation)
+```
+
+No strong evidence of correlation - largest value is close to 0.5. Perhaps we can take advantage of a combination of characteristics that do seem to show some promise: most notably "Hair Length" and "Soul". Do we get any better separation among creatures if we combine these variables into one?  By multiplying our variables together we should obtain better features to distinguish the classes.
+
+```{r}
+separation1 <- full %>%  mutate(hair_soul = hair_length * has_soul) %>% filter(!is.na(type))
+
+ggplot(separation1, aes(x = type, y = hair_soul, fill = type)) + geom_boxplot() + 
+  xlab("Creature") + ylab("Combination of Hair/Soul") + scale_fill_manual(values = c("#D55E00", "#0072B2", "#009E73"))
+```
+
+Separation appears greater.  Test various other data mutations to determine if this can be improved furthere.  This is a process of experimentation.
+
+```{r message=FALSE}
+# Sep1
+separation2 <- full %>% filter(!is.na(type)) %>% mutate(sep2 = bone_length * hair_length * has_soul, sep2 = sep2 / max(sep2))
+
+separation3 <- full %>% filter(!is.na(type)) %>% mutate(allfeatures = ((bone_length^2) * (hair_length^4) * (has_soul^4))/rotting_flesh)
+
+separation4 <- full %>% filter(!is.na(type)) %>% mutate(bone_flesh = bone_length * rotting_flesh, bone_hair = bone_length * hair_length,
+                 bone_soul = bone_length * has_soul, flesh_hair = rotting_flesh * hair_length, flesh_soul = rotting_flesh * has_soul, 
+                 hair_soul = hair_length * has_soul)
+
+plotExp2 <- ggplot(separation2, aes(x = type, y = sep2, fill = type)) + geom_boxplot() + 
+  xlab("Creature") + ylab("Combination of Bone-Hair-Soul") + ggtitle("Bone-Hair-Soul") + scale_fill_manual(values = c("#D55E00", "#0072B2", "#009E73"))
+
+plotExp3 <- ggplot(separation3, aes(x = type, y = allfeatures, fill = type)) + geom_boxplot() + 
+  xlab("Creature") + ylab("Combination of allfeatures") + ggtitle("All Features") + scale_fill_manual(values = c("#D55E00", "#0072B2", "#009E73"))
+
+#separation 9 - 14 are the new variable columns
+for(i in 9:14){
+  # print(ggplot(separation4, aes(x = type, y = separation4[i], fill = type)) + geom_boxplot() + 
+  # xlab("Creature") + ylab("Combination of allfeatures") + ggtitle(paste(names(separation4)[i])) + scale_fill_manual(values = c("#D55E00", "#0072B2", "#009E73")))
+  
+  assign(paste0("plotSep", i),ggplot(separation4, aes(x = type, y = separation4[i], fill = type)) + geom_boxplot() + 
+  xlab("Creature") + ylab("Combos") + ggtitle(paste(names(separation4)[i])) + scale_fill_manual(values = c("#D55E00", "#0072B2", "#009E73")))
+}
+grid.arrange(plotSep9, plotSep10, plotSep11, plotSep12, plotSep13, ncol = 2)
+```
+
+Because separation apprears to be improved by combining variables, will likely use this for modeling later in the example.
+
+## Clustering data
+
+While clustering is generally used for unsupervised machine learning, take a peek at the clusters that could be formed. The potential issue with trying to cluster this data is that we are working with two types of data: continuous and categorical. They break down like this:
+
+| Continuous Variables | Categorical Variables |
+| -------------------- | --------------------- |
+| bone length | id |
+| rotting flesh | color |
+| hair length |
+| has soul |
+
+There are only two categorical variables.  Because of our small sample size, it's not a good idea to count out these variables completely, but we'll try to create clusters without them just to see how well the clustering models do. 
+
+### `kmeans` function. 
+
+```{r}
+# Set the seed
+set.seed(1234)
+
+# Extract creature labels and remove column from dataset
+creature_labels <- full$type
+full2 <- full
+full2$type <- NULL
+
+# Remove categorical variables (id, color, and dataset) from dataset
+full2$id <- NULL
+full2$color <- NULL
+full2$Dataset <- NULL
+
+# Perform k-means clustering with 3 clusters, repeat 30 times
+creature_km_1 <- kmeans(full2, 3, nstart = 30)
+```
+
+Look at them graphically first. This was created using the `plotcluster()` function from the `fpc` package.
+
+```{r echo = FALSE}
+plotcluster(full2, creature_km_1$cluster)
+```
+
+The clusters do not look  discrete. Consider [Dunn's Index](https://en.wikipedia.org/wiki/Dunn_index) mathematically to see if we are missing something visually.  This calculation comes from the `dunn` function in the `clValid` package.
+
+```{r}
+dunn_ckm_1 <- dunn(clusters = creature_km_1$cluster, Data = full2)
+dunn_ckm_1
+```
+
+Dunn's Index represents a ratio of the smallest distance between clusters to the largest distance between two points in the same cluster (or, the smallest inter-cluster distance to the largest intra-cluster distance).  S low number indicates that clusters are not condensed, separate entities. This is not surprising considering we completely disregarded one of our variables.
+
+See how well this clustering method correctly separated the labelled creatures. 
+
+```{r}
+table(creature_km_1$cluster, creature_labels)
+```
+
+Ghosts were separated relatively well, but ghouls and goblins are split between the clusters.  No new information was identified. But it's been an interesting exploratory path!
+
+### Modeling for Creature Identity
+
+Split out the test and training data back into separate datasets. Note, modify `full` with the variables created in `separation4` dataset with the varible interactions.  Remove`ID`, `colr` and `Dataset` variables.
+
+```{r testTraiUpdated}
+full  <- full %>% mutate(bone_flesh = bone_length * rotting_flesh, bone_hair = bone_length * hair_length,
+                 bone_soul = bone_length * has_soul, flesh_hair = rotting_flesh * hair_length, flesh_soul = rotting_flesh * has_soul, 
+                 hair_soul = hair_length * has_soul)
+
+train_complete <- filter(full, Dataset == "train")
+train_complete <- select(train_complete, c(-id, -color, -Dataset))
+
+test_complete <- filter(full, Dataset == "test")
+test_complete <- select(test_complete, c(-id, -color, -Dataset))
+```
+
+Because we are using `caret` package, generate a standard `trainControl` so tuning parameters remain consistent throughout the testing and experimentation.
+
+### Creating trainControl
+create a control that performs 20 repeats of a 10-Fold cross-validation of the data. 
+
+```{r}
+myControl <- trainControl(method = "repeatedcv", number = 6, repeats = 10, verboseIter = TRUE)#repeatedcv vs cv - test and compare
+```
+
+### Random Forest Modeling
+
+Start with a random forest model, generated using the `ranger` and `caret` packages. Include all of the original variables, including any interactions.
+
+```{r eval=FALSE}
+set.seed(1234)
+modelrandomforest <- train(type~., tuneLength = 3, data = train_complete, method = "ranger", trControl = myControl, importance = 'impurity')
+```
+
+Examine the levels of importance of each factor in this model. 
+
+```{r echo = FALSE}
+# Creating a Variable Importance variable
+ vimp <- varImp(modelrandomforest)
+
+# Plotting "vimp"
+ ggplot(vimp, top = dim(vimp$importance)[1])
+```
+
+`hair_soul` variable seems to be the most important to this model and our other interactions rank pretty highly. 
+
+### GLMnet Modeling
+
+> Generalized linear model (GLM) is a flexible generalization of ordinary linear regression that allows for response variables that have error distribution models other than a normal distribution.
+
+Test a `glmnet` model also from `caret`.
+
+```{r eval=FALSE}
+set.seed(1234)
+modelglm <- train(type~., method = "glmnet", tuneGrid = expand.grid(alpha = 0:1, lambda = seq(0.0001, 1, length = 20)), 
+                       data = train_complete, trControl = myControl)
+```
+
+```{r echo = FALSE}
+ vimp <- varImp(modelglm)
+ ggplot(vimp, top = dim(vimp$importance)[1])
+```
+
+Without going into depth, a few more algorithms are evaluated.
+
+```{r moreAlgos, eval=FALSE}
+set.seed(1234)
+# train LVQ model (Learning Vector Quantization)
+modelLvq <- train(type~., data = train_complete, method="lvq", trControl = myControl)
+# train Support Vector Machine model
+modelSvm <- train(type~., data = train_complete, method="svmRadial", trControl = myControl)
+# decision tree
+modeltree <- train(type~., data = train_complete, method="rpart", trControl = myControl)
+# Tree + PCA
+modeltreepca <- train(type~., data = train_complete, method="rpart", trControl = myControl, preProcess = "pca", parms = list(split='information'))
+# KNN
+modelknn <- train(type~., data = train_complete, method="knn", trControl = myControl)
+# Naive Bayes
+modelbayes <- train(type~., data = train_complete, method="nb", trControl = myControl)
+```
+
+```{r saveModels, echo=FALSE}
+#knitr bombed on the code above.  No reason found. Saved all to save time
+save(modelLvq, modelSvm, modeltree, modeltreepca, modelknn, modelbayes, modelrandomforest, modelglm, file = "EDAmodels.RData")
+```
+
+Before moving on, here is a last decision tree algorithm provided in a visual format:
+
+```{r rpart, warning=FALSE, message=FALSE}
+library("rpart.plot")
+fit2 <- rpart(type~., method = "class", data = train_complete, control = rpart.control(minsplit = 50), parms = list(split='information'))
+rpart.plot(fit2, type=2, extra = 1)
+```
+
+## Comparing Models
+
+Compare the results of all the models.
+
+```{r}
+# Create a list of models
+models <- list(Random_Forest = modelrandomforest, GLM = modelglm, LVQ = modelLvq, SVM = modelSvm, DecisionTree = modeltree, 
+               DecisionTree_PCD = modeltreepca, NaiveBayes = modelbayes, KNN = modelknn, NaiveBayes = modelbayes)
+               
+# Resample the models
+resampled <- resamples(models)
+# Generate a summary
+summary(resampled)
+# Plot the differences between model fits
+dotplot(resampled, metric = "Accuracy")
+```
+
+# Predicting Creature Identity
+
+The glmnet model provides the highest accuracy so use that model to predict Halloween classification in the test set. 
+
+```{r}
+# Make predicted survival values
+my_prediction <- predict(modelglm, test_complete)
+```
+
+The first ten predictions are: `r head(my_prediction, 10)`
+
+# Addendum
+
+## Learning Vector Quantization (LVQ)
+
+(Added this because it was recently learned.)
+Learning vector quantization (LVQ) is an algorithm that is a type of artificial neural networks and uses neural computation. More broadly, it can be said to be a type of computational intelligence. This algorithm takes a competitive, winner-takes-all approach to learning and is also related to other neural network algorithms like Perceptron and back-propagation. The LVQ algorithm allows one to choose the number of training instances to undergo and then learns about what those instances look like. LVQ is related to the k-nearest neighbor algorithm. 
