@@ -1,0 +1,136 @@
+---
+title: "Classes & Services Data"
+output: html_document
+---
+
+```{r loadPackages, warning=FALSE, message=FALSE}
+#Remove when mergedinto main document as an appendix
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("dplyr", "data.table", "xda","ggplot2", "forcats", "readr", prompt = FALSE)
+```
+
+### Get Classes & Services Data
+
+```{r loadClassesServices, message=FALSE, warning=FALSE}
+#Get Data
+Classes_Services <- read_csv("C:/Users/cweaver/Downloads/Classes_Services.csv", 
+                   col_types = cols(AvailablePIF = col_integer(), 
+                      ByPerson = col_integer(), CanSeeInstructor = col_integer(), 
+                      CancellationHrs = col_integer(), 
+                      ClassMins = col_integer(), CustSelfBook = col_integer(), 
+                      Disabled = col_integer(), EmailReminders = col_integer(), 
+                      HalfHour = col_integer(), MultipleInstructors = col_integer(), 
+                      MustHaveCredit = col_integer(), MustPreBook = col_integer(), 
+                      NumPerClass = col_integer(), OnTheHour = col_integer(), 
+                      QuarterPast = col_integer(), QuarterTill = col_integer(), 
+                      RescheduleDeadline = col_integer(), 
+                      RuleCustomers = col_integer(), RuleFrontDesk = col_integer(), 
+                      SMSReminders = col_integer(), ServicesId = col_integer(), 
+                      ShowPublic = col_integer(), StandardPrice = col_integer()), 
+                   na = "NA")
+
+myData <- Classes_Services
+rm(Classes_Services)
+```
+
+`ClassesServices.csv` returned `r dim(myData[1])` records with `r dim(myData[2])` variables.  Of the `r dim(myData)[2]` variables, `r nrow(myData %>% select_if(is.character))` is a `character` type and `r nrow(myData %>% select_if(is.numeric))` are `numeric`.
+
+```{r}
+glimpse(myData)
+```
+
+### Remove NA
+
+Just as we experienced before, must remove the `NAs` with 0:
+
+```{r}
+myData <- myData %>%  mutate_if(is.integer, funs(replace(., is.na(.), 0)))
+myData <- myData %>%  mutate_if(is.double, as.integer)
+glimpse(myData)
+```
+
+That looks much better!
+
+### Character to Factors
+
+Change the variable `Type` from a character to a factor.
+```{r}
+myData <- myData %>% mutate_if(is.character, as.factor)
+class(myData$Type)
+```
+
+### Explore Factors
+
+```{r}
+charSummary(myData)
+```
+
+```{r}
+myData_factor <- myData %>% select_if(is.factor)
+#myData_num <- myData %>% select_if(is.numeric)
+
+for(i in 1:length(myData_factor)){
+  print(names(myData_factor[i]))
+  print(table(myData_factor[i]))
+}
+
+for(i in 1:length(myData_factor)){
+  print(ggplot(myData_factor, aes_string(names(myData_factor[i]))) + geom_bar())
+}
+```
+
+**I am uncertain how to define Class and Service - check with ClubReady**
+
+### Evaluate Numerical Data
+
+```{r}
+myNumSum <- numSummary(myData)[, c(1,7,8,16,17)]
+myNumSum <- tibble::rownames_to_column(myNumSum)
+names(myNumSum)[5] <- "missPCT"
+names(myNumSum)[1] <- "Variable_Name"
+myNumSum <- arrange(myNumSum, desc(missPCT))
+head(myNumSum, 20)
+```
+
+Good, no missing data!
+
+#### Evaluate Variable Variances
+
+```{r}
+myVariance <- as.data.frame(apply(myData[,-c(1)], 2, var))
+myVariance <- tibble::rownames_to_column(myVariance)
+names(myVariance)[2] <- "Variance"
+myVariance <-  myVariance %>% mutate(Variance2 = ifelse(Variance == 0, "No", "Yes"))
+table(myVariance$Variance2)
+```
+All the variables have a variance > 0.
+
+```{r}
+if(table(myVariance$Variance2)[1] > 0){
+  filter(myVariance, Variance2 == "No")
+  VarNames <- myVariance %>% filter(Variance > 0) %>% select(rowname)
+  myData <- myData %>% select(StoreId, unlist(VarNames))
+}
+```
+
+### Duplicate Records
+cat("The number of duplicated rows is", nrow(myData) - nrow(unique(myData)))
+
+```{r showDupes}
+myData[duplicated(myData),]
+```
+
+> Ask ClubReady if these should be removed
+
+```{r eval=FALSE}
+if(nrow(myData) - nrow(unique(myData)) > 0){
+  head(myData[duplicated(myData),])
+  myData <- myData[!duplicated(myData),]
+}
+```
+
+### Final Output (Initial Data Cleaning)
+glimpse(myData)
+
+

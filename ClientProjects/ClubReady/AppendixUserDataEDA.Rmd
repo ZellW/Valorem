@@ -1,0 +1,212 @@
+---
+title: "User Data"
+output: html_document
+---
+### Get Data
+
+```{r loadLibs, warning=FALSE, message=FALSE}
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("plyr", "dplyr", "data.table", "xda","ggplot2", "forcats", "readr", "gridExtra",  prompt = FALSE)
+#data.table used only for fread
+```
+
+```{r message=FALSE, warning=FALSE}
+Users <- read_csv("C:/Users/cweaver/Downloads/Users/Users.csv", col_types = cols(StoreId = col_integer()), progress = FALSE)
+myData <- Users
+rm(Users)
+```
+
+`Users.csv` returned `r dim(myData[1])` records with `r dim(myData[2])` variables.  Of the `r dim(myData)[2]` variables, `r nrow(myData %>% select_if(is.character))` is a `character` type and `r nrow(myData %>% select_if(is.numeric))` are `numeric`.
+
+```{r}
+glimpse(myData)
+```
+
+### Remove NA
+
+There do not appear to be as many `NAs` as we have seen before.  This time they appear prevalent in the `StoreId` varaible.  Also note `NULL` in the `Gender` field.
+
+```{r message=FALSE, warning=FALSE}
+myData <- myData %>%  mutate_if(is.integer, funs(replace(., is.na(.), 0)))#changes int to dbl
+myData[,-41] <- myData %>%  mutate_if(is.double, as.integer)#return to int
+glimpse(myData$StoreId)
+```
+
+`StoreId` looks better now.
+
+### Character to Factors
+
+`Gender` and `UserType` are charcater variables.  Change them to factors.
+
+```{r}
+myData <- myData %>% mutate_if(is.character, as.factor)
+charSummary(myData)
+myData_factor <- myData %>% select_if(is.factor)
+```
+
+Note `Gender` appears to have many missing values.  These will be managed a bit later
+
+### Tables for the Factors
+
+Examine the factors in the working dataset.
+
+```{r}
+for(i in 1:length(myData_factor)){
+  print(names(myData_factor[i]))
+  print(table(myData_factor[i]))
+}
+rm(myData_factor)
+```
+
+There is much work to do on the `Gender` variable.  Will also choose the appropriate `UserType` values for modeling.
+
+#### User Factor - Gender
+
+The values in `Gender` are varied.  These will need to be collaspers into a couple of factor levels.
+```{r}
+myData %>% group_by(Gender) %>% summarize(Unique_Values = n()) %>% arrange(desc(Unique_Values))
+ggplot(myData, aes(fct_infreq(Gender))) + geom_bar() + xlab(paste("ClubReady Subset - ", names(myData)[1])) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r}
+levels(myData$Gender)[levels(myData$Gender) == "F"] <- "Female"
+levels(myData$Gender)[levels(myData$Gender) == "female"] <- "Female"
+levels(myData$Gender)[levels(myData$Gender) == "f"] <- "Female"
+
+levels(myData$Gender)[levels(myData$Gender) == "M"] <- "Male"
+levels(myData$Gender)[levels(myData$Gender) == "male"] <- "Male"
+levels(myData$Gender)[levels(myData$Gender) == "m"] <- "Male"
+
+myData %>% group_by(Gender) %>% summarize(Unique_Values = n()) %>% arrange(desc(Unique_Values))
+```
+
+This looks better but there are still suspect values.  We will remove:
+
+- All the `Gender` value counts that are small will be removed.  This affects everything from `U` and below in the table above.
+- It is reasonable to assume `Gender` is an informative variable in churn modeling.  Valorem will initally remove the `NULL` values from `Gender`.  **Note to Brad**
+
+```{r}
+myData <- filter(myData, Gender == "Female" | Gender == "Male")
+myData$Gender <- factor(myData$Gender)
+
+ggplot(myData, aes(fct_infreq(Gender))) + geom_bar() + xlab("ClubReady Subset - Gender") +
+  scale_y_continuous(labels = scales::comma)
+```
+
+#### User Factor - UserType
+
+```{r}
+myData %>% group_by(UserType) %>% summarize(Unique_Values = n()) %>% arrange(desc(Unique_Values))
+ggplot(myData, aes(fct_infreq(UserType))) + geom_bar() + xlab(paste("ClubReady Subset - ", names(myData)[2])) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + scale_y_continuous(labels = scales::comma)
+```
+
+ClubReady confirmed Valorem to use:
+
+- ClubClient     
+- DeletedClubClient
+- ClubClientTemporary
+- DeletedClubAdmin
+- ClubAdmin
+- CorpAdmin          
+
+```{r}
+myData <- filter(myData, UserType == 'ClubClient' | UserType == 'DeletedClubClient' | UserType == 'ClubAdmin' | UserType == 'ClubTrainer' | UserType == 'DeletedClubTrainer' | UserType == 'ClubClientTemporary')
+myData$UserType <- factor(myData$UserType)
+
+ggplot(myData, aes(fct_infreq(UserType))) + geom_bar() + xlab("ClubReady Subset - UserType") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + scale_y_continuous(labels = scales::comma)
+```
+
+Given the distribution above, Valorem may remove the infrequesntly used `UserType` values.  **Note to Brad**
+
+### Evaluate Numerical Data - had to take random sample b/c csv too large
+
+> Because of the large number of `User` records, a random sample is selected in the code below.
+
+```{r}
+myNumSum <- numSummary(sample_frac(myData, .3))[, c(1,7,8,16,17)]
+myNumSum <- tibble::rownames_to_column(myNumSum)
+names(myNumSum)[5] <- "missPCT"
+names(myNumSum)[1] <- "Variable_Name"
+myNumSum <- arrange(myNumSum, desc(missPCT))
+head(myNumSum, 20)
+```
+
+No missing data is in the working dataset.
+
+### Variance
+
+```{r}
+#Do not include UserId, StoreId, Gender, UserType, TotalSpent
+myVariance <- as.data.frame(apply(myData[,-c(1,2,4,5,41)], 2, var))
+myVariance <- tibble::rownames_to_column(myVariance)
+names(myVariance)[2] <- "Variance"
+myVariance <-  myVariance %>% mutate(Variance2 = ifelse(Variance == 0, "No", "Yes"))
+table(myVariance$Variance2)
+```
+
+Because `r table(myVariance$Variance2)[1]` variables have no variance - all the values are the same, they can be removed from the working dataset.  If there are no differences in a column, it is of no use in the development of an algorithm.  The variables to be removed because there is no variance are:
+
+```{r}
+if(table(myVariance$Variance2)[1] > 0){
+  VarNames <- myVariance %>% filter(Variance > 0) %>% select(rowname)
+  zeroVarNames <- myVariance %>% filter(Variance == 0) %>% select(rowname)
+  myData <- myData %>% select(UserId, StoreId, Gender, TotalSpent,  unlist(VarNames))
+  zeroVarNames
+}
+```
+
+#### Outlier Detection
+
+In the working dataset, there is one variable, `TotalSpent` that should be evaluated to identify any potential outlier.  There are many way to visualize outliers.  While boxplots are the most commonly used visualization, because the number of records is large, plotting is not an optimal reporting option - it takes a long time to plot millions of records.
+
+Comparing the opposite ends of `TotalSpent` produces intersting information:
+
+```{r eval=FALSE, echo=FALSE}
+out3 <- ggplot(myData, aes(x = "", y = TotalSpent)) + geom_boxplot(outlier.color="red", outlier.shape=8, outlier.size=4) + 
+  scale_y_continuous(labels = scales::dollar)
+```
+
+```{r}
+tmpRevDesc <- arrange(myData, desc(TotalSpent)) %>% select(TotalSpent)
+tmpRevDesc <- tmpRevDesc[1:25,]
+tmpRevDesc <- as.data.frame(scales::dollar(tmpRevDesc$TotalSpent))
+names(tmpRevDesc) <- "Total_Spent"
+
+tmpRevAsc <- arrange(myData, TotalSpent) %>% select(TotalSpent)
+tmpRevAsc <- tmpRevAsc[1:25,]
+tmpRevAsc <- as.data.frame(scales::dollar(tmpRevAsc$TotalSpent))
+names(tmpRevAsc) <- "Total_Spent"
+
+knitr::kable(list(tmpRevDesc, tmpRevAsc))
+```
+
+The highest `TotalSPent` value is `[r tmpRevDesc[1,]]` and the lowest value is `r tmpRevAsc[1,]`.  If these extreme values are aligned with the business, **ClubReady will need to determine**.
+
+### Duplication
+
+```{r}
+cat("The number of duplicated rows is", nrow(myData) - nrow(unique(myData)))
+if((nrow(myData) - nrow(unique(myData)))>0) myData[duplicated(myData),]
+```
+
+```{r eval=FALSE}
+if(nrow(myData) - nrow(unique(myData)) > 0){
+  head(myData[duplicated(myData),])
+  myData <- myData[!duplicated(myData),]
+}
+```
+
+Good news - no duplicate records.
+
+### Final User Data Glimpse
+
+Here is what the resulting working dataset looks like.  We are left with `r nrow(myData)` records and `r ncol(MyData)`.
+
+```{r}
+glimpse(myData)
+```
