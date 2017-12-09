@@ -1,0 +1,218 @@
+---
+title: "CLV - Lifecycle Grids"
+output:
+  rmdformats::readthedown:
+    highlight: pygments
+    code_folding: hide
+---
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 14px;
+   line-height: 18px;
+}
+body{ /* Normal  */
+   font-size: 14px;
+}
+td {  /* Table  */
+   font-size: 12px;
+}
+h1 { /* Header 1 */
+ font-size: 26px;
+ color: #4294ce;
+}
+h2 { /* Header 2 */
+ font-size: 22px;
+}
+h3 { /* Header 3 */
+ font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 12px;
+}
+pre { /* Code block */
+  font-size: 12px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("dplyr", "ggplot2", "reshape2", prompt = FALSE)
+```
+
+#Introduction
+
+This document explores a powerful approach for customer segmentation. It is based on customer's lifecycle, specifically on frequency and recency of purchases. The idea of using these metrics comes from the RFM analysis. Recency and frequency are very important behavior metrics.
+
+We are interested in frequent and recent purchases because frequency affects client's lifetime value and recency affects retention. Therefore, these metrics can help us to understand the current phase of the client's lifecycle. When we know each client's phase, we can split customer base into groups (segments) in order to:
+
+- understand the state of affairs
+- effectively using marketing budget through accurate targeting
+- use different offers for every group
+- effectively using email marketing
+- increase customers' life-time and value
+
+For this, a matrix called `LifeCycle Grids` is used. We will study how to process initial data (transaction) to the matrix, how to visualize it, and how to do some in-depth analysis.
+
+```{r dataSample}
+set.seed(10)
+data <- data.frame(orderId=sample(c(1:1000), 5000, replace=TRUE), product=sample(c('NULL','a','b','c'), 5000, replace=TRUE,
+       prob=c(0.15, 0.65, 0.3, 0.15)))
+order <- data.frame(orderId=c(1:1000), clientId=sample(c(1:300), 1000, replace=TRUE))
+gender <- data.frame(clientId=c(1:300), gender=sample(c('male', 'female'), 300, replace=TRUE, prob=c(0.40, 0.60)))
+date <- data.frame(orderId=c(1:1000), orderdate=sample((1:100), 1000, replace=TRUE))
+orders <- merge(data, order, by='orderId')
+orders <- merge(orders, gender, by='clientId')
+orders <- merge(orders, date, by='orderId')
+orders <- orders[orders$product!='NULL', ]
+orders$orderdate <- as.Date(orders$orderdate, origin="2012-01-01")
+rm(data, date, order, gender)
+head(orders)
+```
+
+There is a gender of customer in the table. We will use it as an example of some in-depth analysis later.
+
+A few words about LifeCycle Grids. It is a matrix with 2 dimensions:
+
+- frequency, which is expressed in number of purchased items or placed orders
+- recency, which is expressed in days or months since the last purchase
+
+The first step is to think about suitable grids for your business. It is impossible to work with infinite segments. Therefore, need to define some boundaries of frequency and recency, which should help us to split customers into homogeneous groups (segments). The analysis of the distribution of the frequency and the recency in our data set combined with the knowledge of business aspects can help us to find suitable boundaries.
+
+Therefore, we need to calculate two values:
+
+- number of orders that were placed by each client (or in some cases, it can be the number of items)
+- time lapse from the last purchase to the reporting date
+- plot the distribution with the following code
+
+```{r}
+# reporting date
+today <- as.Date('2012-04-11', format='%Y-%m-%d')
+ 
+# processing data
+orders <- dcast(orders, orderId + clientId + gender + orderdate ~ product, value.var='product', fun.aggregate=length)
+ 
+orders <- orders %>% group_by(clientId) %>%  mutate(frequency=n(),  recency=as.numeric(today-orderdate)) %>%
+ filter(orderdate==max(orderdate)) %>%  filter(orderId==max(orderId)) %>%  ungroup()
+ 
+# exploratory analysis
+ggplot(orders, aes(x=frequency)) +  theme_bw() +  scale_x_continuous(breaks=c(1:10)) +
+ geom_bar(alpha=0.6, binwidth=1) +  ggtitle("Dustribution by frequency")
+ 
+ggplot(orders, aes(x=recency)) +  theme_bw() +  geom_bar(alpha=0.6, binwidth=1) +
+ ggtitle("Dustribution by recency")
+```
+
+Early behavior is most important, so finer detail is good there. Usually, there is a significant difference between customers who bought 1 time and those who bought 3 times, but is there any difference between customers who bought 50 times and other who bought 53 times? That is why it makes sense to set boundaries from lower values to higher gaps. We will use the following boundaries:
+
+- for frequency: 1, 2, 3, 4, 5, >5,
+- for recency: 0-6, 7-13, 14-19,  20-45, 46-80, >80
+
+Next, add segments to each client based on the boundaries. Also, we will create new variable 'cart', which includes products from the last cart, for doing in-depth analysis.
+
+```{r}
+orders.segm <- orders %>%
+ mutate(segm.freq=ifelse(between(frequency, 1, 1), '1',
+   ifelse(between(frequency, 2, 2), '2',
+   ifelse(between(frequency, 3, 3), '3',
+   ifelse(between(frequency, 4, 4), '4',
+   ifelse(between(frequency, 5, 5), '5', '>5')))))) %>%
+ mutate(segm.rec=ifelse(between(recency, 0, 6), '0-6 days',
+   ifelse(between(recency, 7, 13), '7-13 days',
+   ifelse(between(recency, 14, 19), '14-19 days',
+   ifelse(between(recency, 20, 45), '20-45 days',
+   ifelse(between(recency, 46, 80), '46-80 days', '>80 days')))))) %>%
+ # creating last cart feature
+ mutate(cart=paste(ifelse(a!=0, 'a', ''),
+   ifelse(b!=0, 'b', ''),
+   ifelse(c!=0, 'c', ''), sep='')) %>%
+ arrange(clientId)
+ 
+# defining order of boundaries
+orders.segm$segm.freq <- factor(orders.segm$segm.freq, levels=c('>5', '5', '4', '3', '2', '1'))
+orders.segm$segm.rec <- factor(orders.segm$segm.rec, levels=c('>80 days', '46-80 days', '20-45 days', '14-19 days', '7-13 days', '0-6 days'))
+```
+
+We have everything need to create LifeCycle Grids. We need to combine clients into segments with the following code:
+
+```{r}
+lcg <- orders.segm %>% group_by(segm.rec, segm.freq) %>% summarise(quantity=n()) %>%  mutate(client='client') %>%  ungroup()
+```
+
+The classic matrix can be created with the following code:
+
+```{r}
+lcg.matrix <- dcast(lcg, segm.freq ~ segm.rec, value.var='quantity', fun.aggregate=sum)
+lcg.matrix
+```
+
+A good visualization is obtained through the following code:
+
+```{r}
+lcg.adv <- lcg %>%
+ mutate(rec.type = ifelse(segm.rec %in% c(">80 days", "46-80 days", "20-45 days"), "not recent", "recent"),
+ freq.type = ifelse(segm.freq %in% c(">5", "5", "4"), "frequent", "infrequent"),
+ customer.type = interaction(rec.type, freq.type))
+ 
+ggplot(lcg.adv, aes(x=client, y=quantity, fill=customer.type)) +
+ theme_bw() +
+ theme(panel.grid = element_blank()) +
+ facet_grid(segm.freq ~ segm.rec) +
+ geom_bar(stat='identity', alpha=0.6) +
+ geom_text(aes(y=max(quantity)/2, label=quantity), size=4) +
+ ggtitle("LifeCycle Grids")
+ 
+# with background
+ggplot(lcg.adv, aes(x=client, y=quantity, fill=customer.type)) +
+ theme_bw() +
+ theme(panel.grid = element_blank()) +
+ geom_rect(aes(fill = customer.type), xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.1) +
+ facet_grid(segm.freq ~ segm.rec) +
+ geom_bar(stat='identity', alpha=0.7) +
+ geom_text(aes(y=max(quantity)/2, label=quantity), size=4) +
+ ggtitle("LifeCycle Grids")
+```
+
+- green - best customers who have placed quite a few orders and made their last purchase recently. They have higher value and higher potential to buy again. 
+- purple - new clients who placed several orders (1-3) recently. Although they have lower value, they have potential to move into the green zone. Have to help them move into the right quadrant.
+- red - former best customers. Need to understand why they are former and try to reactivate them
+- blue-green - onetime-buyers
+
+Does it make sense to make the same offer to all of these customers? No, it does not. It makes sense to create different approaches not only for each quadrant but for border cells as well.
+
+What is good about this model of segmentation is that it is stable and alive simultaneously. It is alive in terms of customers flow. Every day, with or without purchases, it will provide customers flow from one cell to another. And it is stable in terms of working with segments. It allows to work with customers who are on the same lifecycle phase. That means you can create suitable campaigns / offers / emails for each or several close cells and use them constantly.
+
+It can be helpful to distribute each cell via some features. For instance, there can distribute customers by gender. For the other example, where our products have different lifecycles, it can be helpful to analyze which product/s was/were in the last cart or we can combine these features. 
+
+```{r}
+lcg.sub <- orders.segm %>% group_by(gender, cart, segm.rec, segm.freq) %>%
+ summarise(quantity=n()) %>% mutate(client='client') %>% ungroup()
+ 
+ggplot(lcg.sub, aes(x=client, y=quantity, fill=gender)) + theme_bw() +
+ scale_fill_brewer(palette='Set1') + theme(panel.grid = element_blank())+
+ geom_bar(stat='identity', position='fill' , alpha=0.6) +
+ facet_grid(segm.freq ~ segm.rec) + ggtitle("LifeCycle Grids by gender (propotion)")
+```
+
+
+```{r}
+ggplot(lcg.sub, aes(x=gender, y=quantity, fill=cart)) + theme_bw() +
+ scale_fill_brewer(palette='Set1') + theme(panel.grid = element_blank())+
+ geom_bar(stat='identity', position='fill' , alpha=0.6) + facet_grid(segm.freq ~ segm.rec) + 
+  ggtitle("LifeCycle Grids by gender and last cart (proportion)")
+```
+
+> Modified from https://analyzecore.com/2015/02/16/customer-segmentation-lifecycle-grids-with-r/
