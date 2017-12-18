@@ -1,0 +1,375 @@
+---
+title: "Microsoft O365 bayesAB Example 1"
+output:
+  rmdformats::readthedown:
+    highlight: pygments
+    code_folding: hide
+---
+
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 12px;
+}
+body{ /* Normal  */
+   font-size: 12px;
+}
+td {  /* Table  */
+   font-size: 10px;
+}
+h1 { /* Header 1 */
+ font-size: 26px;
+ color: #4294ce;
+}
+h2 { /* Header 2 */
+ font-size: 22px;
+}
+h3 { /* Header 3 */
+ font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 10px;
+}
+pre { /* Code block */
+  font-size: 10px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("dplyr", "ggplot2", "bayesAB", "gridExtra", "readr", "lubridate", prompt = FALSE)
+```
+
+# Get Experimental Data
+
+Design an experiment to assess the click-through-rate (CTR) onto a page. Randomly show users one of two possible pages (page A or page B). Goal - determine which page, if any, has a higher CTR.
+
+Use `rbinom` to randomly generate two Bernoulli distributions providing each page with a different probability of success. 
+
+Plot the CTR for pages A and B to visually compare.
+
+```{r}
+set.seed(14641)
+A_binom <- rbinom(500, 1, .25)
+B_binom <- rbinom(500, 1, .2)
+
+{par(mfrow=c(1,2))
+
+barplot(table(A_binom), main = "Clicks on A", ylim = c(0, 500))
+barplot(table(B_binom), main = "Clicks on B", ylim = c(0, 500))
+}
+```
+
+```{r eval=FALSE, echo=FALSE}
+#Odd plot.  See other bayesAB2.Rmd where curves look more normal.
+#Not displayedto avoid confusing audience
+muA <- mean(A_binom)
+varA <- var(A_binom)^2
+muB <- mean(B_binom)
+varB <- var(B_binom)^2
+
+Beta_A <- Beta_Parameters(muA, varA)
+Beta_B <- Beta_Parameters(muB, varB)
+
+#Plot prior beta distibutions 
+x = seq(0, 0.4, length = 10000)
+y = dbeta(x, Beta_A$alpha, Beta_A$beta)
+y1 = dbeta(x, Beta_B$alpha, Beta_B$beta)
+{plot(x, y, type = "l", col = "blue", ylim = c(0, 12),xlim = c(0, .40),lwd = 2, ylab =' Density', xlab = expression(theta))
+lines(x, y1, col = "orange", lwd = 2)
+legend(0.1, 12, legend = c("A", "B"), col = c("blue","orange"), lwd = 5, cex = 1, horiz = TRUE)}
+```
+
+```{r echo=FALSE, results='hide', message=FALSE}
+par()
+```
+
+Page A appears to have a higher CTR. Perhaps the new page made things worse? Calculate the summary statistics.
+
+```{r}
+summary(A_binom)
+```
+
+```{r}
+summary(B_binom)
+```
+
+The mean Page A > mean Page B.
+
+# Why Bayes?
+
+Most A/B test approaches are centered around frequentist hypothesis tests used to calculate a point estimate (probability of rejecting the null) of a hard-to-interpret value. Oftentimes, the statistician or data scientist will have to do a power test to determine sample size and then interface with a Product Manager or Marketing Exec in order to relay the results. This quickly gets messy in terms of interpretability. More importantly it is simply not as robust as A/B testing given informative priors.
+
+The most important reason to prefer Bayesian methods for A/B testing is interpretability:  Would you rather say “P(A > B) is 10%”, or “Assuming the null hypothesis that A and B are equal is true, the probability that we would see a result this extreme in A vs B is equal to 3%”? 
+
+Also, by using an informative prior we alleviate many common issues in regular A/B testing. For example, repeated testing is an issue in A/B tests. This is when you repeatedly calculate the hypothesis test results as the data comes in. In a perfect world, if you were trying to run a Frequentist hypothesis test in the most correct manner, you would use a power test calculation to determine sample size and then not peek at your data until you hit the amount of data required. Each time you run a hypothesis test calculation, you incur a probability of false positive. Doing this repeatedly makes the possibility of any single one of those ‘peeks’ being a false positive extremely likely. Using an informative prior in Bayesian techniques means your posterior distribution should make sense any time you wish to look at it. 
+
+# bayesAB Workflow
+
+- Select a distribution (Bernoulli for CTR)  
+- Determine prior distribution parameters for your data  
+- Fit a `bayesTest` object
+
+## Parameterize Data
+
+Based on prior knowledge it is known that page A had a CTR of 25%.  There is data to support this so we’re pretty sure about the selection of our prior as being a Bernoulli distribution with the parameter of CTR to lie between .2-.3 range, thus covering the .25. 
+
+In this example imagine a change in the font is thest variation to be tested.  
+
+### Decide on prior
+
+> The conjugate prior for the Bernoulli distribution is the β distribution.  
+
+*You really do not need to worry about this note.  It is here for the statistically-minded.*
+
+There are two ways to determine the values for prior.  `bayesAB` provides a function for you to experiment to determine the required inputs.  Alternatively, the `bayesAB` priors can be derived from the mean and standard distribution.  (I like the 2nd method - it saves time.)
+
+#### Derived bayesAB Priors
+
+Using the function below provides the α and β inputs into the `bayesAB` function.  Using the information from above, we know the mean conversion rate is 25% and the standard deviation is 5%.  (Recall variance = stdDev^2)
+
+```{r}
+Beta_Parameters <- function(mean, variance) {
+  alpha <- ((1 - mean) / variance - 1 / mean) * mean ^ 2
+  beta <- alpha * (1 / mean - 1)
+  return(Beta_Parameters = list(alpha = alpha, beta = beta))
+}
+```
+
+
+```{r}
+mu <- .25
+var <-  .05^2
+Beta_Parameters(mu, var)
+```
+
+Using these inputs, the foloowing distribution is calculated.
+
+```{r}
+plotBeta(18.5, 55.5)
+```
+
+While the values of the `bayesAB` inputs are different (you will note this below), the plot distributions are very close.  It is the distribution that really matters - not the values used to derive the plot.  BUT, because the plots are different, do not expect the results of the calculations below to match.  While they may be close, they most certainly will not match.
+
+> Recommend using the derived approach when the mean and standard devistion are estimated with some confidence.
+
+#### Experiment with bayesAB
+
+Vary the values of the `plotβ` function to simulate the current performance of the metric sought to evaluate.  As an example, assume a conversion rate on a webpage is around 20% and a standard deviation of 4%.  Attempt to use different values (`α`, `β`) in `plotβ` to mimic this prior or historical information.
+
+Distributions start to look like a normal distribution as the value of α and β starts to get bigger. Notice with the greater values of α and β, the bell curves are getting thinner or have smaller standard deviations. α tends to represent the mean and moves the curve left (low values) or right. β tends to suggest the standard deviation and makes the curve fatter (low values) or slimmer. **You must eperiment to find a close fit!**
+
+```{r}
+p1 <- plotBeta(20, 50) + ggtitle("α=20 & β=50")
+p2 <- plotBeta(30, 150) + ggtitle("α=30 & β=150")
+p3 <- plotBeta(60, 300) + ggtitle("α=60 & β=300")
+p4 <- plotBeta(65, 200) + ggtitle("α=65 & β=200")
+p5 <- plotBeta(3,7) + ggtitle("α=3 & β=7")
+grid.arrange(p1, p2, p3, p4, p5, ncol=2)
+```
+
+The 4th plot looks like a reasonable representation of our prior knowledge (current conversion rate is around 20% and a standard deviation of 4%).
+
+## bayesAB Test
+
+Above, through experimentation, it was determined `α` = 65 and `β` = 200.  This distribution appears to meet the current requirements (CTR to lie between .2-.3 range).  (If there was more uncertainty, the distribution would reflect this by having a wider base by adjusting the β distribution variance by increasing the size of the parameters.)
+
+```{r}
+plotBeta(65, 200)
+```
+
+All the information is availble for analysis.
+
+```{r}
+ab1 <- bayesTest(A_binom, B_binom, priors = c(alpha = 65, beta = 200), n_samples = 1000, distribution = 'bernoulli')
+```
+
+`bayesAB` fits a Bayesian model to the A/B testing sample data. `bayesTest` also comes with generic methods; `print`, `summary` and `plot`.
+
+`print` lists the inputs to the test:
+
+```{r}
+print(ab1)
+```
+
+`summary` provides actionable data. Bayesian intervals treat their bounds as fixed and the estimated parameter as a random variable, whereas frequentist confidence intervals treat their bounds as random variables and the parameter as a fixed value.
+
+The credible interval is more intuitive to both the scientist and the non-scientist. For example, in the experiment it is fairly certain the use of the alterntive font in Page B has had a negative effect on CTR.
+
+- This is quantified - it is 93.8% certain that page A is better than page B.
+- The Credible Interval on (A - B) / B suggests Page A as high as .33 times better relative to Page B.
+
+```{r}
+summary(ab1)
+```
+
+`plot` plots the priors, posteriors, and the Monte Carlo samples.
+
+```{r}
+plot(ab1)
+```
+
+Although it is very seductive, using Bayesian inference to combine subjective and objective likelihoods has clear risks and makes some statisticians nervous. There is no universal best strategy to A/B testing but being aware of both Frequentist and Bayesian inference paradigms is a useful starting point.
+
+# Initial MS Rave Feature Analysis
+
+```{r message=FALSE}
+packages("xda", prompt = FALSE)
+```
+
+## Get Data
+
+```{r message=FALSE}
+myMSdata <- read_csv("~/GitHub/Valorem/ClientProjects/MS_O365/data/CaseNotesSearchABHistorical_Dec13.csv", progress = FALSE)
+glimpse(myMSdata)
+```
+
+```{r}
+myMSdata <- myMSdata %>% mutate(CreateTime2 = mdy_hm(CreateDateTime)) %>% select(-CreateDateTime) %>% 
+     tidyr::drop_na(PartnerId) %>% glimpse()
+```
+
+Convert most `character` to `factor`.
+
+```{r}
+names(myMSdata)
+myMSdata[, c(4,6)] <- myMSdata[,c(4,6)] %>% mutate_if(is.character, as.factor)
+glimpse(myMSdata)
+```
+
+
+```{r}
+numSummary(myMSdata)
+charSummary(myMSdata)
+```
+
+
+```{r}
+ggplot(myMSdata, aes(x=Roles)) + geom_bar() + coord_flip()
+table(myMSdata$Roles)
+```
+
+```{r}
+options(scipen = 999)
+myGrpTTR <- group_by(myMSdata, TTR)
+myPlot1data <- summarize(myGrpTTR, TTRcnt = n())
+
+cntNeg <- nrow(filter(myPlot1data, TTR < 1))
+cntBIG <- nrow(filter(myPlot1data, TTR > 20160))#2 weeks
+
+myBreaks_day <- c(seq(from=0, to=max(myMSdata$TTR), by=1440), Inf)#
+myPlot1data$TTR_day <- cut(myPlot1data$TTR, breaks = myBreaks_day, dig.lab = 8)
+ggplot(myPlot1data, aes(x=TTR_day, y=TTRcnt)) + geom_bar(stat = "identity") + coord_flip()
+ggplot(filter(myPlot1data, TTR<20000), aes(x=TTR_day, y=TTRcnt)) + geom_bar(stat = "identity") + coord_flip()
+
+# myBreaks_week <- c(-Inf, seq(from=0, to=max(myMSdata$TTR), by=10080), Inf)#10080 min/week
+# myPlot1data$TTR_week <- cut(myPlot1data$TTR, breaks = myBreaks_week, dig.lab = 8)
+# ggplot(myPlot1data, aes(x=TTR_week, y=TTRcnt)) + geom_bar(stat = "identity") + coord_flip()
+# 
+# 
+# myBreaks_2Week <- c(-Inf, seq(from=0, to=max(myMSdata$TTR), by = 20160), Inf)
+# myPlot1data$TTR_2week <- cut(myPlot1data$TTR, breaks = myBreaks_2Week, dig.lab = 8)
+# ggplot(myPlot1data, aes(x=TTR_2week, y=TTRcnt)) + geom_bar(stat = "identity") + coord_flip()
+# 
+# myBreaks_4Week <- c(-Inf, seq(from=0, to=max(myMSdata$TTR), by = 40320), Inf)
+# myPlot1data$TTR_4week <- cut(myPlot1data$TTR, breaks = myBreaks_4Week, dig.lab = 8)
+# ggplot(myPlot1data, aes(x=TTR_4week, y=TTRcnt)) + geom_bar(stat = "identity") + coord_flip()
+
+```
+
+```{r}
+#86,400 minutes in 60 days
+cat("The number of records with a TTR longer than 60 days is", nrow(filter(myPlot1data, TTR > 86400)))
+```
+
+
+Remove records where TTR < 0.
+
+```{r}
+myMSdata <- filter(myMSdata, TTR > 0)
+```
+
+In the first exercise, `ReScenario` is filtered.  Also, remove `isResolved` records = NA
+
+```{r}
+levels(myMSdata$ReScenario)
+```
+
+```{r}
+myMSdata_ReOpen <- filter(myMSdata, ReScenario == "Customer Reopen")
+myMSdata_ReOpen <- mutate(myMSdata_ReOpen, IsResolved = parse_logical(IsResolved))
+myMSdata_ReOpen <-  filter(myMSdata_ReOpen, !is.na(IsResolved))
+table(myMSdata_ReOpen$IsResolved)
+```
+
+## Prepare DF for bayesAB
+
+```{r eval=FALSE}
+
+myMSdata_ReOpen <- myMSdata_ReOpen %>% mutate(IsResolvedNum = ifelse(myMSdata_ReOpen$IsResolved == TRUE, 1,0))
+control <- myMSdata_ReOpen$IsResolvedNum
+mu_control <- mean(control)
+var_control <- var(control)
+
+myBetas <- Beta_Parameters(mu_control, var_control)#returning negative values - need estimates of mean and sd
+plotBeta(myBetas$alpha, myBetas$beta)
+
+#experiment
+plotBeta(200, 100)#lnot good
+myBetas <- Beta_Parameters(.93, .01)#returning negative values - need estimates of mean and sd
+plotBeta(myBetas$alpha, myBetas$beta)
+
+ab1 <- bayesTest(control, B_binom, priors = c(alpha = 5.12, beta = .386), n_samples = 2000, distribution = 'bernoulli')
+```
+
+-----------------------
+
+#Side Analysis
+
+```{r}
+library(stringr)
+myMSdata2 <- myMSdata %>% mutate(Roles_match_Agent = str_detect(Roles, "Agent"))
+table(myMSdata2$Roles_match_Agent)
+myMSdata2 <- myMSdata2 %>% mutate(Roles_match_Rave2 = str_detect(Roles, "RaveV2"))
+table(myMSdata2$Roles_match_Rave2)
+
+myMSdata2 <- myMSdata2 %>% mutate(Roles_match_FirstRelease = str_detect(Roles, "FirstRelease"))
+table(myMSdata2$Roles_match_FirstRelease)
+
+prop.table(table(myMSdata2$Roles_match_Agent))
+prop.table(table(myMSdata2$Roles_match_Rave2))
+prop.table(table(myMSdata2$Roles_match_FirstRelease))
+```
+
+```{r}
+#Generate alpha and beta for beta distributions priors 
+a <- Beta_Parameters(0.15,0.0016)#0.04^2
+# b <- Beta_Parameters(0.16,0.0016)
+# c <- Beta_Parameters(0.17,0.0016)
+
+#Plot prior beta distibutions for the three ads (A,B, and C)
+x = seq(0, 0.4, length = 10000)
+y = dbeta(x, a$alpha, a$beta)
+# y1 = dbeta(x, b$alpha, b$beta)
+# y2 = dbeta(x, c$alpha, c$beta)
+{plot(x, y, type = "l", col = "blue", ylim = c(0, 12),xlim = c(0, .40),lwd = 2, ylab =' Density', xlab = expression(theta))
+# lines(x, y1, col = "orange", lwd = 2)
+# lines(x, y2, col = "black", lwd = 2)
+#legend(0.1, 12, legend = c("A", "B", "C"), col = c("blue","orange","black"), lwd = 5, cex = 1, horiz = TRUE)
+legend(0.1, 12, legend = c("control"), col = c("blue"), lwd = 5, cex = 1, horiz = TRUE)
+}
+```

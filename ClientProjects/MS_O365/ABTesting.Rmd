@@ -57,16 +57,13 @@ packages("dplyr", "ggplot2","pwr", "bayesAB", prompt = FALSE)
 To start testing off on the right foot, we need to plan for an A/B test and perform a power calculation. This requires defining a hypothesis and test groups, and then considering two questions.
 
 - How sure do we need to be that we are measuring a real change?
+- How big is the change we expect to see because of the new version, compared to the baseline?
 
 What percentage of the time are we willing to miss a real effect? This is measured by power.
 
 What percentage of the time are we willing to be fooled into seeing an effect by random chance? This is called significance level, and more precisely, we would state this as the probability of rejecting the null hypothesis.
 
 Typical statistical standards for these quantities are 80% for power (i.e., 20% chance of a false negative) and 5% for significance level. 
-
-- How big is the change we expect to see because of the new version, compared to the baseline?
-
-Some phrases that people use to talk about this concept are effect size, expected improvement, and improvement threshold. Effect size can be different in different contexts and different parts of our business.
 
 Estimating effect size requires strategic product thinking. 
 
@@ -78,7 +75,7 @@ https://juliasilge.shinyapps.io/power-app/
 
 The most common type of hypothesis testing involves a null hypothesis. The null hypothesis, denoted H0, is a statement about the world which can plausibly account for the data you observe. Don't read anything into the fact that it's called the "null" hypothesis — it's just the hypothesis we're trying to test.
 
-For example, "the coin is fair" is an example of a null hypothesis, as is "the coin is biased." The important part is that the null hypothesis be able to be expressed in simple, mathematical terms. We'll see how to express these statements mathematically in just a bit.
+For example, "the coin is fair" is an example of a null hypothesis, as is "the coin is biased." The important part is that the null hypothesis be able to be expressed in simple, mathematical terms.
 
 The main goal of hypothesis testing is to tell us whether we have enough evidence to reject the null hypothesis. In our case we want to know whether the coin is biased or not, so our null hypothesis should be "the coin is fair." If we get enough evidence that contradicts this hypothesis, say, by flipping it 100 times and having it come up heads only once, then we can safely reject it.
 
@@ -86,13 +83,13 @@ So, we have a coin. Our null hypothesis is that this coin is fair. We flip it 10
 
 Our gut might say the coin is fair, or at least probably fair, but we can't say for sure. The expected number of heads is 50 and 51 is quite close. But what if we flipped the coin 100,000 times and it came up heads 51,000 times? We see 51% heads both times, but in the second instance the coin is more likely to be biased.
 
-Lack of evidence to the contrary is not evidence that the null hypothesis is true. Rather, it means that we don't have sufficient evidence to conclude that the null hypothesis is false. The coin might actually have a 51% bias towards heads, after all.
+**Lack of evidence to the contrary is not evidence that the null hypothesis is true**. Rather, it means that we don't have sufficient evidence to conclude that the null hypothesis is false. The coin might actually have a 51% bias towards heads, after all.
 
 If instead we saw 1 head for 100 flips that would be another story. Intuitively we know that the chance of seeing this if the null hypothesis were true is so small that we would be comfortable rejecting the null hypothesis and declaring the coin to (probably) be biased.
 
 We can use whatever level of confidence we want before rejecting the null hypothesis, but most people choose 90%, 95%, or 99%. 
 
-The Central Limit Theorem is the main piece of math here. Briefly, the Central Limit Theorem says that the sum of any number of re-averaged identically distributed random variables approximates a normal distribution.
+The Central Limit Theorem says that the sum of any number of re-averaged identically distributed random variables approximates a normal distribution.
 
 Here's the normal curve:
 
@@ -131,7 +128,6 @@ Construct a function which calculates the confidence intervals for the purchase 
 site1 = c(.40, 500) # pink
 site2 = c(.30, 550) # black
 Zscore = .8
-
 
 abtestfunc <- function(ad1, ad2, Zscore){
       zVal <- round(qnorm(1 - (1 - Zscore)/2), 2)
@@ -210,7 +206,7 @@ designExperiment <- function(pA,pB,pError,pAUpper=pB,pBLower=pA) {
 }
 ```
 
-The ideas is to test a variation (called “treatment” or “B”) in parallel with continuing to test a baseline (called “control” or “A”) to see if the variation drives a desired effect (increase in revenue, cure of disease, and so on). By running both tests at the same time it is hoped that any confounding or omitted factors are nearly evenly distributed between the two groups and therefore not spoiling results. 
+The idea is to test a variation (called “treatment” or “B”) in parallel with continuing to test a baseline (called “control” or “A”) to see if the variation drives a desired effect (increase in revenue, cure of disease, and so on). By running both tests at the same time it is hoped that any confounding or omitted factors are nearly evenly distributed between the two groups and therefore not spoiling results. 
 
 The traditional frequentist batch-oriented A/B test is organized around two concepts called **power** and **significance**. Once you have your experimental goal (what you are testing then the expected target difference) issues of power and significance determine determine the final parameters of your experiment: the necessary sample sizes. Power and significance are defined as follows:
 
@@ -280,7 +276,7 @@ This is somewhat arbitrary, 80% is a common choice. Note that choosing 80% means
 
 If you wanted to decide how much longer it will take to reach significance, divide 8400 by the number of impressions per day. That can help determine if its worth while to continue the test.
 
-You can also use this function to determine required sample size before testing begins. There's a nice write-up describing this on the 37 Signals blog.
+You can also use this function to determine required sample size before testing begins.
 
 This is a native R function, so you won't need to add or load any packages. Other than that I can't say how similar this is to pwr.p2pn.test().
 
@@ -682,6 +678,59 @@ summary(test2)
 ```{r}
 plot(test2)
 ```
+
+## Example 3 - Exploratory IO R Version
+
+```{r}
+
+```
+
+
+An Introduction to Bayesian A/B Testing in Exploratory
+
+https://blog.exploratory.io/an-introduction-to-bayesian-a-b-testing-in-exploratory-cb5a7ad80963
+
+I’m sure many of you have heard about A/B Testing, and maybe some of you have done it before or even doing it right now. Basically, you create two groups — A and B — and measure the performance of each group and compare them to see which one is better.
+
+It is a very well known technique especially among web / mobile developers or product people. For example, you deploy two versions of your web site landing pages and measure which pages are helping your users to sign up, subscribe your service, etc.
+ 
+Now, let’s say your test result came back after a week or so and it looks like below.
+ 
+This is easy. A (blue color) is consistently performing much better than B (orange color) so you can deploy A version of the page to the production. Done.
+Except, it is not that simple in most of the times. The difference between A and B can be very subtle and it can look something like below.
+ 
+Just by looking at this, you might think that A seems to be better than B. But you might not be confident enough because B was better than A in one day and the difference was kind of small even for the days where A was better than B.
+Now, would you be comfortable making a decision to go with A?Are you sure to say that B won’t be performing better than A tomorrow? Because deciding to go with A means that you will most likely invest an additional time and money in the development, the design, the deployment, and all the other related works. So you would really want to be certain that A was indeed better than B.
+This is where the power of Statistics comes in. There are several ways to evaluate the result with some techniques often used in Statistics. Traditionally, the most popular one is to use something called Chi-Squared Test.
+Let’s quickly take a look at how this can be done.
+Chi-Squared Test
+Let’s say we are testing two versions of our landing page and monitoring how much ‘sign ups’ each of the pages is bringing in every day.
+ 
+Now you can summarize the values by the landing page.
+ 
+Note that this test doesn’t really care about the trend by the date. It’s about how much of the data we have. In reality, we need to first estimate how much data we need to collect before we run this test, but for a sake of simplifying this, we are assuming that we have collected just enough data already.
+Also, note that I have calculated ‘not_sign_up’ column as
+total - sign_up
+because Chi-Square Test wants to see the proportion of the data.
+Now we can run the test and get a result like below.
+ 
+The most important thing we want to look at here is ‘p.value’ column. This shows the rate that this difference between A and B can happen by a random chance. In this case, the number is 0.2014, which means that this difference can happen by chance at a rate of 20%. And this means, in statistic world where this value needs to be less than 5% to state a statistical significance, we can’t conclude that the difference between A and B is statistically significant. Yes, the statistics can’t support you make any decisions here!
+Now, Maybe you might ask as a business person, what if we continue the testing and collect more data, then we’ll evaluate the result again? We might see the P-value going down to less than 5% at some point? The answer is No. Unfortunately, the test is already done. The reason we have run the test is that we have collected enough data for the test to be valid. That means, more data is not going to help the test. The only thing we can do is to re-design the test by starting from scratch. Ouch!
+Along with this problem, there are a few challenges with using Chi-Square Test for A/B Testing especially for the modern organizations who need to make decisions quickly and iteratively.
+We need to know how much of the data we need to collect for the test before starting the test.
+We can’t test the result in real-time until we collect a full of the planned data size.
+The test result is not intuitively understandable especially for those without a statistical background.
+1.	The test result is black and white, either it is statistically significant or not. Therefore, it’s hard to figure out what to do especially when it is not statistically significant.
+
+
+From Chat:
+Here's how you can assign the columns for A/B under Analytics view. 
+ 
+
+And by using Pivot table under Viz, you can calculate the Average / SD (Standard Deviation) quickly.
+ 
+
+
 
 # Conclusion
 

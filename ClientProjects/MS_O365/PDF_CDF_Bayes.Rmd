@@ -1,0 +1,139 @@
+---
+title: "PDF and CDF - Bayes"
+output:
+  rmdformats::readthedown:
+    highlight: pygments
+---
+
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 12px;
+}
+body{ /* Normal  */
+   font-size: 12px;
+}
+td {  /* Table  */
+   font-size: 10px;
+}
+h1 { /* Header 1 */
+ font-size: 26px;
+ color: #4294ce;
+}
+h2 { /* Header 2 */
+ font-size: 22px;
+}
+h3 { /* Header 3 */
+ font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 10px;
+}
+pre { /* Code block */
+  font-size: 10px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("dplyr", "ggplot2", "bayesAB", "gridExtra", prompt = FALSE)
+```
+
+# Parameter Estimation - The PDF, CDF and Quantile Function
+
+When we start learning probability we often are told the probability of an event and from there try to estimate the likelihood of various outcomes. In reality the inverse is much more common: we have data about the outcomes but don't really know what the true probability of the event is. Trying to figure out this missing parameter is referred to as Parameter Estimation.
+
+# Use Case Description
+
+Determine the probability is a visitor to a blog will subscribe to the email list. In marketing terms getting a user to perform a desired event is referred to as the conversion event or simply a conversion and the probability that a user will convert is the conversion rate. 
+
+Calculate p, the probability of subscribing given that we know k, the number of people subscribed and n the total number of people who visited is to use the Beta distribution. There are two parameters for the Beta distribution, α in this case representing the total subscribed (k), and 
+β representing the total not subscribed (n−k).
+
+# The Probability Density Function
+
+Assume for first 40,000 visitors the blog gets 300 subscribers. That would be `Beta(300,39700)` (remember β is the number of people who did not subscribe, not the total). We can visualize the Probability Density Function (PDF) for this Beta Distribution as follows:
+
+```{r}
+x <- seq(0.005,.010,length=100)
+myData <- dbeta(x, 300, 39700)
+ggplot() + geom_line(aes(x, myData)) + xlim(0.005, 0.010) + ylab("Density") + xlab("Probability of Subscription") + ggtitle("Beta PDF")
+```
+
+From the data it can be inferred the average conversion rate is simply 
+
+$$ subscribed/visited = 300/40000 = 0.0075 $$
+It is unlikely that our conversion rate is exactly 0.0075 rather than say 0.00751. We can use the area under parts of this curve (which is simply the integral) to determine exactly how likely different probabilities for our true conversion rate are given the data we have seen. The area under the curve less than 0.0065 represents the possibility that we got very lucky with many of our observations and our conversion rate is actually much lower. We can use our PDF to compare two extremes. The probability that our conversion rate is actually much lower than we have seen is:
+
+$$ P(much lower) = \int_{0}^{0.0065}Beta(300,39700)≈0.008P(\text{much lower}) = \int_{0}^{0.0065}Beta(300,39700) \approx 0.008 $$
+
+And we can ask the other question "how likely is it that we actually got unlucky and our true conversion rate is greater than 0.0085?":
+
+$$ P(much higher) = \int_{0.00851}^{1}Beta(300,39700)≈0.012P(\text{much higher}) = \int_{0.0085}^{1}Beta(300,39700) \approx 0.012 $$
+
+This means that the probability that our conversion rate is much higher than we observed is actually a bit more likely that the probability that it is much less than observed!
+
+# Cumulative Distribution Function
+
+I know you're thinking: "I do so much love taking all these integrals each time I have different question!" But let's make the radical assumption that you'd prefer to just look at a plot and get these answers! Despite its ubiquity in probability and statistics, the PDF is actually a pretty mediocre way to look at data. The PDF is only really useful for quickly ascertaining where the peak of a distribution is and getting a rough sense of the width and shape (which give a visual understanding of Variance and Skewness). A much better (for more reasons than we'll cover here) function is the Cumulative Distribution Function (CDF). The CDF, for any probability distribution, tells how probable it is that a value is below x in our distribution. The CDF for our problem looks like this:
+
+```{r}
+x <- seq(0.005,.010,length=100)
+myData <- pbeta(x, 300, 39700)
+ggplot() + geom_line(aes(x, myData)) + xlim(0.005, 0.010) + ylab("Cumulative Probability") + xlab("Probability of Subscription") + ggtitle("Cumulative Probability Distribution")
+```
+
+## Using the CDF
+
+First we can easily see the median (which can even be challening to compute analytically) by visually drawing a line from the point where the cumulative probability is 0.5 (meaning 50% of the points are below this point and 50% are above). Looking where this intersects the x-axis give us our median!
+
+```{r}
+ggplot() + geom_line(aes(x, myData)) + xlim(0.005, 0.010) + ylab("Cumulative Probability") + xlab("Probability of Subscription") + ggtitle("Cumulative Probability Distribution") + geom_hline(aes(yintercept = .5, color = "Red")) + 
+  geom_vline(aes(xintercept = .0075, color = "Red")) + theme(legend.position="none")
+```
+
+We can see that the median is very close to the Expectation of 0.0075.
+
+If we just need an approximate value we also can save all that integral work we did before for assessing the probability of ranges of values. To estimage the probability that the conversion rate is between 0.0075 and 0.0085 we can trace lines from the x-axis at these points, then see where the meet up with the y-axis. The distance between them is the approximate integral.
+
+```{r}
+ggplot() + geom_line(aes(x, myData)) + xlim(0.005, 0.010) + ylab("Cumulative Probability") + xlab("Probability of Subscription") + ggtitle("Cumulative Probability Distribution") + geom_hline(aes(yintercept = .5, color = "Red")) + 
+  geom_vline(aes(xintercept = .0075, color = "Red")) + geom_hline(aes(yintercept = .98, color = "Blue")) + 
+  geom_vline(aes(xintercept = .0085, color = "Blue")) + theme(legend.position="none") + annotate("text", x=.006, y=.75, label="approx 0.49") +
+  geom_segment(aes(x=.0065,xend=.0065,y=.5,yend=.98))
+```
+
+
+Eyeballing the CDF we can see that on the y-axis these values range from roughly 0.5 to 0.99, meaning that there is roughly a 49% chance that our true conversion rate lies somewhere between these two values. The best part is we didn't have to do any integration! But why does this trick work so easily? The answer is actually pretty awesome. It turns out that the PDF is simply the derivative of the CDF! Looking at it the other way: given a PDF when we visualize the CDF we're actually visualizing the anti-derivative which is the basis for how we calculate integrals in the first place. The reason we can perform visual integration is because we are, quite literally, visually integrating the PDF.
+
+One final trick we can ask is about our Confidence Interval. Now that we know there is a range of possible values we could have, it is sensible to ask "What is the range that covers 80% of the possibilities?". We answer this question by combining our previous approaches. We start at the y-axis and draw lines from 0.1 and 0.9, and then simply see where on the x-axis these intersect with our CDF.
+
+```{r}
+ggplot() + geom_line(aes(x, myData)) + xlim(0.005, 0.010) + ylab("Cumulative Probability") + xlab("Probability of Subscription") + ggtitle("Cumulative Probability Distribution") + geom_hline(aes(yintercept = .5, color = "Red")) + 
+  geom_vline(aes(xintercept = .008, color = "Red")) + geom_hline(aes(yintercept = .1, color = "Blue")) + 
+  geom_vline(aes(xintercept = .007, color = "Blue")) + theme(legend.position="none") 
+
+ggplot() + geom_line(aes(x, myData)) + xlim(0.005, 0.010) + ylab("Cumulative Probability") + xlab("Probability of Subscription") + ggtitle("Cumulative Probability Distribution") + 
+  geom_segment(aes(x=.00805,xend=.00805,y=0,yend=.9), color = "Blue") +
+  geom_segment(aes(x=.005,xend=.00805,y=.9,yend=.9), color = "Blue") +
+  geom_segment(aes(x=.00695,xend=.00695,y=0,yend=.1), color = "Red") +
+  geom_segment(aes(x=.005,xend=.00695,y=.1,yend=.1), color = "Red")
+```
+
+CDFs make estimating confidence intervals accuracy much easier than PDFs.
+
+As we can see the x-axis is interesected at roughly 0.007 and 0.008 which means that there's an 80% chance that our true conversion rate falls somewhere between these two values.
