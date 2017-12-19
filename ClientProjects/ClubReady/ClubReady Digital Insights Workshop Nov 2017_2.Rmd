@@ -1,0 +1,1294 @@
+---
+title: 'ClubReady Digital Insights Workshop'
+output:
+    rmdformats::readthedown:
+      highlight: pygments
+      code_folding: hide
+---
+
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 14px;
+   line-height: 18px;
+}
+body{ /* Normal  */
+   font-size: 14px;
+}
+td {  /* Table  */
+   font-size: 12px;
+}
+h1 { /* Header 1 */
+font-size: 26px;
+color: #4294ce;
+}
+h2 { /* Header 2 */
+font-size: 22px;
+}
+h3 { /* Header 3 */
+font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 12px;
+}
+pre { /* Code block */
+  font-size: 12px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+```{r loadLibs1, warning=FALSE, message=FALSE}
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("plyr", "dplyr", "data.table", "xda","ggplot2", "forcats", "readr", "gridExtra", "knitr", "onehot", prompt = FALSE)
+#data.table used only for fread
+```
+
+# Introduction
+
+## Document Format
+
+This document walks through the Digital Insight Workshop methodology to predict different churn models for ClubReady.
+
+## Client Description
+
+ClubReady LLC operates a Web based club management platform for fitness facilities, fitness individuals, and large corporate chains. It specializes in member management, billing, EFT and POS, and sales process/CRM. The company was incorporated in 2014 and is based in St. Louis, Missouri.
+
+## Client Business Problem
+
+ClubReady is currently the 3rd largest company in their industry.  The company recognizes the need to take full advantage of their digital assets in an effort to gain deeper knowledge and understanding of customer behaviors.  ClubReady has taken steps in this area to begin analyzing the significant data it captures through its membership software applications, and seeks support to further explore its data assets.  ClubReady reached out to Valorem as a preferred Microsoft partner with expertise in Advanced Analytics, including Azure Machine Learning and the Cortana Intelligence Suite of Azure services.   
+
+ClubReady wants to become *a data-first* company focused on membership and member retention insights gained through an exploration of ClubReady data.
+
+## Client Engagement
+
+On October 3, 2017, ClubReady accepted a Valorem statement of work for a Digital Insight Workshop.  The workshop provided the following deliverables
+
+- Data Assessment and Quality Report 
+- Digital Analytics Vision & Roadmap of Actionable Insights 
+- Documented Key Priorities 
+- Potential Digital Insights Program ROI 
+- Recommended and Prioritized Analytics Actions 
+- Analytics Roadmap and Estimates 
+- Presentation of Next Steps
+
+> As documented later in the report, these deliverables were collapsed into fewer deliverables as agreed during the inital on-site workshop meeting.
+
+## Digital Insights Process
+
+The Digital Insights Workshop Project flow includes:
+
+1. Pre-Work and Agenda
+2. On-Site Workshop
+3. Analytics Run
+4. Present Findings
+
+> Analytics Run is renamed in this document to Exploratory Data Analysis
+
+## Pre-Work and Agenda
+
+On November 20, 2017, Valorem's Project Manager led an introductory pre-workshop Skype Meeting.  Andy Sweet, the ClubReady CTO and Project Sponsor participated with Valorem Data Scientists.  The meeting consisted of:
+
+- Team Introductions
+- Project Overview
+- Communications Plan
+- Q & A
+
+The core project Team Members were identified:
+
+| Team Member | Company & Title |
+| --------------| ----------------------------------- |
+| Andy Sweet | ClubReady CTO |
+| Justin Trusty | ClubReady Data Architect |
+| Lauren Crosby | ClubReady Director of Product Management |
+| Matt Mercurio | ClubReady Director of Engineering |
+| Brad Llewellyn | Valorem Data Scientist |
+| Cliff Weaver | Valorem Data Scientist |
+| Brian Roselli | Valorem Project Management |
+
+## On-Site Workshop
+
+The on-site workshop was help at ClubReady on November 28 - 29.  The agenda presented at the workshop included:
+
+- Day 1
+    - ClubReady vision, goals, priorities
+    - What can machine learning do for you?
+    - Problem statements 
+    - Redefine deliverables
+    - Churn Example
+    - Data Sources & Definitions
+- Day 2
+    - Review previous day successes and misses
+    - Data Exploration
+    - Q&A
+    - Time Permitting (Clients Choice)
+    - Introduction to R
+
+During the two-day workshop, the agenda was roughly followed.  Regardless of the path, all the objectives to the workshop were accomplished:
+
+- Understanding ClubReady goals and priorities
+- Development of well-formed questions
+- Review and Modification to Deliverables and Format
+- Access to data
+- Selection of data for analysis
+
+### Understanding ClubReady Goals & Priorities
+
+At the start of the on-site workshop, Andy Sweet provided an overview of ClubReady, its FY18 Goals and the mission to become a *data-first* company believing this will provide a strategic advantage over its competitors.  (This section is intentionally kept brief because it is help for Valorem but provides no additional insights from ClubReady.)
+
+### Well-Formed Question Development
+
+The success of any data science project starts with a well-formed question.  A well-formed question is a prerequisite to a project because without it, the project is highly likely to fail.  At a minimum, a well-formed question provides:
+
+A statement of the problem or issue that needs to be solved
+Detailed description of the data available for analysis.  This includes data that is not not available.
+A description of what ClubReady would like to be able to predict or categorize 
+What ClubReady will do when the answer from the last step is available
+
+ClubReady wants to identify what clubs (full service and DIY) are likely to fail based on percentage drop in 
+revenue 
+
+> Significant revenue percentage drop needs to be defined - currently defined as 80% drop in revenue from previous month
+
+Member Churn is defined by an individual customer agreement termination with no renewal within 30 days.
+
+ClubReady wants to identify the individual customer propensity at the club level (lowest organization in the hierarchy) to terminate their club agreement.  (This excludes one-time users - ie not club members)
+
+If a customer moves to an chain within the same owner hierarchy, need to check the change table to ID.  So churn becomes:  Agreement ends and not renewed in 30 days or club transfer
+
+### Review and Modification to Diliverables and Format
+
+The Statement of Work proferred the followin goutputs:
+
+- Data Assessment and Quality Report
+- Digital Analytics Vision & Roadmap of Actionable Insights
+- Documented Key Priorities 
+- Potential Digital Insights Program ROI
+- Recommended and Prioritized Analytics Actions
+- Analytics Roadmap and Estimates
+- Presentation of Next Steps
+
+During the workshop, example documentation built using RMarkdown language saved in HTML format was presented.  The ClubReady Team agreed this format was acceptable for all project reporting.  (This document is the result of that agreement.)
+
+### Access to ClubReady Data
+
+On the 2nd day of the workshop, Valorem was granted and verified access to ClubReady data.
+
+### Data Selection
+
+ClubReady reviewed the tables and variables available in the ClubReady database (over 600 tables and 3,000+ fileds).  It was quickly realized a majority of the fields   were sparsely populated.  The Team implemented custom SQL code to identify the sparsity of each variable.  The Team then identified the initial set of candidate data ClubReady believed to be important to answer the well-formed questions.
+
+#### Data Caveats & Assumptions
+
+- There was no method to identify when data was populated.  If a column was 60% dense, the filed would not have been selected even if that variable is 100% dense in the last year or two.
+- There is no guarantee all impactful variables were identified.  Reviewing a large dataset with a small Team does not ensure all important variables were included in the data used for modeling.
+- Team determined the latest 2 years of data would be used for the project.  It was in this period ClubReady experienced significant growth.
+
+# Exploratory Data Analysis
+
+This is the tactical execution results of the Exploratory Data Analysis process.  Recall the `stores.csv` data file is explored first in detail followed by `ClassesService.csv` and `users.csv` with less commentary content.
+
+This section walks through the initial Exploratory Data Analysis supporting the potential algorithm development to predict different churn models for ClubReady.  The section is organized as follows:
+
+- One of three CSV data files, stores.csv, is explored with detail in the first section
+- In the following sections, the other two data files (User and Class & Services) are explored albeit with less explanatory content
+- All of these sections roughly follow the same thought process:
+    - Get Data
+    - Remove/transform NAs
+    - Character to Factors
+    - Explore factors with tables and plots
+    - Explore numerical data
+    - Explore variances
+    - Manage duplicate records
+    - Data Glimpse
+
+## Stores
+
+### Get Data
+
+Working with ClubReady, Valorem developed SQL scripts capturing raw data ClubReady data in csv format.
+
+```{r loadData, echo=FALSE, message=FALSE,warning=FALSE, results='hide'}
+stores <- read_csv("C:/Users/cweaver/Downloads/Stores.csv", 
+    col_types = cols(showIDphoto = col_integer(), 
+        showaboutus = col_integer(), showactivity = col_integer(), 
+        showarticles = col_integer(), showbalances = col_integer(), 
+        showcusttodo = col_integer(), showdiscussion = col_integer(), 
+        showfastfacts = col_integer(), showfitevals = col_integer(), 
+        showgoals = col_integer(), showjournal = col_integer(), 
+        shownews = col_integer(), shownutrition = col_integer(), 
+        showphotos = col_integer(), showprogreport = col_integer(), 
+        showprovtodo = col_integer(), showpurchhistory = col_integer(), 
+        showscheduling = col_integer(), showstaffbios = col_integer()))
+```
+
+The first csv, `stores`, returned `r dim(stores[1])` records with `r dim(stores[2])` variables.  Of the `r dim(stores)[2]` variables, `r nrow(stores %>% select_if(is.character))` is a `character` type and `r nrow(stores %>% select_if(is.numeric))` are `numeric`.
+
+> Valorem learned from ClubReady some variables have no current business value.  These have been removed from the working dataset.
+
+```{r}
+deletedVars <- names(stores[grepl("^show", colnames(stores))])
+deletedVars <- ldply(deletedVars, data.frame)#convert list to DF
+names(deletedVars) <- "Deleted_Variables"
+stores  <-  stores[, !grepl("^show", colnames(stores))]
+```
+
+The `r nrow(deletedVars)` removed variables are:
+```{r}
+deletedVars
+```
+
+### Categorical Variables
+
+Lets look at the categorical variables first:
+
+```{r}
+charSummary(stores)
+```
+
+We learn the only categorical variable is `Status`.  `Status` is a factor with several levels. 
+
+```{r}
+stores <- stores %>% mutate_if(is.character, as.factor)
+#charSummary(stores)
+table(stores$Status)
+ggplot(stores, aes(fct_infreq(Status))) + geom_bar() + xlab("ClubReady Status Code") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+ClubReady provided direction on how to manage `Active`, `Inactive`, and `Cancel`:
+
+*Inactive is a store that is no longer with ClubReady.  Most likely left to go to competitor.*
+*Cancel is a store that was in the process of being setup and for some reason stopped.*
+*Ignore cancel.*
+
+Remove records where `Status` is not either `Active` or `Inactive`.
+
+```{r}
+#starts with 5321, end with 4288 records
+stores <-  filter(stores, Status == 'Active' | Status == 'Inactive')
+table(stores$Status)
+stores$Status <- factor(stores$Status)
+table(stores$Status)
+```
+
+After removing the records associated with `Status` fields that are not needed, `r nrow(stores)` records remain.
+
+### Numerical Data
+
+Lets review the numerical data.  Pay attention to the missing data percentage in shown in the right-most column below.  (Note, only showing the first 20 of the `r nrow(stores %>% select_if(is.numeric))` numerical variables.
+
+```{r storeVarTypeNames}
+myNumSum <- numSummary(stores)[, c(1,7,8,16,17)]
+myNumSum <- tibble::rownames_to_column(myNumSum)
+names(myNumSum)[5] <- "missCNT"
+names(myNumSum)[1] <- "Variable_Name"
+myNumSum <- arrange(myNumSum, desc(n))
+head(myNumSum, 20)
+```
+
+Good, no missing data!
+
+Examine the numerical data using plotting to illustrate interesting distributions.
+
+```{r plotsNumeric, message=FALSE, warning=FALSE}
+library(purrr)
+library(tidyr)
+
+cntNumNames <- length(select(select_if(stores,is.numeric), -StoreId))
+#Make plots max 6 at a time - change if needed
+maxPlot = 6
+loopCnt <- cntNumNames %/% maxPlot
+remainder <- cntNumNames %% maxPlot
+
+myLoop_DF <- data.frame(x = seq(1, cntNumNames-remainder, by = maxPlot), y = seq(6, cntNumNames, by = maxPlot))
+myLoopMax <- max(myLoop_DF)
+
+for(i in 1:nrow(myLoop_DF)){
+  myplot <- select(select_if(stores,is.numeric), -StoreId)[myLoop_DF[i,1]:myLoop_DF[i,2]]%>% gather() %>% ggplot(aes(value)) +
+      facet_wrap(~ key, scales = "free") + geom_histogram() #+  geom_density()
+  print(myplot)
+}
+```
+
+Most of the plots above are not very interesting but there are a few that we might to revisit individually including `Amenities`, `Forms`, and `NonRequiredForms`.
+
+```{r}
+p1 <- ggplot(filter(stores, Amenities > 0), aes(Amenities)) + geom_bar() + ggtitle("Amenties > 0")
+p2 <- ggplot(filter(stores, Forms > 0), aes(Amenities)) + geom_bar() + ggtitle("Forms > 0")
+p3 <- ggplot(filter(stores, NonRequiredForms > 0), aes(Amenities)) + geom_bar() + ggtitle("NonRequiredForms > 0")
+grid.arrange(p1, p2, p3, ncol=3)
+```
+
+#### Variability
+
+Evaluate how much variability there is in each numerical variable.
+
+```{r message=FALSE, warning=FALSE}
+#Col 1 -s StoreId, 20 is Status
+myVariance <- as.data.frame(apply(stores[,-c(1,20)], 2, var))
+myVariance <- tibble::rownames_to_column(myVariance)
+names(myVariance)[2] <- "Variance"
+myVariance <-  myVariance %>% mutate(Variance2 = ifelse(Variance == 0, "No", "Yes"))
+table(myVariance$Variance2)
+```
+
+Because `r table(myVariance$Variance2)[1]` variables have no variance - all the values are the same, they can be removed from the working dataset.  If there are no differences in a column, it is of no use in the development of an algorithm.  The variables to be removed because there is no variance are:
+
+```{r}
+VarNames <- myVariance %>% filter(Variance > 0) %>% select(rowname)
+zeroVarNames <- myVariance %>% filter(Variance == 0) %>% select(rowname)
+stores <- stores %>% select(StoreId, Status, unlist(VarNames))
+zeroVarNames
+```
+
+#### Outlier Detection
+
+In the working dataset, there is one variable, `TotalRevenue` that should be evaluated to identify any potential outlier.  There are many way to visualize outliers.  Boxplots are the most commonly used visualization.
+
+```{r}
+out2 <- ggplot(stores, aes(x = "", y = TotalRevenue)) + geom_boxplot(outlier.color="red", outlier.shape=8, outlier.size=4) + 
+  scale_y_continuous(labels = scales::dollar)
+```
+
+There are potential outliers.  **ClubReady must advise Valorem on the legitamcy of these values.**  
+
+Here is a list of the highest 25 TotalRevenue records:
+
+```{r}
+tmpRev <- arrange(stores, desc(TotalRevenue)) %>% select(TotalRevenue)
+tmpRev <- as.data.frame(head(scales::dollar(tmpRev$TotalRevenue), 25))
+names(tmpRev) <- "Total_Revenue"
+tmpRev
+```
+
+```{r}
+q <- quantile(stores$TotalRevenue)
+stores$Qcut <- cut(stores$TotalRevenue, q)
+levels(stores$Qcut) <- c("Q1", "Q2", "Q3", "Q4")
+summary(stores$Qcut)[1:4]
+```
+
+It is curious, perhaps suspect, that the number of records in the 2nd, 3rd and 4th quartiles are the same.  **This too needs to be evaluated.**
+
+#### Duplicates
+
+Lastly, check for duplicate records.  In this case, none are found because each record has a unique `StoreId` value.  Without this variable, you would find `{r nrow(stores[,-1]) - nrow(unique(stores[,-1]))`} duplicates. (Interesting in its own right.)
+
+```{r dupes}
+# Duplicate Records
+cat("The number of duplicated rows is", nrow(stores) - nrow(unique(stores)))
+
+# if(nrow(stores) - nrow(unique(stores)) > 0){
+#   head(stores[duplicated(stores),])
+#   stores <- stores[!duplicated(stores),]
+# }
+```
+
+#### Data Overview
+
+The working dataset has been initially scrubbed and evaluated.  Take time to review and learn about the data.
+
+The plots below illustrate how often many of the ClubReady configuration options are turned on.
+
+First examine the variable names that start with `Integration`.
+
+```{r}
+myColTotal <- as.data.frame(colSums(Filter(is.numeric, stores)))
+myColTotal <- tibble::rownames_to_column(myColTotal)
+names(myColTotal)[1] <- "Variable_Name"
+names(myColTotal)[2] <- "Sum_of_Variable"
+myColTotal <- filter(myColTotal, !Variable_Name %in% c("StoreId", "TotalRevenue", "Amenities"))
+myColTotal$Variable_Name <- as.factor(myColTotal$Variable_Name)
+myColTotal <- myColTotal %>% arrange(desc(Sum_of_Variable))
+
+ggplot(myColTotal %>% filter(Variable_Name %like% "Integration"), aes(x=Variable_Name, y=Sum_of_Variable)) + 
+  geom_bar(stat = "identity") + theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab("Variable Name") + ylab("Number of Times Option Selected")
+```
+
+Six options appear to be much more popular than the others:
+
+1. Listen360
+2. Surveys
+3. Club Management System
+4. Rewards Program
+5. Perkville
+6. Data Trak
+
+Below we find that most checkins occur between 8-11AM and 4-7PM local time.  (Need to confirm)
+
+```{r}
+ggplot(myColTotal %>% filter(Variable_Name %like% "Checkins_H" ), aes(x=Variable_Name, y=Sum_of_Variable)) + 
+  geom_bar(stat = "identity") + theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab("Variable Name") + ylab("Number of Times Option Selected")
+```
+
+Lastly, Monday, Tuesday and Wednesday have the most checkins during the week.
+
+```{r}
+ggplot(myColTotal %>% filter(!Variable_Name %like% "Checkins_H", Variable_Name %like% "Checkins_"), 
+       aes(x=Variable_Name, y=Sum_of_Variable)) + 
+  geom_bar(stat = "identity") + theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab("Variable Name") + ylab("Number of Times Option Selected")
+```
+
+### Data Glimpse
+
+Here is what the resulting working dataset looks like.  We are left with `r nrow(stores)` records and `r ncol(stores)` (we began the journey with 5321 records and 88 variables).
+
+```{r datatablestores}
+glimpse(stores)
+```
+
+#### Data Consolidation
+
+#### Variable Selection
+
+### Present Findings
+
+## Risks and Assumptions
+
+## Classes & Services
+
+```{r clearObjectsApp1, echo=FALSE}
+rm(list= ls())
+```
+
+### Get Data
+
+```{r loadClassesServices, message=FALSE, warning=FALSE}
+#Get Data
+Classes_Services <- read_csv("C:/Users/cweaver/Downloads/Classes_Services.csv"), 
+                   col_types = cols(AvailablePIF = col_integer(), 
+                      ByPerson = col_integer(), CanSeeInstructor = col_integer(), 
+                      CancellationHrs = col_integer(), 
+                      ClassMins = col_integer(), CustSelfBook = col_integer(), 
+                      Disabled = col_integer(), EmailReminders = col_integer(), 
+                      HalfHour = col_integer(), MultipleInstructors = col_integer(), 
+                      MustHaveCredit = col_integer(), MustPreBook = col_integer(), 
+                      NumPerClass = col_integer(), OnTheHour = col_integer(), 
+                      QuarterPast = col_integer(), QuarterTill = col_integer(), 
+                      RescheduleDeadline = col_integer(), 
+                      RuleCustomers = col_integer(), RuleFrontDesk = col_integer(), 
+                      SMSReminders = col_integer(), ServicesId = col_integer(), 
+                      ShowPublic = col_integer(), StandardPrice = col_integer()), 
+                   na = "NA")
+
+myData <- Classes_Services
+rm(Classes_Services)
+```
+
+`ClassesServices.csv` returned `r dim(myData[1])` records with `r dim(myData[2])` variables.  Of the `r dim(myData)[2]` variables, `r nrow(myData %>% select_if(is.character))` is a `character` type and `r nrow(myData %>% select_if(is.numeric))` are `numeric`.
+
+```{r}
+glimpse(myData)
+```
+
+### Remove NA
+
+Just as we experienced before, must remove the `NAs` with 0:
+
+```{r}
+myData <- myData %>%  mutate_if(is.integer, funs(replace(., is.na(.), 0)))
+myData <- myData %>%  mutate_if(is.double, as.integer)
+glimpse(myData)
+```
+
+That looks much better!
+
+### Character to Factors
+
+Change the variable `Type` from a character to a factor.
+```{r}
+myData <- myData %>% mutate_if(is.character, as.factor)
+class(myData$Type)
+```
+
+### Explore Factors
+
+```{r}
+charSummary(myData)
+```
+
+```{r}
+myData_factor <- myData %>% select_if(is.factor)
+#myData_num <- myData %>% select_if(is.numeric)
+
+for(i in 1:length(myData_factor)){
+  print(names(myData_factor[i]))
+  print(table(myData_factor[i]))
+}
+
+for(i in 1:length(myData_factor)){
+  print(ggplot(myData_factor, aes_string(names(myData_factor[i]))) + geom_bar())
+}
+```
+
+**Uncertain how to define Class and Service - check with ClubReady**
+
+### Numerical Data
+
+```{r}
+myNumSum <- numSummary(myData)[, c(1,7,8,16,17)]
+myNumSum <- tibble::rownames_to_column(myNumSum)
+names(myNumSum)[5] <- "missPCT"
+names(myNumSum)[1] <- "Variable_Name"
+myNumSum <- arrange(myNumSum, desc(missPCT))
+head(myNumSum, 20)
+```
+
+Good, no missing data!
+
+#### Variances
+
+```{r}
+myVariance <- as.data.frame(apply(myData[,-c(1)], 2, var))
+myVariance <- tibble::rownames_to_column(myVariance)
+names(myVariance)[2] <- "Variance"
+myVariance <-  myVariance %>% mutate(Variance2 = ifelse(Variance == 0, "No", "Yes"))
+table(myVariance$Variance2)
+```
+All the variables have a variance > 0.
+
+```{r}
+if(table(myVariance$Variance2)[1] > 0){
+  filter(myVariance, Variance2 == "No")
+  VarNames <- myVariance %>% filter(Variance > 0) %>% select(rowname)
+  myData <- myData %>% select(StoreId, unlist(VarNames))
+}
+```
+
+#### Duplicate Records
+cat("The number of duplicated rows is", nrow(myData) - nrow(unique(myData)))
+
+```{r showDupes}
+myData[duplicated(myData),]
+```
+
+> Ask ClubReady if these should be removed
+
+```{r eval=FALSE}
+if(nrow(myData) - nrow(unique(myData)) > 0){
+  head(myData[duplicated(myData),])
+  myData <- myData[!duplicated(myData),]
+}
+```
+
+### Data Glimpse
+
+```{r}
+glimpse(myData)
+```
+
+## Users
+
+```{r clearObjectsApp2, echo=FALSE}
+rm(list= ls())
+```
+
+### Get Data
+
+```{r message=FALSE, warning=FALSE}
+Users <- read_csv("C:/Users/bllewellyn/OneDrive - Valorem/ClubReady/Digital Insight Workshop/CSV Data/Initial Data Sets/Users.csv", col_types = cols(StoreId = col_integer()), progress = FALSE)
+myData <- Users
+rm(Users)
+```
+
+`Users.csv` returned `r dim(myData[1])` records with `r dim(myData[2])` variables.  Of the `r dim(myData)[2]` variables, `r nrow(myData %>% select_if(is.character))` is a `character` type and `r nrow(myData %>% select_if(is.numeric))` are `numeric`.
+
+```{r}
+glimpse(myData)
+```
+
+### Remove NA
+
+There do not appear to be as many `NAs` as we have seen before.  This time they appear prevalent in the `StoreId` variable.  Also note `NULL` in the `Gender` field.
+
+```{r message=FALSE, warning=FALSE}
+myData <- myData %>%  mutate_if(is.integer, funs(replace(., is.na(.), 0)))#changes int to dbl
+myData[,-41] <- myData %>%  mutate_if(is.double, as.integer)#return to int
+glimpse(myData$StoreId)
+```
+
+`StoreId` looks better now.
+
+### Character to Factors
+
+`Gender` and `UserType` are character variables.  Change them to factors.
+
+```{r}
+myData <- myData %>% mutate_if(is.character, as.factor)
+charSummary(myData)
+myData_factor <- myData %>% select_if(is.factor)
+```
+
+Note `Gender` appears to have many missing values.  These will be managed a bit later
+
+#### Tables for the Factors
+
+Examine the factors in the working dataset.
+
+```{r}
+for(i in 1:length(myData_factor)){
+  print(names(myData_factor[i]))
+  print(table(myData_factor[i]))
+}
+rm(myData_factor)
+```
+
+There is much work to do on the `Gender` variable.  Will also choose the appropriate `UserType` values for modeling.
+
+#### User Factor - Gender
+
+The values in `Gender` are varied.  These will need to be collapsed into a couple of factor levels.
+```{r}
+myData %>% group_by(Gender) %>% summarize(Unique_Values = n()) %>% arrange(desc(Unique_Values))
+ggplot(myData, aes(fct_infreq(Gender))) + geom_bar() + xlab(paste("ClubReady Subset - ", names(myData)[1])) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+levels(myData$Gender)[levels(myData$Gender) == "F"] <- "Female"
+levels(myData$Gender)[levels(myData$Gender) == "female"] <- "Female"
+levels(myData$Gender)[levels(myData$Gender) == "f"] <- "Female"
+
+levels(myData$Gender)[levels(myData$Gender) == "M"] <- "Male"
+levels(myData$Gender)[levels(myData$Gender) == "male"] <- "Male"
+levels(myData$Gender)[levels(myData$Gender) == "m"] <- "Male"
+
+myData %>% group_by(Gender) %>% summarize(Unique_Values = n()) %>% arrange(desc(Unique_Values))
+```
+
+This looks better but there are still suspect values.  We will remove:
+
+- All the `Gender` value counts that are small will be removed.  This affects everything from `U` and below in the table above.
+- It is reasonable to assume `Gender` is an informative variable in churn modeling.  Valorem will initially remove the `NULL` values from `Gender`.  **Note to Brad** **BL: Why would we throw out the entire record because Gender is inappropriately defined?  It's a far safer option to use an "Unknown" placeholder.  This is what I've done in the SQL.**
+
+```{r}
+myData <- filter(myData, Gender == "Female" | Gender == "Male")
+myData$Gender <- factor(myData$Gender)
+
+ggplot(myData, aes(fct_infreq(Gender))) + geom_bar() + xlab("ClubReady Subset - Gender") +
+  scale_y_continuous(labels = scales::comma)
+```
+
+#### User Factor - UserType
+
+```{r}
+myData %>% group_by(UserType) %>% summarize(Unique_Values = n()) %>% arrange(desc(Unique_Values))
+ggplot(myData, aes(fct_infreq(UserType))) + geom_bar() + xlab(paste("ClubReady Subset - ", names(myData)[2])) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + scale_y_continuous(labels = scales::comma)
+```
+
+ClubReady confirmed Valorem to use:
+
+- ClubClient     
+- DeletedClubClient
+- ClubClientTemporary
+- DeletedClubAdmin
+- ClubAdmin
+- CorpAdmin
+
+**BL: Half of these are employee types.  Given that this is a member churn exercise, it would seem beneficial, at least as a Phase 1, to only include members.  In the SQL, we are only keeping ClubClient, DeletedClubClient and ClubClientTemporary.**
+
+```{r}
+myData <- filter(myData, UserType == 'ClubClient' | UserType == 'DeletedClubClient' | UserType == 'ClubAdmin' | UserType == 'ClubTrainer' | UserType == 'DeletedClubTrainer' | UserType == 'ClubClientTemporary')
+myData$UserType <- factor(myData$UserType)
+
+ggplot(myData, aes(fct_infreq(UserType))) + geom_bar() + xlab("ClubReady Subset - UserType") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + scale_y_continuous(labels = scales::comma)
+```
+
+Given the distribution above, Valorem may remove the infrequently used `UserType` values.  **Note to Brad**  **Please see above, these are removed as they are not members.**
+
+### Numerical Data
+
+> Because of the large number of `User` records, a random sample is selected in the code below.
+
+```{r}
+myNumSum <- numSummary(sample_frac(myData, .3))[, c(1,7,8,16,17)]
+myNumSum <- tibble::rownames_to_column(myNumSum)
+names(myNumSum)[5] <- "missPCT"
+names(myNumSum)[1] <- "Variable_Name"
+myNumSum <- arrange(myNumSum, desc(missPCT))
+head(myNumSum, 20)
+```
+
+No missing data is in the working dataset.
+
+#### Variance
+
+```{r}
+#Do not include UserId, StoreId, Gender, UserType, TotalSpent
+myVariance <- as.data.frame(apply(myData[,-c(1,2,4,5,41)], 2, var))
+myVariance <- tibble::rownames_to_column(myVariance)
+names(myVariance)[2] <- "Variance"
+myVariance <-  myVariance %>% mutate(Variance2 = ifelse(Variance == 0, "No", "Yes"))
+table(myVariance$Variance2)
+```
+
+Because `r table(myVariance$Variance2)[1]` variables have no variance - all the values are the same, they can be removed from the working dataset.  If there are no differences in a column, it is of no use in the development of an algorithm.  The variables to be removed because there is no variance are:
+
+```{r}
+if(table(myVariance$Variance2)[1] > 0){
+  VarNames <- myVariance %>% filter(Variance > 0) %>% select(rowname)
+  zeroVarNames <- myVariance %>% filter(Variance == 0) %>% select(rowname)
+  myData <- myData %>% select(UserId, StoreId, Gender, TotalSpent,  unlist(VarNames))
+  zeroVarNames
+}
+```
+
+#### Outlier Detection
+
+In the working dataset, there is one variable, `TotalSpent` that should be evaluated to identify any potential outlier.  There are many way to visualize outliers.  While boxplots are the most commonly used visualization, because the number of records is large, plotting is not an optimal reporting option - it takes a long time to plot millions of records.
+
+Comparing the opposite ends of `TotalSpent` produces interesting information:
+
+```{r eval=FALSE, echo=FALSE}
+out3 <- ggplot(myData, aes(x = "", y = TotalSpent)) + geom_boxplot(outlier.color="red", outlier.shape=8, outlier.size=4) + 
+  scale_y_continuous(labels = scales::dollar)
+```
+
+```{r}
+tmpRevDesc <- arrange(myData, desc(TotalSpent)) %>% select(TotalSpent)
+tmpRevDesc <- tmpRevDesc[1:25,]
+tmpRevDesc <- as.data.frame(scales::dollar(tmpRevDesc$TotalSpent))
+names(tmpRevDesc) <- "Total_Spent"
+
+tmpRevAsc <- arrange(myData, TotalSpent) %>% select(TotalSpent)
+tmpRevAsc <- tmpRevAsc[1:25,]
+tmpRevAsc <- as.data.frame(scales::dollar(tmpRevAsc$TotalSpent))
+names(tmpRevAsc) <- "Total_Spent"
+
+knitr::kable(list(tmpRevDesc, tmpRevAsc))
+```
+
+The highest `TotalSPent` value is `[r tmpRevDesc[1,]]` and the lowest value is `r tmpRevAsc[1,]`.  If these extreme values are aligned with the business, **ClubReady will need to determine**. **BL: Perhaps we should provide some insight for them here, instead of simply asking them to decide.  I'll include these in the initial modeling, hopefully being able to provide a recommendation for them.  I ran some quick analysis and found that there are no users in the system with an overall negative spend.  However, there are rare instances of a user having negative spend for a particular month.  I also looked into the extremely large spend numbers and found that these seem to be account credits.  This is obviously a data quality issue and worth pointing out to them.  I'll see what happens in the modeling phase.**
+
+#### Duplication
+
+```{r}
+cat("The number of duplicated rows is", nrow(myData) - nrow(unique(myData)))
+if((nrow(myData) - nrow(unique(myData)))>0) myData[duplicated(myData),]
+```
+
+```{r eval=FALSE}
+if(nrow(myData) - nrow(unique(myData)) > 0){
+  head(myData[duplicated(myData),])
+  myData <- myData[!duplicated(myData),]
+}
+```
+
+Good news - no duplicate records.
+
+### Data Glimpse
+
+Here is what the resulting working dataset looks like.  We are left with `r nrow(myData)` records and `r ncol(myData)`.
+
+```{r}
+glimpse(myData)
+```
+
+# Initial Data Modeling
+
+This section walks through the Initial Data Modeling phase to identify candidate algorithms to predict different churn models for ClubReady.  The section is organized as follows:
+
+- One of two CSV data files for modelling, stores.csv, is explored with detail in the first section
+- In the following sections, the other data file (Users) is explored albeit with less explanatory content
+- All of these sections roughly follow the same thought process:
+    - Develop modeling data structure
+    - Create modeling data file and import to Azure Machine Learning Studio
+    - Perform Test/Training Data Split
+    - Determine "Optimal" Initial Model
+  
+All of the SQL used to develop these datasets can be found in the [ML].[ChurnScripts] stored procedure within the [Reports] database.
+
+## Stores
+
+### Develop Modeling Data Structure
+
+#### What is Churn?
+
+During the On-Site Workshop, ClubReady provided a basic definition of "Store Churn".  If a Store recognizes at least an 80% drop in Revenue over the course of a single month, then that Store is considered to be Churned.  We are leaving the possibility open of altering this percentage in later iterations.
+
+With that definition, we then needed to answer "What is Revenue?"  ClubReady provided the definition that Revenue is the total dollars invoiced to the Store by ClubReady.  This information is available in the [PurchaseLog] table within the [ClubReady] database.  Within this table, we utilize the [StoreId], [PaymentMade] and [PurchaseAmount] columns to determine when the store has "churned".
+
+As an added note, we also do not allow a single store to churn more than once within our time frame.  For the purposes of this engagement, ClubReady agreed to a two-year time frame starting in November 2015 and ending in October 2017.
+
+#### Dataset Granularity
+
+The next important consideration is the "granularity" of the modelling dataset.  Granularity defines what each row in the dataset represents.  In general, the granularity of the modelling dataset should match the data **as it's intended to be used in production.**  During the On-Site Workshop, we discussed this with ClubReady.  Their intention is to receive some type of notification that a store is likely to churn within the next few months.  Therefore, we need a dataset where each row describes a single store for a single month and whether that store churned within that month or within the next few months.  This allows ClubReady to run a monthly reporting or notification system that alerts them which stores are at risk of churning.
+
+### Create Modeling Data File {#storemodelingdata}
+
+Using the information from the On-Site Workshop combined with what we learned in the Exploratory Data Analysis phase, we are ready to create our modeling dataset.  We identified the following subject areas within the ClubReady database:
+
+- Store Info (Status, Age)
+- SMS
+- Amenities
+- Integrations
+- Forms
+- Checkins
+- Purchased Sessions
+- Revenue
+- Active Users
+- Active Employees
+- Classes
+- Services
+
+The goal is to create a monthly "snapshot" of each store showing information about that store at that point in time.  However, not all of these subject areas can be queried historically.  This means that we have no option but to take the data as it is today, assuming that it hasn't changed over time.  Obviously, this isn't the case.  However, this is an area for improvement in ClubReady's system.  The following subject areas do not track historic information:
+
+- Store info (Status)
+- SMS
+- Amenities
+- Integrations
+- Forms
+- Classes
+- Services
+
+This leaves the following subject areas with historic information:
+
+- Store Info (Age)
+- Checkins
+- Purchased Sessions
+- Revenue
+- Active Users
+- Active Employees
+
+To empower our models using time intelligence, we also included metrics for these subject areas over the past three months.  For instance, we have variables for [TotalRevenue_Past3Months] and [ActiveMembers_Past3Months].
+
+We were able to combine all of this information into a single dataset.  The queries to create the "Stores.csv" file can be found in the [ML].[ClubChurn] and [ML].[CompleteStoreData] stored procedures in the [Reports] database.
+
+### Perform Test/Training Data Split {#storesplit}
+
+Once the data is imported into Azure Machine Learning Studio, we come to the next stage of the Initial Data Modeling phase, Test/Training Split.  Just as with the "Modeling Data Structure" phase, our training and testing data should represent a **production use case** as closely as possible.  In this instance, ClubReady wants to be able to identify whether a store is likely to churn in the next few months.  Therefore, we want to test our model using the most recent information we can where we know whether the store will churn within the next few months.
+
+In this instance, we chose to use three months as our timeframe.  Since the last month in our dataset is October 2017, our testing month should be August 2017.  The records for August 2017 will contain information about the month of August, as well as the previous two months for the "Past3Months" variables.  These records will also contain a variable, [IsChurn_3Months], describing whether the store will churn in the next three months.  This is what we are trying to predict.
+
+In machine learning, it's very important that the model be tested using data that was not used to train it.  For instance, if a store churns in August 2017, then that will be reflected in the [IsChurn_3Months] variable for the months of June and July as well.  To eliminate the possibility of testing our model with data it has already seen, we ended our training set at May 2017.  Also, to ensure accuracy of our "Past 3 Month" variables, we do not want to use the first two months in our dataset.  Therefore, we end up with the following training/testing split:
+
+- Training Set 1
+  - Start Month: January 2016
+  - End Month: May 2017
+
+- Testing Set 1
+  - Start Month: August 2017
+  - End Month: August 2017
+
+- Variable to Predict: IsChurn_3Months
+
+For additional testing, we can also move backwards any number of months to create new training/testing splits as follows:
+
+- Training Set 2
+  - Start Month: January 2016
+  - End Month: April 2017
+
+- Testing Set 2
+  - Start Month: July 2017
+  - End Month: July 2017
+
+- Training Set 3
+  - Start Month: January 2016
+  - End Month: March 2017
+
+- Testing Set 3
+  - Start Month: June 2017
+  - End Month: June 2017
+
+### Determine "Optimal" Initial Model
+
+The Initial Modeling phase has two goals.  First, the goal is to determine how much of a "pattern" is easily accessible within the data.  For instance, if the best model we can create in this phase falls substantially below what we would consider "reasonable", then we may decide that we need more or different data to begin.  We may also find that the pattern is strong enough to consider how much, if any, additional effort should be put into solving the issue at hand.  Second, if sufficient pattern exists within the data available, then we can use the information we gain from this phase to point us towards the best way to improve the model using feature engineering or additional model optimization.
+
+#### Selecting an Evaluation Metric
+
+The selection of an evaluation metric is one of the most crucial aspects of the data modelling process.  Recognizing that we are in a Binary Classification situation, we are limited to two main contenders, Accuracy/AUC and Precision/Recall.  In general, Accuracy/AUC are acceptable when the two classes, "Churn" and "Not Churn" in this case, are approximately equally likely.  However, in cases where one class is substantially more likely than another, Precision/Recall is the standard.
+
+```{r}
+finalstoredata <- read_csv("C:/Users/bllewellyn/OneDrive - Valorem/ClubReady/Digital Insight Workshop/CSV Data/Final Data Sets/Stores_2017_12_11.csv", col_types = cols())
+
+churn <- finalstoredata["IsChurn_3Months"] %>% 
+    group_by(IsChurn_3Months) %>%
+    summarise(count=n()) %>% 
+    mutate(perc=count/sum(count))
+
+ggplot(churn, aes(x = factor(IsChurn_3Months), y = perc*100)) + geom_bar(stat="identity") + ggtitle("IsChurn_3Months") + xlab("IsChurn_3Months") + ylab("Percentage") + geom_text(aes(x = factor(IsChurn_3Months), y = perc*100, label = paste(round(perc*100,0),"%")), nudge_y = 4)
+```
+
+**HOW DO I CENTER-ALIGN MY TITLE LIKE YOU DO ABOVE?**
+
+Since the [IsChurn_3Months] variable is heavily imbalanced, we will go with Precision/Recall as our metric.  In this context, Precision is the percentage of correct Churn predictions out of all Churn predictions.  Conversely, Recall is the percentage of correct Churn predictions out of all actual Churn records.  Basically, Recall tells us how many of the actual Churns we are predicting, while Precision tells us how many of our predictions are actually Churns.  Both of these metrics tell different stories and are very important.  So maximizing both of them would be ideal.  Therefore, we will use an evaluation metric of Precision * Recall.
+
+### The "Kitchen Sink" Approach
+
+Given the size of the Stores dataset, we have the option of running through many models in a short timeframe.  Because of this, we will utilize the "Kitchen Sink" approach.  Azure Machine Learning Studio contains fifteen distinct Binary Classification algorithms.  Fourteen of these can utilize a module called "Tune Model Hyperparameters".  This module will allow us to train and test multiple machine learning algorithms using different sets of hyperparameters.  Therefore, if we pass our data through all fourteen possible modules, we can get a very good feeling for the patterns within the data.  The process looks like this:
+
+```{r}
+include_graphics("C:/Users/bllewellyn/OneDrive - Valorem/ClubReady/Digital Insight Workshop/Kitchen Sink.jpg")
+```
+
+The full results of this process can be found in the "Store Churn Data Modelling Results.xlsx" file. Here are the top three models for predicting Store Churn:
+
+| Model Family | Hyperparameters | Precision | Recall |
+| --------------------- | ------------------------------------------ | ------- | -------| 
+| Boosted Decision Tree | Leaves: 54 ~ Minimum Instances: 19 ~ Learning Rate: 0.336396 ~ Trees: 51 | 89.3% | 38.4% |
+| Boosted Decision Tree | Leaves: 5 ~ Minimum Instances: 37 ~ Learning Rate: 0.030064 ~ Trees: 362 | 100.0% | 30.8% |
+| Boosted Decision Tree | Leaves: 6 ~ Minimum Instances: 15 ~ Learning Rate: 0.356604 ~ Trees: 482 | 95.2% | 30.8% |
+
+These results are extremely promising.  While we can't say for certain at this point, we now have evidence that there is a strong pattern within the data that we can use to predict when a Store is likely to churn.
+
+## Users
+
+### Develop Modeling Data Structure
+
+#### What is Churn?
+
+During the On-Site Workshop, ClubReady provided a basic definition of "User Churn".  If a User's contract expires and isn't renewed by the end of the next month, then that User has churned.  This information is available in the [ContractPurchases] table within the [ClubReady] database.  Within this table, we utilize the [UserId], [ActivationDateUTC], [AgreedDate] and [Cancelled] columns.
+
+Just as with Store Churn, we do not allow a single user to churn more than once within our time frame.
+
+#### Dataset Granularity
+
+Given the similarity between User Churn and Store Churn, we were able to utilize similar logic to define the dataset for User Churn.  The granularity of the User Churn data is per user, per month, for every month that the user has an active contract, plus an additional record for the month after their contract ends.  This is the "Churn" month.
+
+### Create Modeling Data File
+
+Using the information from the On-Site Workshop combined with what we learned in the Exploratory Data Analysis phase, we are ready to create our modeling dataset.  We identified the following subject areas within the ClubReady database:
+
+- Store Churn Data
+- User Info (Gender, Type, CheckinCredentialsModified)
+- Amenities
+- Tags
+- Checkins
+- Forms
+- Purchased Sessions
+- Spend
+
+The goal is to create a monthly "snapshot" of each user showing information about that user at that point in time.  However, not all of these subject areas can be queried historically.  This means that we have no option but to take the data as it is today, assuming that it hasn't changed over time.  Obviously, this isn't the case.  However, this is an area for improvement in ClubReady's system.  The following subject areas do not track historic information:
+
+- Store Churn Data (see [previous section](#storemodelingdata))
+- User Info (Gender, Type, CreckinCredentialsModified)
+- Amenities
+- Tags
+- Forms
+
+This leaves the following subject areas with historic information:
+
+- Store Churn Data (see [previous section](#storemodelingdata))
+- Checkins
+- Purchased Sessions
+- Spend
+
+To empower our models using time intelligence, we also included metrics for these subject areas over the past three months.  For instance, we have variables for [TotalSpend_Past3Months] and [Checkins_Past3Months].
+
+We were able to combine all of this information into a single dataset.  The queries to create the "User.csv" file can be found in the [ML].[MemberChurn] and [ML].[CompleteUserData] stored procedures in the [Reports] database.
+
+### Perform Test/Training Data Split
+
+The logic for the test/training split is identical to that of "Store Churn".
+
+- Training Set 1
+  - Start Month: January 2016
+  - End Month: May 2017
+
+- Testing Set 1
+  - Start Month: August 2017
+  - End Month: August 2017
+
+- Variable to Predict: IsChurn_3Months
+
+For additional testing, we can also move backwards any number of months to create new training/testing splits as follows:
+
+- Training Set 2
+  - Start Month: January 2016
+  - End Month: April 2017
+
+- Testing Set 2
+  - Start Month: July 2017
+  - End Month: July 2017
+
+- Training Set 3
+  - Start Month: January 2016
+  - End Month: March 2017
+
+- Testing Set 3
+  - Start Month: June 2017
+  - End Month: June 2017
+
+### Determine "Optimal" Initial Model
+
+#### Selecting an Evaluation Metric
+
+A major difference between the Store and User data is the overall size of the data.  The entire [FinalUserData] table takes up 24GB as a CSV.  Therefore, it would be wise to sample the data down to a usable size.  We created CSVs for randomly selected sets of 1M, 5M, 10M and 20M rows.
+
+```{r}
+finaluserdata <- read_csv("C:/Users/bllewellyn/OneDrive - Valorem/ClubReady/Digital Insight Workshop/CSV Data/Final Data Sets/Users_1M_2017_12_12.csv", col_types = cols(
+    Store_UserEmployeeRatio = col_double(),
+    Store_UserEmployeeRatio_Last3Months = col_double(),
+    Store_AverageMinsPerClass_Service = col_double(),
+    Store_AveragePricePerClass_Service = col_double(),
+    Store_AverageCancellationHrsPerClass_Service = col_double(),
+    Store_AverageRescheduleDeadlinePerClass_Service = col_double(),
+    Store_AverageMinsPerClass = col_double(),
+    Store_AveragePricePerClass = col_double(),
+    Store_AverageCancellationHrsPerClass = col_double(),
+    Store_AverageRescheduleDeadlinePerClass = col_double(),
+    Store_AverageMinsPerService = col_double(),
+    Store_AveragePricePerService = col_double(),
+    Store_AverageCancellationHrsPerService = col_double(),
+    Store_AverageRescheduleDeadlinePerService = col_double())
+    ,progress = FALSE
+)
+
+churn <- finaluserdata["IsChurn_3Months"] %>% group_by(IsChurn_3Months) %>% summarise(count=n()) %>% mutate(perc=count/sum(count))
+
+ggplot(churn, aes(x = factor(IsChurn_3Months), y = perc*100)) + geom_bar(stat="identity") + ggtitle("IsChurn_3Months") + xlab("IsChurn_3Months") + ylab("Percentage") + geom_text(aes(x = factor(IsChurn_3Months), y = perc*100, label = paste(round(perc*100,0),"%")), nudge_y = 4)
+```
+
+**HOW DO I CENTER-ALIGN MY TITLE LIKE YOU DO ABOVE?**
+
+Using one of these files, we can easily see that Precision/Recall is going to be the optimal metric for this scenario as well.  We have confirmed this result using the larger datasets as well.
+
+### The "Kitchen Sink" Approach
+
+The full results of this process can be found in the "User Churn Data Modelling Results.xlsx" file. Here are the top three models for predicting Store Churn:
+
+| Model Family | Hyperparameters | Precision | Recall |
+| --------------------- | ------------------------------------------ | ------- | -------| 
+| Boosted Decision Tree | Leaves: 32 ~ Minimum Instances: 6 ~ Learning Rate: 0.252098531 ~ Trees: 270 | 57.1% | 16.5% |
+| Boosted Decision Tree | Leaves: 54 ~ Minimum Instances: 19 ~ Learning Rate: 0.336396247 ~ Trees: 51 | 55.0% | 15.9% |
+| Boosted Decision Tree | Leaves: 17 ~ Minimum Instances: 13 ~ Learning Rate: 0.06286619 ~ Trees: 50 | 54.5% | 12.6% |
+
+The Precision and Recall of these metrics are quite low.  We will need to use other methods to develop a feasible model.
+
+### Further Investigation
+
+The datasets we used to develop the initial data models contained 220 predictors and either 1, 5 or 10 million records.  Each other datasets showed similar results.  Therefore, it may be worth considering ways to reduce the number of predictors in the model.  It's possible that 220 predictors with a large number of zeros is simply overrunning the modeling algorithms, leading to poor models.  Therefore, if we could reduce the number of predictors without losing much information, we may be able to make it easier for the algorithms to discern the patterns.  A common technique for this is Principal Components Analysis (PCA).  Before we can perform PCA, we need to clean up the dataset a little by removing non-predictive columns.
+
+```{r}
+ignore.set <- c("UserId", "StoreId", "ReferenceMonthStartDate","IsChurn", "IsChurn_2Months", "IsChurn_3Months", "IsChurn_6Months")
+disp <- data.frame(ignore.set)
+names(disp) <- "Variables Ignored for Business Reasons"
+disp
+```
+
+Next, we remove any variables with missing values, as PCA does not allow for these.  We will look into these missing values later.
+
+```{r}
+finaluserdata.miss <- finaluserdata[,-which(names(finaluserdata) %in% ignore.set)]
+myNumSum <- numSummary(finaluserdata.miss)[, c(1,7,8,16,17)]
+myNumSum <- tibble::rownames_to_column(myNumSum)
+names(myNumSum)[5] <- "missCNT"
+names(myNumSum)[1] <- "Variable_Name"
+myNumSum <- arrange(myNumSum, desc(n))
+ignore.miss <- myNumSum[myNumSum[,5] > 0,1]
+disp <- data.frame(ignore.miss)
+names(disp) <- c("Variables with Missing Values")
+disp
+```
+
+Now, we remove any variables that have no variance, as these are not useful for predictive modeling
+
+```{r, warning=FALSE,message=FALSE}
+finaluserdata.var <- finaluserdata.miss[,-which(names(finaluserdata.miss) %in% ignore.miss)]
+ignore.var <- names(which(round(apply(finaluserdata.var, MARGIN = 2, FUN = var), 4)<= 0))
+disp <- data.frame(ignore.var)
+names(disp) <- "Variables with No Variance"
+disp
+```
+
+Then, we can perform "One-Hot Processing" to change any remaining categorical variables into numeric ones, as is required for PCA.
+
+```{r}
+finaluserdata.enc <- finaluserdata.var[,-which(names(finaluserdata.var) %in% ignore.var)]
+ignore.char <- row.names(charSummary(finaluserdata.enc))
+encoder <- onehot(finaluserdata.enc[,which(names(finaluserdata.enc) %in% ignore.char)], stringsAsFactors = TRUE)
+dat.encoded <- predict(encoder, finaluserdata.enc)
+finaluserdata.encoded <- data.frame(finaluserdata.enc[,-which(names(finaluserdata.enc) %in% ignore.char)], dat.encoded)
+head(finaluserdata.encoded)
+```
+
+Finally, we are ready to perform PCA to reduce our data to a much more manageable number of variables.  We can start by looking at the percentage of total "information" contained within each of the new variables, known as principal Components.
+
+```{r}
+pca <- princomp(finaluserdata.encoded)
+info <- pca$sdev / sum(pca$sdev)
+disp <- data.frame(paste(round(info*100,1), "%"))
+names(disp) <- "Information Percentage by Component"
+row.names(disp) <- names(info)
+disp
+```
+
+We just found a major reason why our User Churn models were not very powerful.  It appears that the 199 predictors that made it into the PCA could be almost entirely replaced by a few dense variables.  In other words, our variables did not contain very much "information".  Let's determine how many of these principal components we would need to create a new "dense" dataset.  We'll determine this by selecting the principal components until our new dataset contains 99% of the information from the original dataset.
+
+```{r}
+info.cum <- cumsum(info)
+disp <- data.frame(paste(round(info*100,1), "%"))
+names(disp) <- c("Cumulative Information Percentage by Component")
+rownames(disp) <- names(info.cum)
+disp
+```
+
+It seems we only need the first five components.  We can use this information within Azure Machine Learning Studio to rerun our Initial Data Modeling step using the new dataset containing the five principal components, as well as the columns containing the missing data, as they could still provide value.  Here are the results:
+
+**Original Dataset (220 Predictors)**
+
+| Model Family | Hyperparameters | Precision | Recall |
+| --------------------- | ------------------------------------------ | ------- | -------| 
+| Boosted Decision Tree | Leaves: 32 ~ Minimum Instances: 6 ~ Learning Rate: 0.252098531 ~ Trees: 270 | 57.1% | 16.5% |
+| Boosted Decision Tree | Leaves: 54 ~ Minimum Instances: 19 ~ Learning Rate: 0.336396247 ~ Trees: 51 | 55.0% | 15.9% |
+| Boosted Decision Tree | Leaves: 17 ~ Minimum Instances: 13 ~ Learning Rate: 0.06286619 ~ Trees: 50 | 54.5% | 12.6% |
+
+**PCA Dataset (12 Predictors + 5 Principal Components)**
+
+| Model Family | Hyperparameters | Precision | Recall |
+| --------------------- | ------------------------------------------ | ------- | -------| 
+| Neural Network - Gaussian Normalizer | Learning Rate: 0.034618 ~ Loss Function: Cross Entropy ~ Iterations: 29 | 15.0% | 2.0% |
+| Neural Network - Gaussian Normalizer | Learning Rate: 0.030355 ~ Loss Function: Cross Entropy ~ Iterations: 27 | 18.2% | 1.5% |
+| Neural Network - Binning Normalizer | Learning Rate: 0.037861 ~ Loss Function: Cross Entropy ~ Iterations: 129 | 20.3% | 1.1% |
+
+Obviously, a complete PCA on this dataset is not beneficial.  We will need to explore other options for improving the Member Churn models.
+
+# Feature Selection
+
+This section walks through the Feature Selection phase to determine which variables are important to the models we identified in the Initial Data Modeling phase.
+
+- One of two models, Stores, will be examined in the first section.
+- In the following sections, the other model (Users) is explored, albeit with less explanatory content
+
+## Stores
+
+Now that we've completed the Initial Data Modeling phase, we know that there are significant patterns in the Stores data to predict whether a Store will churn in the next three months.  One concern with our current models is that they accept over 100 variables.  This could be troublesome to productionalize.  So, the next step is to identify which of our variables are important to the model.  Since we already have an "optimal" model created, we can utilize a technique known as permutation feature importance.  The process looks like this:
+
+```{r}
+include_graphics("C:/Users/bllewellyn/OneDrive - Valorem/ClubReady/Digital Insight Workshop/Permutation Feature Importance.jpg")
+```
+
+The Permutation Feature Importance module in Azure Machine Learning does not allow us to use our custom Precision * Recall metric.  So, we run the module twice, once for Precision and once for Recall.  Then, we determine which variables, also known as features, do not provide value for Precision or Recall.  The results can be found in the "Store Churn Data Modeling Results.xlsx" file.  Here is a summary:
+
+| Variable Name | Precision PFI | Recall PFI |
+| ------------- | ------------- | ---------- | 
+| TotalRevenue | 0.754623 | 0.153846 |
+| TotalRevenue_Past3Months | 0.474503 | 0 |
+| Status | 0.142292 | 0.061538 |
+| Checkins_Evening | 0.100334 | 0 |
+| Checkins_Hour6to7_Past3Months | 0.036232 | 0 |
+| Checkins_Hour11to12_Past3Months | 0.036232 | 0 |
+| ActiveUsers_Last3Months | 0.036232 | 0 |
+| AverageMinsPerClass_Service | 0.036232 | 0 |
+| Services | 0.036232 | 0 |
+| Checkins_Hour8to9 | 0.023411 | 0 |
+| Integration_Listen360 | 0.012422 | 0.030769 |
+| Forms | 0.012422 | 0.030769 |
+| Checkins_Monday | 0.005929 | 0.015385 |
+| Checkins_Weekday | 0.005929 | 0.015385 |
+| Checkins_Hour14to15 | 0.005929 | 0.015385 |
+| Checkins_Morning | 0.005929 | 0.015385 |
+| Checkins_Afternoon | 0.005929 | 0.015385 |
+| Checkins_Monday_Past3Months | 0.005929 | 0.015385 |
+| Checkins_Hour12to13_Past3Months | 0.005929 | 0.015385 |
+| Checkins_Evening_Past3Months | 0.005929 | 0.015385 |
+| ActiveEmployees_Last3Months | 0.005929 | 0.015385 |
+| UserEmployeeRatio_Last3Months | 0.005929 | 0.015385 |
+| ActiveEmployees | 0 | 0.015385 |
+
+Any variables not included in this list did not show any importance for either metric.  One concern here is that these zeroes are not actually zeroes.  Instead, they represent very small numbers.  So, when we drastically reduce our variable size, we do lose some power in our model.  We can see this in the table below.  For a review of the Test/Training sets, see [previous section](#storesplit)
+
+**Full Variable Set**
+
+| Test/Training Set | Precision | Recall | Precision * Recall |
+| ----------------- | --------- | ------ | ------------------ |
+| Set 1 | 0.893 | 0.384 | 0.343 |
+
+**Precision/Recall Variable Set**
+
+| Test/Training Set | Precision | Recall | Precision * Recall |
+| ----------------- | --------- | ------ | ------------------ |
+| Set 1 | 0.815 | 0.336 | 0.27384 |
+| Set 2 | 0.767 | 0.287 | 0.220129 |
+| Set 3 | 0.84 | 0.309 | 0.25956 |
+
+Therefore, we ran another analysis to include the other two available evaluation metrics, Accuracy and Average Log Loss, understanding that they do not provide as much value as Precision and Recall to our analysis.
+
+| Variable Name | Precision PFI | Recall PFI | Accuracy PFI | Average Log Loss PFI |
+| ------------------------------- | ------- | ------- | ------- | ------- |
+| TotalRevenue | 0.754623 | 0.153846 | 0.041257 | 0.345677 |
+| TotalRevenue_Past3Months | 0.474503 | 0 | 0.016699 | 0.032497 |
+| Status | 0.142292 | 0.061538 | 0.003438 | 0.08103 |
+| Checkins_Evening | 0.100334 | 0 | 0.001473 | 0 |
+| Checkins_Hour6to7_Past3Months | 0.036232 | 0 | 0.000491 | 0 |
+| Checkins_Hour11to12_Past3Months | 0.036232 | 0 | 0.000491 | 0 |
+| ActiveUsers_Last3Months | 0.036232 | 0 | 0.000491 | 0.007357 |
+| AverageMinsPerClass_Service | 0.036232 | 0 | 0.000491 | 0.001426 |
+| Services | 0.036232 | 0 | 0.000491 | 0 |
+| Checkins_Hour8to9 | 0.023411 | 0 | 0 | 0 |
+| Integration_Listen360 | 0.012422 | 0.030769 | 0.000982 | 0.005943 |
+| Forms | 0.012422 | 0.030769 | 0.000982 | 0.004854 |
+| Checkins_Monday | 0.005929 | 0.015385 | 0.000491 | 0.005731 |
+| Checkins_Weekday | 0.005929 | 0.015385 | 0.000491 | 0.002713 |
+| Checkins_Hour14to15 | 0.005929 | 0.015385 | 0.000491 | 0.003422 |
+| Checkins_Morning | 0.005929 | 0.015385 | 0.000491 | 0.003546 |
+| Checkins_Afternoon | 0.005929 | 0.015385 | 0.000491 | 0.002234 |
+| Checkins_Monday_Past3Months | 0.005929 | 0.015385 | 0.000491 | 0.000259 |
+| Checkins_Hour12to13_Past3Months | 0.005929 | 0.015385 | 0.000491 | 0 |
+| Checkins_Evening_Past3Months | 0.005929 | 0.015385 | 0.000491 | 0.00133 |
+| ActiveEmployees_Last3Months | 0.005929 | 0.015385 | 0.000491 | 0 |
+| UserEmployeeRatio_Last3Months | 0.005929 | 0.015385 | 0.000491 | 0 |
+| ActiveEmployees | 0 | 0.015385 | 0 | 0.000637 |
+| PurchasedSessions | 0 | 0 | 0 | 0.009245 |
+| Amenities | 0 | 0 | 0 | 0.007819 |
+| StoreAgeMonths | 0 | 0 | 0 | 0.003792 |
+| UserEmployeeRatio | 0 | 0 | 0 | 0.002884 |
+| Checkins_Thursday_Past3Months | 0 | 0 | 0 | 0.002714 |
+| Checkins | 0 | 0 | 0 | 0.002576 |
+| Checkins_Hour4to5 | 0 | 0 | 0 | 0.00185 |
+| Checkins_Past3Months | 0 | 0 | 0 | 0.001458 |
+| Checkins_Hour9to10 | 0 | 0 | 0 | 0.001359 |
+| AveragePricePerService | 0 | 0 | 0 | 0.000855 |
+| AveragePricePerClass_Service | 0 | 0 | 0 | 0.000808 |
+| Checkins_Hour6to7 | 0 | 0 | 0 | 0.000788 |
+| Checkins_Hour1to2_Past3Months | 0 | 0 | 0 | 0.000597 |
+| Checkins_Hour13to14 | 0 | 0 | 0 | 0.000224 |
+| NonRequiredWaiver | 0 | 0 | 0 | 0.000083 |
+| Checkins_Hour17to18 | 0 | 0 | 0 | 0.000071 |
+| Checkins_Saturday | 0 | 0 | 0 | 0.000013 |
+
+If we include all of these variables in our model, we see some improvement that moves us closer to our original model.
+
+**Full Variable Set (130 Variables)**
+
+| Test/Training Set | Precision | Recall | Precision * Recall |
+| ----------------- | --------- | ------ | ------------------ |
+| Set 1 | 0.893 | 0.384 | 0.343 |
+
+**Precision/Recall Variable Set (23 Variables)**
+
+| Test/Training Set | Precision | Recall | Precision * Recall |
+| ----------------- | --------- | ------ | ------------------ |
+| Set 1 | 0.815 | 0.336 | 0.27384 |
+| Set 2 | 0.767 | 0.287 | 0.220129 |
+| Set 3 | 0.84 | 0.309 | 0.25956 |
+
+**Precision/Recall/Accuracy/Average Log Loss Variable Set (40 Variables)**
+
+| Test/Training Set | Precision | Recall | Precision * Recall |
+| ----------------- | --------- | ------ | ------------------ |
+| Set 1 | 0.88 | 0.338 | 0.29744 |
+| Set 2 | 0.889 | 0.3 | 0.2667 |
+| Set 3 | 0.96 | 0.353 | 0.33888 |
+
+These numbers looks extremely promising.  Given that the Users data contains all of these Store variables, we will wait until we see the Permutation Feature Importance results for the User Churn scenario before we decide which variables we will keep.
+
+## Users
+
+# Feature Engineering
