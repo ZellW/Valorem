@@ -399,7 +399,7 @@ The working dataset has been initially scrubbed and evaluated.  Take time to rev
 
 The plots below illustrate how often many of the ClubReady configuration options are turned on.
 
-First examine the variable names that start with `Integration`.
+First examine the variable names that start with `Integration`. 
 
 ```{r}
 myColTotal <- as.data.frame(colSums(Filter(is.numeric, stores)))
