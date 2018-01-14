@@ -1,5 +1,5 @@
 ---
-title: "Microsoft O365 bayesAB Alchemy Compare"
+title: "O365 Concierge Bias Analysis"
 output:
   rmdformats::readthedown:
     highlight: pygments
@@ -46,25 +46,347 @@ border-top: ;
 }
 </style>
 
-```{r}
+```{r myScripts, echo=FALSE}
 Beta_Parameters <- function(mean, variance) {
   alpha <- ((1 - mean) / variance - 1 / mean) * mean ^ 2
   beta <- alpha * (1 / mean - 1)
   return(Beta_Parameters = list(alpha = alpha, beta = beta))
 }
+findOutliers <- function(dt, var) {
+  var_name <- eval(substitute(var),eval(dt))
+  tot <- sum(!is.na(var_name))
+  na1 <- sum(is.na(var_name))
+  m1 <- mean(var_name, na.rm = T)
+  par(mfrow=c(2, 2), oma=c(0,0,3,0))
+  boxplot(var_name, main="With outliers")
+  hist(var_name, main="With outliers", xlab=NA, ylab=NA)
+  outlier <- boxplot.stats(var_name)$out
+  mo <- mean(outlier)
+  var_name <- ifelse(var_name %in% outlier, NA, var_name)
+  boxplot(var_name, main="Without outliers")
+  hist(var_name, main="Without outliers", xlab=NA, ylab=NA)
+  title("Outlier Check", outer=TRUE)
+  na2 <- sum(is.na(var_name))
+  message("Outliers identified: ", na2 - na1, " from ", tot, " observations")
+  message("Proportion (%) of outliers: ", (na2 - na1) / tot*100)
+  message("Mean of the outliers: ", mo)
+  m2 <- mean(var_name, na.rm = T)
+  message("Mean without removing outliers: ", m1)
+  message("Mean if we remove outliers: ", m2)
+  # response <- readline(prompt="Do you want to remove outliers and to replace with NA? [yes/no]: ")
+  # if(response == "y" | response == "yes"){
+  #   dt[as.character(substitute(var))] <- invisible(var_name)
+  #   assign(as.character(as.list(match.call())$dt), dt, envir = .GlobalEnv)
+  #   message("Outliers successfully removed", "\n")
+  #   return(invisible(dt))
+  # } else{
+  #   message("Nothing changed", "\n")
+  #   return(invisible(var_name))
+  # }
+}
+# https://datascienceplus.com/identify-describe-plot-and-removing-the-outliers-from-the-dataset/
 ```
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 if(!require(easypackages)){install.packages("easypackages")}
 library(easypackages)
-packages("dplyr", "ggplot2", "bayesAB", "gridExtra","readr", "scales", prompt = FALSE)
-```
+packages("dplyr", "ggplot2", "tidyr", "stringr", "lubridate", "ggpubr", "gridExtra", "readxl", "scales", prompt = FALSE)
 
-#  Get Data
+options(scipen = 999)#Avoid exponents in plots
+```
+# Introduction
+
+## Problem Statement
+
+The goal of this analysis is to determine if the Concierge Agents compared to Agents using TTR as the comparison metric.  Additional metrics were added including Agent Reopen, Repeat Caller and Not ReScenario.
+
+> Assumption - Records with FirstRelease in the Role description uniquely identifies Concierge Agents.  (Confirmed by Dean.)
+
+## Methodology
+
+A statistical test will be performed to to compare the mean TTR between the Concierge and Agents.  (The mean of the Agent TTR is used as the theoretical mean $\mu$.) This is expressed as a hypothesis where the null hypothesis is *There is no difference in the TTR between Concierge and Agents*:
+
+$H_0: m = \mu$  
+where *m* is the mean TTR for Agents and $\mu$ is the mean TTR for Concierge.
+
+If the p-value is less than or equal to the significance level 0.05, reject the null hypothesis and accept the alternative hypothesis. In other words, conclude the sample mean is significantly different from the theoretical mean.
+
+# Get Data
+
+Dean provided data on 12/13/17.
 
 ```{r}
-library(readxl)
 myData <- read_excel("~/Github/Valorem/ClientProjects/MS_O365/data/CaseNotesSearchABHistorical_Dec13.xlsx")
-glimpse(myData)
+
+myData2 <- myData %>% mutate(Date = as.Date(CreateDateTime), Hour = hour(CreateDateTime), ReScenario = factor(ReScenario)) %>%
+  filter(TTR > 0) %>% drop_na(IsResolved, Roles) %>% mutate(Concierge = str_detect(Roles, "FirstRelease")) %>% 
+  mutate(Agent = str_detect(Roles, "Agent")) %>%    
+  select(-RequestID, -PartnerId,-CreateDateTime,  -Date, -Hour)
+# remove 3 records where Agent = FALSE and Rave2 = FALSE:  table(myData2$Agent)
+myData2 <- filter(myData2, Agent == TRUE)
+myData2 <- myData2 %>% mutate(NewRole = ifelse(Concierge == TRUE, "Concierge", "Agent"))
+glimpse(myData2)
+table(myData2$NewRole)
 ```
+
+The original data has `r nrow(myData)` records.  After removing records where `IsRevolved = 0` and `Roles = NA`, `r nrow(myData2)` records remain for analysis.
+
+After modifying the data, `r table(myData2$Concierge)[2]` records of `r nrow(myData2)` have *FirstRelease* in the role description. `r percent(table(myData2$NewRole)[2]/nrow(myData2))` of the records were created by Concierge agents.
+
+## Outliers
+
+```{r}
+out <- ggplot(myData2, aes(x = "", y = TTR)) + geom_boxplot(outlier.color="red", outlier.shape=8, outlier.size=4)
+out
+```
+
+There are outliers in the data.  The outliers will influence the normality of the data.  The extreme values are **not** removed at this time.
+
+```{r}
+findOutliers(myData2, TTR)
+```
+
+## Data Transformations
+
+Because TTR must be greater than 0, a histogram of TTR values is expected to be right skewed.  Indeed, that is what is shown above in the histograms with and without outliers.  This can be corrected by transforming the data to make it appear more normal.  The most common transformation is log(10):
+
+```{r message=FALSE, warning=FALSE}
+p1 <- ggplot(aes(x = TTR), data = myData2) + geom_histogram() + ggtitle("TTR")
+p2 <- p1 + scale_x_log10() + ggtitle("log(TTR)")
+
+grid.arrange(p1, p2, ncol=2)
+
+pX <- ggplot(aes(x = log(TTR)), data = myData2) + geom_histogram() + ggtitle("TTR") + scale_x_log10()
+```
+
+The transformed TTR histogram does not result in a near-normal distribution.  This is a bimodal distribution where two processes are often represented in one data set.  For example, a distribution of production data from a two-shift operation might be bimodal if each shift produces a different distribution of results.  (This is explored in the Appendix.)
+
+```{r eval=FALSE, echo=FALSE}
+#Exercise to reduce bimodal to something closer to norm
+#Ill-advised to use this transform - removes too much information
+#No monotonic transformation can do what we want and a non-monotonic transformation is usually a bad idea. 
+transformed <- abs(myData2 - mean(myData2))
+shapiro.test(transformed)
+hist(transformed)
+```
+
+# Statistical Analysis
+
+In this analysis, a non-parametric test and a parametric t-test will be used to test the null hypothesis.
+
+* Non-Parametric Tests:  A statistical method is called non-parametric if it makes no assumption on the population distribution or sample size. This is in contrast with most parametric methods in elementary statistics that assume the data is quantitative, the population has a normal distribution and the sample size is sufficiently large.  In general, conclusions drawn from non-parametric methods are not as powerful as the parametric ones. However, as non-parametric methods make fewer assumptions, they are more flexible, more robust, and applicable to non-quantitative data.
+
+* Many statistical tests including correlation, regression, t-test, and analysis of variance (ANOVA) assume some certain characteristics about the data. They require the data to follow a normal distribution or Gaussian distribution. These tests are called parametric tests because their validity depends on the distribution of the data.  If the sample size is large enough (n > 30), the distribution of the data can be ignored and use parametric tests.  The central limit theorem states no matter what distribution things have, the sampling distribution tends to be normal if the sample is large enough (n > 30).
+
+> Had the data been normal, density and Q-Q plots are useful visualizations to confirm normality.
+
+## TTR Statistical Analysis
+
+### Non-Parametric Test
+
+There are a number of statistical methods that do not require normal data.  This analysis will perform a Wilcoxon  Test.  
+
+Two data samples are independent if they come from distinct populations and the samples do not affect each other. Using the Wilcoxon Signed-Rank Test, it can be determined of the population distributions are identical without assuming them to follow the normal distribution.
+
+Without assuming the data to have normal distribution, decide at .05 significance level if the TTR data of Agent and Concierge roles in the data have identical data distribution.
+
+```{r}
+wilcox.test(TTR ~ NewRole, data = myData2)
+```
+
+The null hypothesis is TTR data of Agent and Concierge roles are identical populations. To test the hypothesis, apply `wilcox.test` to compare the independent samples. As the p-value turns out to be significantly less than the .05 significance level, therefore reject the null hypothesis.  The TTR values are statistically different between the Agent and Concierge roles.
+
+### t-test
+
+A large number of statistical tests are based on the assumption of normality, so not having data that is normally distributed typically creates uncertainty on statistical analysis. However, if the test you are running is not sensitive to normality, it is acceptable to still run parametric tests even if the data are not normal.
+
+Several tests are *robust* to the assumption of normality, including t-tests (1-sample, 2-sample, and paired t-tests), Analysis of Variance (ANOVA), Regression, and Design of Experiments (DOE). The the non-normal data does not have very long tails and outliers, a t-test can be used for non-normal data.  [See this explanation](http://thestatsgeek.com/2013/09/28/the-t-test-and-robustness-to-non-normality/)
+
+Outlier detection performed previously found outliers in the data.  Returning to this analysis, examine the outliers by Agent and Concierge roles.
+
+```{r}
+ggplot(myData2, aes(x=NewRole, y=TTR)) + geom_boxplot()
+```
+
+Both roles have severe outliers.  For the purposes of this t-test, remove the extreme values.  (Recall how boxplots work - the *body* of the boxplot corresponds to the second + third quartiles of the data (= interquartile range, IQR) and each whisker limit is calculated taking 1.5*IQR beyond the end of that body.  If you take the hypothesis that your data has a normal distribution, there are this amount of data outside each whisker:
+
+$1-pnorm(qnorm(0.75)+1.5*2*qnorm(0.75)) = 0.0035$ Therefore, a normal variable has 0.7% of boxplot outliers.
+
+```{r}
+#Consider using outliers package
+extremeOutliers <- boxplot(myData2$TTR)
+str(extremeOutliers)
+myData3 <- myData2[!(myData2$TTR %in% extremeOutliers$out),]
+ggplot(myData3, aes(x=NewRole, y=TTR)) + geom_boxplot()
+```
+
+The data still has outliers but they are not as extreme.
+
+### t-test Calculation
+
+The one-sample t-test compares a sample’s mean with a known value, when the variance of the population is unknown. In this analysis the goal is to assess the Concierge TTR and compare it with the Agent TTR (a known value).
+
+```{r}
+myGrp <- group_by(myData3, NewRole)
+myMeans <-  summarize(myGrp, Mean = mean(TTR))
+myMeans
+```
+
+```{r}
+t.test(TTR ~ NewRole, myData3)
+```
+
+The results from this test suggest there is a statistically valid difference between the TTR means between Agents and Concierge at a 95% confidence level.
+
+While it is known the data is not normal, perform a log transformation anyway to determine if a similar finding is found.
+
+```{r}
+t.test(log(TTR) ~ NewRole, myData3)
+#wilcox.test(TTR ~ NewRole, data = myData3)
+```
+
+Same result.  The p-value is significantly less than 0.05 so the null hypothesis is rejected and the difference in the means is statistically significant.
+
+## Customer Reopen Statistical Analysis
+
+Because the process used for statistical evaluation were detail above for TTR, the tests for *Customer ReOpen* will focus on the test and the results only.
+
+The only difference is the data must be further subset.  In this case, records where `ReScenario = Customer Reopen` must be used - the rest of the records will be excluded from the analysis.  Filtering `Cusotmer ReOpen` results in `r table(myData2$ReScenario)[2]` records.
+
+```{r}
+table(myData2$ReScenario)
+myData2_CustReopen <- filter(myData2, ReScenario == "Customer Reopen")
+```
+
+### Non-Parametric Test
+
+```{r}
+wilcox.test(TTR ~ NewRole, data = myData2_CustReopen)
+```
+
+### t-test Calculation
+
+```{r}
+t.test(TTR ~ NewRole, myData2_CustReopen)
+
+t.test(log(TTR) ~ NewRole, myData2_CustReopen)
+```
+
+**Conclusion**:  The Customer Reopen ReScenario value is not significantly different between the Agent and Concierge roles.
+
+## Customer Not Rescenario Statistical Analysis
+
+```{r}
+table(myData2$ReScenario)
+myData2_NotReScenario <- filter(myData2, ReScenario == "Not ReScenario")
+```
+
+### Non-Parametric Test
+
+```{r}
+wilcox.test(TTR ~ NewRole, data = myData2_NotReScenario)
+```
+
+### t-test Calculation
+
+```{r}
+t.test(TTR ~ NewRole, myData2_NotReScenario)
+
+t.test(log(TTR) ~ NewRole, myData2_NotReScenario)
+```
+
+## Agent Reopen Statistical Analysis
+
+```{r}
+table(myData2$ReScenario)
+myData2_AgentReopen <- filter(myData2, ReScenario == "Agent Reopen")
+```
+
+### Non-Parametric Test
+
+```{r}
+wilcox.test(TTR ~ NewRole, data = myData2_AgentReopen)
+```
+
+### t-test Calculation
+
+```{r}
+t.test(TTR ~ NewRole, myData2_AgentReopen)
+
+t.test(log(TTR) ~ NewRole, myData2_AgentReopen)
+```
+
+## Repeat Caller Statistical Analysis
+
+```{r}
+table(myData2$ReScenario)
+myData2_RepeatCaller <- filter(myData2, ReScenario == "Repeat Caller")
+```
+
+### Non-Parametric Test
+
+```{r}
+wilcox.test(TTR ~ NewRole, data = myData2_RepeatCaller)
+```
+
+### t-test Calculation
+
+```{r}
+t.test(TTR ~ NewRole, myData2_RepeatCaller)
+
+t.test(log(TTR) ~ NewRole, myData2_RepeatCaller)
+```
+
+## Statistical Analysis Sumarry
+
+> Very low values represented as 0 below.
+
+|  Metric        | Wilcox | t-test | Comments |
+|----------------|--------|--------|----------|
+| TTR            |    0   |   0    |  adopt alt hypothesis |
+| Not ReScenario |   0    |   0    |  adopt alt hypothesis |
+| Agent Reopen   | >0.05  | >0.05  | no statistical bias |
+| Repeat Caller  | >0.05  | >0.05  | no statistical bias |
+
+# Conclusions
+
+1. The mean `TTR` between Agents and Concierge are statistically different at a 95% confidence level.
+2. The mean `TTR` between Agents and Concierge in `Not ReScenario` are statistically different at a 95% confidence level.
+3. The mean `TTR` between Agents and Concierge in `Agent Reopen` are **NOT** statistically different at a 95% confidence level.
+4. The mean `TTR` between Agents and Concierge in `Repeat Caller` are **NOT** statistically different at a 95% confidence level.
+
+# Appendix (WIP)
+
+## Additional Data Exploration (WIP)
+
+### Bimodel Distribution (WIP)
+
+Because the TTR distribution was a surprise because of the bimodal shape, additional data exploration is performed to see if this unusual distribution exits in other areas and if it is common across roles.
+
+Recall the initial distribution:
+
+```{r message=FALSE}
+p2
+```
+
+Modify the data to see if the variable causing the second peak can be identified.
+
+- Use the myData3 data set - this is the one where outliers have been removed.
+
+```{r message=FALSE}
+p3 <- ggplot(aes(x = TTR), data = myData3) + geom_histogram() + scale_x_log10() + ggtitle("log(TTR)")
+p3
+```
+
+- This shows the second peak is from outlier data only.  The first peak is near-normal.
+
+Subset the data to get a closer look at the data in the second peak.
+
+```{r}
+myData4 <- myData2 %>% filter(TTR>1000)
+table(myData4$NewRole)# 7.68% Concierge
+```
+
+Evaluating only the most extreme TTR values (outliers), `r (table(myData4$NewRole)[2]/nrow(myData4))*100` /% of the records were managed by Concierge agents.  
+
 
