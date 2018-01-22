@@ -1,0 +1,26 @@
+---
+title: "Traditional A/B Testing"
+output: html_document
+---
+
+You want to know what sample size you need for an experiment in which you are seeking to determine whether or not the difference in two proportions of success is statistically significant. Here is the traditional process:
+
+Look at historical data to establish baseline predictions. Say that in the past, taking an action results in a 10% success rate whereas not taking an action results in a 9% success rate. Assume that these conclusions have not been statistically validated but that they are based on relatively large amounts of data (10,000+ observations).
+
+Plug these assumptions into power.prop.test to get the following:
+
+```{r}
+ power.prop.test(p1=.1,p2=.11,power=.9)
+```
+
+This suggests you need a sample size of ~20000 in each group of an A/B test in order to detect a significant difference between proportions.
+
+The next step is to perform the experiment with 20,000 observations in each group. Group B (no action taken) has 2300 successes out of 20,000 observations, whereas Group A (action taken) has 2200 successes out of 20,000 observations.
+
+Do a prop.test
+
+```{r}
+prop.test(c(2300,2100),c(20000,20000))
+```
+
+You can reject the null hypothesis that the proportions are equal.

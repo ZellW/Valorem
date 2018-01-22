@@ -241,3 +241,29 @@ How is this optimal?
 In the beginng, C was beleived to be the most likely to be successful followed by B then A.  How, this a beleif, not a fact.  It was not certain what the click rate for C would be compared to A.  Had the emails been divided into equal 1/3, the previous knowledge would not have been leveraged.  
 
 The sample design included 46.3% recipients get C ad vs. 20.4% for A. Ad B was sent to the 33% recipients.  The interesting part is this is an evolutionary design. With each level of experiment and evidence, the sample design will get optimized to generate more profit. This design is highly flexible. New ads (say D, and E) can be added and while removing underperforming ads (e.g. ad A) with reasonable ease.
+
+## O365 Data
+
+```{r}
+myData <- read_excel("~/Github/Valorem/ClientProjects/MS_O365/data/CaseNotesSearchABHistorical_Dec13.xlsx")
+
+myData2 <- myData %>% mutate(Date = as.Date(CreateDateTime), Hour = hour(CreateDateTime), ReScenario = factor(ReScenario)) %>%
+  filter(TTR > 0) %>% drop_na(IsResolved, Roles) %>% mutate(Concierge = str_detect(Roles, "FirstRelease")) %>% 
+  mutate(Agent = str_detect(Roles, "Agent")) %>%    
+  select(-RequestID, -PartnerId,-CreateDateTime,  -Date, -Hour)
+# remove 3 records where Agent = FALSE and Rave2 = FALSE:  table(myData2$Agent)
+myData2 <- filter(myData2, Agent == TRUE)
+myData2 <- myData2 %>% mutate(NewRole = ifelse(Concierge == TRUE, "Concierge", "Agent"))
+```
+
+With the data loaded, get the mean and variance of the Agents and Concierges:
+
+```{r}
+myBetas <-  myData2 %>% filter(TTR<650) %>% mutate(TTR = log(TTR)) %>% group_by(NewRole) %>% summarize(meanTTR = mean(TTR), varTTR = var(TTR))
+myBetas
+```
+
+```{r}
+myParams <- Beta_Parameters(myBetas[1,2], myBetas[1,3])
+```
+

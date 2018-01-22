@@ -1,0 +1,38 @@
+---
+title: "ggplot in a Loop"
+output: html_document
+---
+
+```{r message=FALSE, warning=FALSE}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+
+TaskCounts <- read_csv("C:/Users/czwea/Desktop/TaskCounts.csv")
+TaskCounts$SnapshotDateID <- factor(TaskCounts$SnapshotDateID)
+TaskCounts <- as.data.frame(select(TaskCounts, -X1))
+
+cntNumProjects <- nrow((distinct(TaskCounts, ProjectID)))
+ProjectList <- data.frame(distinct(TaskCounts, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- TaskCounts %>% filter(ProjectID == ProjectList[i,1])
+     
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=Freq)) + 
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1]) + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=2)
+             
+grid.arrange(plot7, plot8, plot9, plot10, plot11, plot12, ncol=2)
+             
+grid.arrange(plot13, plot14, plot15, plot16, plot17, plot18, ncol=2)
+             
+grid.arrange(plot19, plot20, plot21, plot22, plot23, plot24, ncol=2)
+             
+grid.arrange(plot25, plot26, plot27, plot28, plot29, plot30, ncol=2)
+
+```
+

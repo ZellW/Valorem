@@ -1,0 +1,309 @@
+---
+title: "Confidence Levels"
+output:
+  html_document:
+    theme: cerulean
+    highlight: pygments
+    css: ../lab.css
+---
+
+# Sampling Data
+
+If you have access to data on an entire population, say the size of every 
+house in Ames, Iowa, it's straight forward to answer questions like, "How big 
+is the typical house in Ames?" and "How much variation is there in sizes of 
+houses?". If you have access to only a sample of the population, as is often 
+the case, the task becomes more complicated. What is your best guess for the 
+typical size if you only know the sizes of several dozen houses? This sort of 
+situation requires that you use your sample to make inference on what your 
+population looks like.
+
+# The data
+
+In the previous lab we looked at the population data of houses from Ames, 
+Iowa. Let's start by loading that data set.
+
+```{r load-data, eval=FALSE}
+load(url("http://www.openintro.org/stat/data/ames.RData"))
+```
+
+In this lab we'll start with a simple random sample of size 60 from the 
+population. Specifically, this is a simple random sample of size 60. Note that 
+the data set has information on many housing variables, but for the first 
+portion of the lab we'll focus on the size of the house, represented by the 
+variable `Gr.Liv.Area`.
+
+```{r sample, eval=FALSE}
+population <- ames$Gr.Liv.Area
+samp <- sample(population, 60)
+```
+
+1.  Describe the distribution of your sample. What would you say is the 
+"typical" size within your sample? Also state precisely what you interpreted 
+"typical" to mean.
+
+2.  Would you expect another student's distribution to be identical to yours? 
+Would you expect it to be similar? Why or why not?
+
+# Confidence intervals
+
+One of the most common ways to describe the typical or central value of a 
+distribution is to use the mean. In this case we can calculate the mean of the 
+sample using,
+
+```{r sample-mean, eval=FALSE}
+sample_mean <- mean(samp)
+```
+
+Return for a moment to the question that first motivated this lab: based on 
+this sample, what can we infer about the population? Based only on this single 
+sample, the best estimate of the average living area of houses sold in Ames 
+would be the sample mean, usually denoted as $\bar{x}$ (here we're calling it 
+`sample_mean`). That serves as a good *point estimate* but it would be useful 
+to also communicate how uncertain we are of that estimate. This can be 
+captured by using a *confidence interval*.
+
+We can calculate a 95% confidence interval for a sample mean by adding and 
+subtracting 1.96 standard errors to the point estimate (See Section 4.2.3 if 
+you are unfamiliar with this formula).
+
+```{r ci, eval=FALSE}
+se <- sd(samp)/sqrt(60)
+lower <- sample_mean - 1.96 * se
+upper <- sample_mean + 1.96 * se
+c(lower, upper)
+```
+
+This is an important inference that we've just made: even though we don't know 
+what the full population looks like, we're 95% confident that the true 
+average size of houses in Ames lies between the values *lower* and *upper*. 
+There are a few conditions that must be met for this interval to be valid.
+
+3.  For the confidence interval to be valid, the sample mean must be normally 
+distributed and have standard error $s / \sqrt{n}$. What conditions must be 
+met for this to be true?
+
+## Confidence levels
+
+4.  What does "95% confidence" mean? If you're not sure, see Section 4.2.2.
+
+In this case we have the luxury of knowing the true population mean since we 
+have data on the entire population. This value can be calculated using the 
+following command:
+
+```{r pop-mean, eval=FALSE}
+mean(population)
+```
+
+5.  Does your confidence interval capture the true average size of houses in 
+Ames? If you are working on this lab in a classroom, does your neighbor's 
+interval capture this value? 
+
+6.  Each student in your class should have gotten a slightly different 
+confidence interval. What proportion of those intervals would you expect to 
+capture the true population mean? Why? If you are working in this lab in a 
+classroom, collect data on the intervals created by other students in the 
+class and calculate the proportion of intervals that capture the true 
+population mean.
+
+Using R, we're going to recreate many samples to learn more about how sample 
+means and confidence intervals vary from one sample to another. *Loops* come 
+in handy here (If you are unfamiliar with loops, review [Lab 4A](http://www.openintro.org/stat/labs/04A_Intro_to_Statistical_Inference.pdf)).
+
+Here is the rough outline:
+
+-   Obtain a random sample.
+-   Calculate the sample's mean and standard deviation.
+-   Use these statistics to calculate a confidence interval.
+-   Repeat steps (1)-(3) 50 times.
+
+But before we do all of this, we need to first create empty vectors where we 
+can save the means and standard deviations that will be calculated from each 
+sample. And while we're at it, let's also store the desired sample size as `n`.
+
+```{r set-up, eval=FALSE}
+samp_mean <- rep(NA, 50)
+samp_sd <- rep(NA, 50)
+n <- 60
+```
+
+Now we're ready for the loop where we calculate the means and standard deviations of 50 random samples.
+
+```{r loop, eval=FALSE, tidy = FALSE}
+for(i in 1:50){
+  samp <- sample(population, n) # obtain a sample of size n = 60 from the population
+  samp_mean[i] <- mean(samp)    # save sample mean in ith element of samp_mean
+  samp_sd[i] <- sd(samp)        # save sample sd in ith element of samp_sd
+}
+```
+
+Lastly, we construct the confidence intervals.
+
+```{r ci50, eval=FALSE}
+lower_vector <- samp_mean - 1.96 * samp_sd / sqrt(n) 
+upper_vector <- samp_mean + 1.96 * samp_sd / sqrt(n)
+```
+
+Lower bounds of these 50 confidence intervals are stored in `lower_vector`, 
+and the upper bounds are in `upper_vector`. Let's view the first interval.
+
+```{r first-interval, eval=FALSE}
+c(lower_vector[1],upper_vector[1])
+```
+
+* * *
+
+## On your own
+
+```{r plot_ci}
+#' plot_ci
+#' @description This function takes vectors of upper and lower confidence interval bounds, 
+#' as well as poplutation mean, and plots which confidence intervals intersect the mean
+#' @param lo a vector of lower bounds for confidence intervals
+#' @param hi a vector of upper bounds for confidence intervals
+#' @param m the population mean
+#' @export
+#' 
+
+plot_ci <- function(lo, hi, m) {
+  par(mar=c(2, 1, 1, 1), mgp=c(2.7, 0.7, 0))
+  k <- length(lo)
+  ci.max <- max(rowSums(matrix(c(-1*lo,hi),ncol=2)))
+  
+  xR <- m + ci.max*c(-1, 1)
+  yR <- c(0, 41*k/40)
+  
+  plot(xR, yR, type='n', xlab='', ylab='', axes=FALSE)
+  abline(v=m, lty=2, col='#00000088')
+  axis(1, at=m, paste("mu = ",round(m,4)), cex.axis=1.15)
+  #axis(2)
+  for(i in 1:k){
+    x <- mean(c(hi[i],lo[i]))
+    ci <- c(lo[i],hi[i])
+    if((m < hi[i] & m > lo[i])==FALSE){
+      col <- "#F05133"
+      points(x, i, cex=1.4, col=col)
+      #		  points(x, i, pch=20, cex=1.2, col=col)
+      lines(ci, rep(i, 2), col=col, lwd=5)
+    } else{
+      col <- 1
+      points(x, i, pch=20, cex=1.2, col=col)
+      lines(ci, rep(i, 2), col=col)
+    }
+  }
+}
+```
+
+
+<div class="oyo">
+
+-   Using the following function (which was downloaded with the data set), 
+    plot all intervals. What proportion of your confidence intervals include 
+    the true population mean? Is this proportion exactly equal to the 
+    confidence level? If not, explain why.
+
+    ```{r plot-ci, eval=FALSE}
+    plot_ci(lower_vector, upper_vector, mean(population))
+    ```
+
+-   Pick a confidence level of your choosing, provided it is not 95%. What is 
+    the appropriate critical value?
+
+-   Calculate 50 confidence intervals at the confidence level you chose in the 
+    previous question. You do not need to obtain new samples, simply calculate 
+    new intervals based on the sample means and standard deviations you have 
+    already collected. Using the `plot_ci` function, plot all intervals and 
+    calculate the proportion of intervals that include the true population 
+    mean. How does this percentage compare to the confidence level level 
+    selected for the intervals?
+
+-   What concepts from the textbook are covered in this lab?  What concepts, 
+    if any, are not covered in the textbook?  Have you seen these concepts 
+    elsewhere, e.g. lecture, discussion section, previous labs, or homework 
+    problems?  Be specific in your answer.
+</div>
+
+
+For a 95% confidence interval, you want to know how many standard deviations away from the mean your point estimate is (the *z-score*). To get that, you take off the 5% "tails". Working in percentile form you have 100-.95 which yields a value 0.5
+
+Divide that in half to get 0.25 and then, in R, use the `qnorm` function to get the z-star ("critical value"). Since you only care about one "side" of the curve (the values on either side are mirror images of each other) and you want a positive number, pass the argument `lower.tail=FALSE`.
+
+```{r}
+qnorm(.025,lower.tail=FALSE)
+qnorm(.05)#90%
+```
+
+
+If you want to go the other direction, from a "critical value" to a probability, use the pnorm function. Something like:
+
+```{r}
+pnorm(1.959964,lower.tail=FALSE)
+```
+
+which will give you back 0.025
+
+------------------------
+
+Normal distributions are convenient because they can be scaled to any mean or standard deviation meaning you can use the exact same distribution for weight, height, blood pressure, white-noise errors, etc. Obviously, the means and standard deviations of these measurements should all be completely different. In order to get the distributions standardized, the measurements can be changed into z-scores.
+
+Z-scores are a stand-in for the actual measurement, and they represent the distance of a value from the mean measured in standard deviations. So a z-score of 2.0 means the measurement is 2 standard deviations away from the mean.
+
+To demonstrate how this is calculated and used, I found a height and weight data set on UCLA’s site. They have height measurements from children from Hong Kong. Unfortunately, the site doesn’t give much detail about the data, but it is an excellent example of normal distribution as you can see in the graph below. The red line represents the theoretical normal distribution, while the blue area chart reflects a kernel density estimation of the data set obtained from UCLA. The data set doesn’t deviate much from the theoretical distribution.
+
+![](C:/Users/czwea\Documents/GitHub/Valorem/ClientProjects/MS_O365/images/heightweight.png)  
+
+
+The z-scores are also listed on this normal distribution to show how the actual measurements of height correspond to the z-scores, since the z-scores are simple arithmetic transformations of the actual measurements. The first step to find the z-score is to find the population mean and standard deviation. It should be noted that the sd function in R uses the sample standard deviation and not the population standard deviation, though with 25,000 samples the different is rather small.
+
+```{r}
+#DATA LOAD
+data <- read.csv("~/GitHub/Valorem/ClientProjects/MS_O365/data/HeightWeight.csv")
+height <- data$Height
+
+hist(height) #histogram
+
+#POPULATION PARAMETER CALCULATIONS
+pop_sd <- sd(height)*sqrt((length(height)-1)/(length(height)))
+pop_mean <- mean(height)
+```
+
+
+Using just the population mean [μ = 67.99] and standard deviation [σ = 1.90], you can calculate the z-score for any given value of x. In this example I’ll use 72 for x.
+
+$$z = \frac{x – \mu}{\sigma} &s=2$$
+
+```{r}
+z <- (72 - pop_mean) / pop_sd
+```
+
+This gives you a z-score of 2.107. To put this tool to use, let’s use the z-score to find the probability of finding someone who is 72 inches [6-foot] tall. [Remember this data set doesn’t apply to adults in the US, so these results might conflict with everyday experience.] The z-score will be used to determine the area [probability] underneath the distribution curve past the z-score value that we are interested in.
+[One note is that you have to specify a range (72 to infinity) and not a single value (72). If you wanted to find people who are exactly 6-foot, not taller than 6-foot, you would have to specify the range of 71.5 to 72.5 inches. This is another problem, but this has everything to do with definite integrals intervals if you are familiar with Calc I.]
+
+![](C:/Users/czwea\Documents/GitHub/Valorem/ClientProjects/MS_O365/images/heightweight2.png) 
+
+
+The above graph shows the area we intend to calculate. The blue area is our target, since it represents the probability of finding someone taller than 6-foot. The yellow area represents the rest of the population or everyone is is under 6-feet tall. The z-score and actual height measurements are both given underscoring the relationship between the two.
+
+Typically in an introductory stats class, you’d use the z-score and look it up in a table and find the probability that way. R has a function ‘pnorm’ which will give you a more precise answer than a table in a book. [‘pnorm’ stands for “probability normal distribution”.] Both R and typical z-score tables will return the area under the curve from -infinity to value on the graph this is represented by the yellow area. In this particular problem, we want to find the blue area. The solution to this is an easy arithmetic function. The area under the curve is 1, so by subtracting the yellow area from 1 will give you the area [probability] for the blue area.
+
+Yellow Area:
+```{r}
+p_yellow1 <- pnorm(72, pop_mean, pop_sd)    #using x, mu, and sigma
+p_yellow2 <- pnorm(z)                       #using z-score of 2.107
+
+p_yellow1; p_yellow2
+```
+
+Blue Area [TARGET]:
+
+```{r}
+p_blue1 <- 1 - p_yellow1   #using x, mu, and sigma
+p_blue2 <- 1 - p_yellow2   #using z-score of 2.107
+
+p_blue1
+p_blue2
+```
+
+Both of these techniques in R will yield the same answer of 1.76%. I used both methods, to show that R has some versatility that traditional statistics tables don’t have. I personally find statistics tables antiquated, since we have better ways to determine it, and the table doesn’t help provide any insight over software solutions.
+
+Z-scores are useful when relating different measurement distributions to each acting as a ‘common denominator’. The z-scores are used extensively for determining area underneath the curve when using text book tables, and also can be easily used in programs such as R. Some statistical hypothesis tests are based on z-scores and the basic principles of finding the area beyond some value.

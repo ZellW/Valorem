@@ -1,0 +1,187 @@
+---
+title: "O365 Surveys"
+output:
+  rmdformats::readthedown:
+    highlight: pygments
+---
+
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 12px;
+}
+body{ /* Normal  */
+   font-size: 12px;
+}
+td {  /* Table  */
+   font-size: 10px;
+}
+h1 { /* Header 1 */
+ font-size: 26px;
+ color: #4294ce;
+}
+h2 { /* Header 2 */
+ font-size: 22px;
+}
+h3 { /* Header 3 */
+ font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 10px;
+}
+pre { /* Code block */
+  font-size: 10px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("plyr", "dplyr", "ggplot2", "tidyr", "stringr", "lubridate", "ggpubr", "gridExtra", "readxl", "scales", "modes", prompt = FALSE)
+
+options(scipen = 999)#Avoid exponents in plots
+```
+
+https://gist.github.com/mrdwab/984707
+http://hamelg.blogspot.com/2015/08/introduction-to-r-part-23-point.html
+
+
+As with the confidence interval for the mean, you can use a built in R function to get a confidence interval for a population proportion instead of calculating it by hand. In this case, we use the prop.test() function:
+
+```{r}
+prop.test(x=204,      # Number of observations
+          n=1000)     # Total number of samples
+
+prop.test(x=204, n=1000, conf.level = .99)
+```
+
+The following code snippet allows you to substitute values and obtain a confidence interval based on the central limit theorem.
+
+```{r}
+# Code snippet to construct a confidence interval
+  xbar = 100  # Sample Mean
+  sd   = 10   # Population Standard Deviation
+  n    = 25   # Sample size
+  CL   = .95  # Required Confidence Level
+  
+  zstar <- qnorm(CL+.5*(1-CL)) # Obtain Z-score for this confidence level
+  sd.xbar <- sd/sqrt(n)        # Compute standard of sample mean 
+  ME <- zstar * sd.xbar        # Compute margin of error
+  
+  lb <- xbar - ME              # Compute lower bound of CI
+  ub <- xbar + ME              # Compute upper bound of CI
+  
+  CI <- c(CL,lb,xbar,ub,ME)    # Put our results in a vector
+
+  names(CI) <- c("Confidence Level","Lower Bound","Xbar","Upper Bound",
+                 "Margin of Error") # Name the vector elements
+  CI                           # Display the vector
+```
+
+suppose we had a sample mean of 123 based on a sample of size 50 and we knew that the sample was drawn from a population with a standard deviation of 15. What is a 95% confidence interval for the population mean.
+
+```{r}
+# Code snippet to construct a confidence interval
+  xbar = 100  # Sample Mean
+  sd   = 10   # Population Standard Deviation
+  n    = 25   # Sample size
+  CL   = .95  # Required Confidence Level
+  
+  zstar <- qnorm(CL+.5*(1-CL)) # Obtain Z-score for this confidence level
+  sd.xbar <- sd/sqrt(n)        # Compute standard of sample mean 
+  ME <- zstar * sd.xbar        # Compute margin of error
+  
+  lb <- xbar - ME              # Compute lower bound of CI
+  ub <- xbar + ME              # Compute upper bound of CI
+  
+  CI <- c(CL,lb,xbar,ub,ME)    # Put our results in a vector
+
+  names(CI) <- c("Confidence Level","Lower Bound","Xbar","Upper Bound",
+                 "Margin of Error") # Name the vector elements
+  CI                           # Display the vector
+```
+
+We can do the same kind of thing for confidence intervals for proportions.
+
+The Sampling Distribution of the Proportion
+
+We have the basic theoretical results.
+
+The estimates of a proportion p^p^ based on a sample of size n is approsimately normal and has the following mean and standard deviation provided that np^>10np^>10 and n(1−p^)>10n(1−p^)>10.
+
+μp^=p
+μp^=p
+and
+σp^=p(1−p)n−−−−−−−√
+σp^=p(1−p)n
+
+Here is a code snippet. You can replace the values in the first few lines and run the entire snippet.
+
+```{r}
+# Code snippet to compute a confidence interval for a proportion
+
+phat <- .7   # Estimated proportion
+CL <- .95    # Required confidence level
+n <- 100     # Sample size
+
+zstar <- qnorm(CL+.5*(1-CL))
+se.phat <-sqrt(phat*(1-phat)/n)
+
+lb <- phat - zstar * se.phat
+ub <- phat + zstar * se.phat
+
+CI <- c(CL,lb,phat,ub)
+names(CI) <- c("Confidence Level", "lower Bound","phat","Upper Bound")
+
+CI
+```
+
+suppose we had a sample proportion of .2, a sample size of 1,000 and we wanted an 80% confidence interval for the population proportion.
+
+```{r}
+# Code snippet to compute a confidence interval for a proportion
+
+phat <- .2    # Estimated proportion
+CL <- .8      # Required confidence level
+n <- 1000     # Sample size
+
+zstar <- qnorm(CL+.5*(1-CL))
+se.phat <-sqrt(phat*(1-phat)/n)
+
+lb <- phat - zstar * se.phat
+ub <- phat + zstar * se.phat
+
+CI <- c(CL,lb,phat,ub)
+names(CI) <- c("Confidence Level", "lower Bound","phat","Upper Bound")
+
+CI
+```
+
+
+$$ p \pm z \sqrt{ \frac{p(1-p)}{n} } $$
+
+
+To review
+
+https://www.google.com/search?q=r+survey+results+analysis&ei=oP9gWvPsIYXejwO517vwDA&start=10&sa=N&biw=953&bih=1237
+
+http://faculty.nps.edu/rdfricke/OA4109/Lab%207%20--%20Intro%20to%20R%20Survey%20Package.pdf
+https://stats.idre.ucla.edu/r/faq/how-do-i-analyze-survey-data-with-a-simple-random-sample-design/
+https://rpubs.com/corey_sparks/53683
+http://r-survey.r-forge.r-project.org/survey/
+https://cran.r-project.org/web/packages/survey/vignettes/survey.pdf
+https://stats.idre.ucla.edu/r/faq/how-do-i-analyze-survey-data-with-a-simple-random-sample-design/
+http://www.interactivecultures.org/2016/09/encoding-visualising-survey-data-using-r/

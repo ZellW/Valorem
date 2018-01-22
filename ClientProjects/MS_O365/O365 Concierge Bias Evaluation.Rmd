@@ -90,10 +90,38 @@ findOutliers <- function(dt, var) {
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 if(!require(easypackages)){install.packages("easypackages")}
 library(easypackages)
-packages("dplyr", "ggplot2", "tidyr", "stringr", "lubridate", "ggpubr", "gridExtra", "readxl", "scales", prompt = FALSE)
+packages("plyr", "dplyr", "ggplot2", "tidyr", "stringr", "lubridate", "ggpubr", "gridExtra", "readxl", "scales", "modes", prompt = FALSE)
 
 options(scipen = 999)#Avoid exponents in plots
 ```
+# Quick Facts
+
+Below is a summary of the findings found inside this document.
+
+- The log(TTR) histogram presents a bimoal distribution.  TTR data is not Gaussian (normal)
+- TTR appears to have outliers.  Requires investigation/validation.
+
+**TTR Bias Analysis**
+
+|  Metric        | Wilcox | t-test | Comments |
+|----------------|--------|--------|----------|
+| TTR            |    0   |   0    |  adopt alt hypothesis |
+| Not ReScenario |   0    |   0    |  adopt alt hypothesis |
+| Agent Reopen   | >0.05  | >0.05  | no statistical bias |
+| Repeat Caller  | >0.05  | >0.05  | no statistical bias |
+
+## Proportional Tests Summary
+
+|  Metric        | prop.test | Comments |
+|----------------|--------|--------|----------|
+| Repeat Calleer |  >0.05 | no statistical bias |
+| Customer Reopen | >0.05 | no statistical bias |
+| Agent Reopen | 0.002308 | adopt alt hypothesis |
+| IsResolved | >0.05 | no statistical bias |
+
+- No material differences in the data explain the bimodal distribution of the TTR data.  More data is required to understand this distribution.
+- Interesting - the longer the TTR duration, the higher the percentage Concierge involvement.
+
 # Introduction
 
 ## Problem Statement
@@ -184,7 +212,7 @@ In this analysis, a non-parametric test and a parametric t-test will be used to 
 
 ### Non-Parametric Test
 
-There are a number of statistical methods that do not require normal data.  This analysis will perform a Wilcoxon  Test.  
+There are a number of statistical methods that do not require normal data.  This analysis will perform a Wilcoxon Test.  
 
 Two data samples are independent if they come from distinct populations and the samples do not affect each other. Using the Wilcoxon Signed-Rank Test, it can be determined of the population distributions are identical without assuming them to follow the normal distribution.
 
@@ -246,6 +274,18 @@ t.test(log(TTR) ~ NewRole, myData3)
 ```
 
 Same result.  The p-value is significantly less than 0.05 so the null hypothesis is rejected and the difference in the means is statistically significant.
+
+### Side Bar - Compare Variances
+
+The t-test assumes the variances between TTR for Agent and Concierge roles are teh same, or nearly so.  It is often useful to testing this assumption. This can be done quickly and easily using `var.test`
+
+```{r}
+var.test(TTR~NewRole, myData3)
+```
+
+While it appears there is trong evidence that teh bariances are not equal, it is not a valid test for our data.
+
+> var.test is not robust against departures from a normal distribution.
 
 ## Customer Reopen Statistical Analysis
 
@@ -355,38 +395,248 @@ t.test(log(TTR) ~ NewRole, myData2_RepeatCaller)
 3. The mean `TTR` between Agents and Concierge in `Agent Reopen` are **NOT** statistically different at a 95% confidence level.
 4. The mean `TTR` between Agents and Concierge in `Repeat Caller` are **NOT** statistically different at a 95% confidence level.
 
+# Proportion Tests
+
+To perform a proportion test, a bit of data manipulation is needed.  The arguments to `prop.test` must be given as 2 vectors where the first contains the number of positve outcomes and the other vector is the total numbers for each group (Agents and Concierge).
+
+## Repeat Caller
+
+```{r proportionRepeat}
+
+v1_1 <- nrow(filter(myData2, ReScenario == 'Repeat Caller' & NewRole == "Agent"))
+v1_2 <- nrow(filter(myData2, ReScenario == 'Repeat Caller' & NewRole == "Concierge"))
+myVectorPositive <- c(v1_1, v1_2)
+v2_1 <- nrow(filter(myData2, NewRole == "Agent"))
+v2_2<- nrow(filter(myData2, NewRole == "Concierge"))
+myVectorTotal <- c(v2_1, v2_2)
+
+prop.test(myVectorPositive, myVectorTotal, correct =  F)
+```
+
+##Customer Reopen
+
+```{r proportionCustomerReopen}
+v1_1 <- nrow(filter(myData2, ReScenario == 'Customer Reopen' & NewRole == "Agent"))
+v1_2 <- nrow(filter(myData2, ReScenario == 'Customer Reopen' & NewRole == "Concierge"))
+myVectorPositive <- c(v1_1, v1_2)
+v2_1 <- nrow(filter(myData2, NewRole == "Agent"))
+v2_2<- nrow(filter(myData2, NewRole == "Concierge"))
+myVectorTotal <- c(v2_1, v2_2)
+
+prop.test(myVectorPositive, myVectorTotal, correct =  F)
+```
+
+## Agent Reopen
+
+```{r proportionAgentReopen}
+v1_1 <- nrow(filter(myData2, ReScenario == 'Agent Reopen' & NewRole == "Agent"))
+v1_2 <- nrow(filter(myData2, ReScenario == 'Agent Reopen' & NewRole == "Concierge"))
+myVectorPositive <- c(v1_1, v1_2)
+v2_1 <- nrow(filter(myData2, NewRole == "Agent"))
+v2_2<- nrow(filter(myData2, NewRole == "Concierge"))
+myVectorTotal <- c(v2_1, v2_2)
+
+prop.test(myVectorPositive, myVectorTotal, correct =  F)
+```
+
+## IsResolved
+
+```{r proportionIsResolved}
+table(myData2$IsResolved)
+v1_1 <- nrow(filter(myData2, IsResolved == TRUE & NewRole == "Agent"))
+v1_2 <- nrow(filter(myData2, IsResolved == TRUE & NewRole == "Concierge"))
+myVectorPositive <- c(v1_1, v1_2)
+v2_1 <- nrow(filter(myData2, NewRole == "Agent"))
+v2_2<- nrow(filter(myData2, NewRole == "Concierge"))
+myVectorTotal <- c(v2_1, v2_2)
+
+prop.test(myVectorPositive, myVectorTotal, correct =  F)
+```
+
+## Proportional Tests Summary
+
+|  Metric        | prop.test | Comments |
+|----------------|--------|--------|----------|
+| Repeat Calleer |  >0.05 | no statistical bias |
+| Customer Reopen | >0.05 | no statistical bias |
+| Agent Reopen | 0.002308 | adopt alt hypothesis |
+| IsResolved | >0.05 | no statistical bias |
+
 # Appendix (WIP)
 
-## Additional Data Exploration (WIP)
+```{r}
+rm(list= ls()[!(ls() %in% c('myData','myData2', 'p2'))])
+```
 
-### Bimodel Distribution (WIP)
+## Bimodel Distribution (WIP)
 
 Because the TTR distribution was a surprise because of the bimodal shape, additional data exploration is performed to see if this unusual distribution exits in other areas and if it is common across roles.
+
+The team also asked to determine in the bimodal nature could be explained by:
+
+- Agents are encourged to close cases in 24 hours and 1 week
+- Examine the 2nd peak - does it look like it might be escalated?  (Probably do not have the data to determine this.)
 
 Recall the initial distribution:
 
 ```{r message=FALSE}
 p2
+p2Data <- ggplot_build(p2)
+#o get values actually plotted you can use function ggplot_build() where argument is your plot.
+
+p <- ggplot(mtcars,aes(mpg))+geom_histogram()+
+      facet_wrap(~cyl)+geom_vline(data=data.frame(x=c(20,30)),aes(xintercept=x))
+
+pg <- ggplot_build(p)
+# This will make list and one of sublists is named data. This sublist contains dataframe with values used in plot, for example, for histrogramm it contains y values (the same as count). If you use facets then column PANEL shows in which facet values are used. If there are more than one geom_ in your plot then data will contains dataframes for each
+#If you need just data it seems layer_data is designed precisely for this: layer_data(p2,1)
+layer_data(p2,1)
 ```
 
-Modify the data to see if the variable causing the second peak can be identified.
+First, it appears to be a bimodal distribution, but are there more than 2 pearks?  What does the data suggest?
 
-- Use the myData3 data set - this is the one where outliers have been removed.
-
-```{r message=FALSE}
-p3 <- ggplot(aes(x = TTR), data = myData3) + geom_histogram() + scale_x_log10() + ggtitle("log(TTR)")
-p3
-```
-
-- This shows the second peak is from outlier data only.  The first peak is near-normal.
-
-Subset the data to get a closer look at the data in the second peak.
+It is sometimes easier to view the hostogram as a density plot.
 
 ```{r}
-myData4 <- myData2 %>% filter(TTR>1000)
-table(myData4$NewRole)# 7.68% Concierge
+plot(density(log(myData2$TTR)))
 ```
 
-Evaluating only the most extreme TTR values (outliers), `r (table(myData4$NewRole)[2]/nrow(myData4))*100` /% of the records were managed by Concierge agents.  
+Above, there appears to be evidence of more thna 2 peaks.  Examine this.  First use the helpful `modes` package to collect quantitative data.
 
+```{r}
+#modes package https://cran.r-project.org/web/packages/modes/modes.pdf
+modeData <- log(myData2$TTR)
+amps(modeData)
+modes(modeData, type=1, nmore=2)
+#nth_highest(modeData, k = 1)
+```
+
+Quantitatively, there appear to be 12 peaks.  Apply judgement to the data using clustering to challenge this conclusion.
+
+```{r}
+#Kmeans
+df <- data.frame(log(myData2$TTR))
+colnames(df) = "X"
+km <- kmeans(df, centers=2)
+df$clust <- as.factor(km$cluster)
+
+km2 <- ggplot(df, aes(x=X)) + geom_histogram(aes(fill=clust,y=..count../sum(..count..)),
+                     binwidth=0.5, color="grey50") + stat_density(geom="line", color="red")
+
+km <- kmeans(df, centers=3)
+df$clust <- as.factor(km$cluster)
+
+km3 <- ggplot(df, aes(x=X)) + geom_histogram(aes(fill=clust,y=..count../sum(..count..)),
+                     binwidth=0.5, color="grey50") + stat_density(geom="line", color="red")
+
+km <- kmeans(df, centers=4)
+df$clust <- as.factor(km$cluster)
+
+km4 <- ggplot(df, aes(x=X)) + geom_histogram(aes(fill=clust,y=..count../sum(..count..)),
+                     binwidth=0.5, color="grey50") + stat_density(geom="line", color="red")
+
+km <- kmeans(df, centers=5)
+df$clust <- as.factor(km$cluster)
+
+km5 <- ggplot(df, aes(x=X)) + geom_histogram(aes(fill=clust,y=..count../sum(..count..)),
+                     binwidth=0.5, color="grey50") + stat_density(geom="line", color="red")
+
+grid.arrange(km2, km3, km4, km5, ncol=2)
+```
+
+Logically, the first plot makes the most logical sense - this confirms our initial conclusion there are 2 peaks.
+
+Referring to the histogram, the first peak is y = 21108 and the 2nd peak appears y = 11590.  The x values for these maximums are 1.4066512 and 3.1649652, respectively.  The antilogs are `r 10^1.4066512` and `r 10^3.1649652`.  Recalling the 1 day = 1440 minutes, the peaks occurs approximately at 25 minutes and 1 day.
+
+```{r}
+10^1.4066512
+10^3.1649652
+```
+
+It is also useful to note the minima just before the 2nd peak occurs where y = 246 and x = 2.8133024 (`r 10^2.8133024` minutes).  To isolate the values for the 2nd peak, examine the values of x > 650.
+
+```{r}
+myData2Peak <- myData2 %>% filter(TTR > 650)
+myData2Min <- myData2 %>% filter(TTR < 651)
+
+myTablePeak <- table(myData2Peak$NewRole, myData2Peak$ReScenario)
+myTableMin <- table(myData2Min$NewRole, myData2Min$ReScenario)
+
+myPropTablePeak <- data.frame(prop.table(myTablePeak,1))
+myPropTableMin <- data.frame(prop.table(myTableMin,1))
+
+myPropTablePeak <- myPropTablePeak %>% mutate(Peak = "Peak2")
+myPropTableMin <- myPropTableMin %>% mutate(Peak = "Peak1")
+
+myPropTableAll <- rbind(myPropTableMin, myPropTablePeak)
+
+myPropTableAll <- plyr::rename(myPropTableAll, c('Var1' = 'AgentType', 'Var2' = 'ReScenario'))
+
+p1 <- ggplot(myPropTableAll, aes(x = AgentType, y = Freq, fill=ReScenario)) + geom_bar(stat = 'identity') + facet_grid(~Peak)
+p1
+
+target <- c("Agent Reopen", "Customer Reopen", "Repeat Caller")
+myPropTableAll2 <- myPropTableAll %>% filter(ReScenario %in% target)
+
+ggplot(myPropTableAll2, aes(x = AgentType, y = Freq, fill=ReScenario)) + geom_bar(stat = 'identity', position = "fill") + facet_grid(~Peak)
+```
+
+### Conclusion
+
+Did not find material differences between the peaks in the bimodal TTR distribution within the available data.
+
+## Understand Extreme TTR Values
+
+Earlier in the analysis, we learned there are extreme TTR values.  Evalaute them to determin if these records share simliar characteristics.
+
+Assume an extreme value is defined as any TTR > 2 weeks:
+
+```{r}
+myOutliers <- myData2 %>% filter(TTR > 14*1440)
+nrow(myOutliers)
+hist(myOutliers$TTR)
+
+table(myOutliers$NewRole)
+
+
+myDFtmp <- data.frame(matrix(ncol=3, nrow=0))
+colnames(myDFtmp) <- c("Day", "Count", "PCT_Concierge")
+                      
+for(i in 1:50){
+  tmpRecords <- myData2 %>% filter(TTR > (i-1)*1440 & TTR < (1+i)*1440)
+  myDFtmp[i,1] <- i
+  myDFtmp[i,2] <- nrow(tmpRecords)
+  myDFtmp[i,3] <- round(((table(tmpRecords$NewRole)[2])/nrow(tmpRecords))*100,2)
+  
+}
+#Change NAs to 0
+myDFtmp[is.na(myDFtmp$PCT_Concierge),] <- 0
+
+pp1 <- ggplot(myDFtmp, aes(x=Day, y = Count)) + geom_line()
+pp2 <- ggplot(myDFtmp, aes(x=Day, y = PCT_Concierge)) + geom_line() +
+  geom_smooth()
+```
+
+
+
+## Agent EDA
+
+```{r}
+myData_Agent <- myData %>% mutate(Date = as.Date(CreateDateTime), Hour = hour(CreateDateTime), ReScenario = factor(ReScenario)) %>%
+  filter(TTR > 0) %>% mutate(Concierge = str_detect(Roles, "FirstRelease")) %>% mutate(Agent = str_detect(Roles, "Agent")) 
+
+myData_Agent <- myData_Agent %>% mutate(NewRole = ifelse(Concierge == TRUE, "Concierge", "Agent"))
+myData_Agent <- myData_Agent %>% na.omit(NewRole)
+glimpse(myData_Agent)
+
+myGrp_PartnerID <- group_by(myData_Agent, PartnerId, NewRole)
+myAgents <- summarize(myGrp_PartnerID, n())
+myAgents <- plyr::rename(myAgents, c("n()" = "count"))#plyr
+
+ggplot(myAgents, aes(x = PartnerId, y = count, fill = NewRole)) + geom_bar(stat = "identity")
+```
+
+## To Do
+
+2. Email Survey analysis
 

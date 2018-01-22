@@ -1,0 +1,202 @@
+---
+title: "Beysian Analysis"
+output: html_document
+---
+
+# Introduction
+
+Use R for exploring the beta binomial conjugate analysis and working with binomial beta distributions in R. 
+
+# Problem Statement
+Suppose we are giving two students a multiple choice exam with 40 questions. For each questions has four choices. We don't know how much the students have studied for this exam but we think that they will do better than just guessing randomly. 
+
+So here up in the comments section and giving it background and we'll pose seven questions. 
+
+1. First, what are our parameters of interest? 
+2. what is our likelihood? 
+3. What prior should we use? 
+4. For this prior for theta you can ask what's the prior probability that theta is greater than one quarter which would be guessing randomly? Theta is greater than one half or theta's greater than 0.8. 
+5. Now suppose the first student takes the test and gets 33 of the 40 questions right calling their parameter theta1, we can ask what's posterior distribution for their parameter? 
+6. What's the posterior probabilities that would be greater than one quarter, one half or 0.8? What's the 95% posterior credible interval for this parameter? Now thinking about the second student, suppose they get 24 questions right. What's suppose to your distribution for the parameter? What's suppose to your probably it's greater than one quarter, one half of 0.8, and what's a 95% credible interval for it? 
+7.Finally, what's suppose to your probability that theta1 greater than theta2? That the first student has a better chance of getting a question right than the second student All right, move on solutions. The first two are more just theory. 
+
+Answers
+
+1. Our parameters of interest are theta 1 being the true probability that the first student will answer a question correctly. And theta 2 being the true probability the second student will answer a question correctly. 
+2. We're going to use the binomial likelihood, with n equals 40. And then probability is theta, either theta 1 or theta 2. And this is assuming that each question is independent and that the probability a student gets each question right is the same for all questions for that student. 
+3. What prior should we use? The conjugate prior for binomial likelihood is a beta prior.
+
+The information we have is that we think they will do better than just guessing randomly. So the prior mass should be largely above 0.25. But what a prior mean bigger than a half maybe say, two-thirds. So what I'm going to do is I'm going to make a sequence of possible theta values, that goes from zero to one in increments of 100th. 
+
+And then we can plot some different theta priors. We can start by plotting the default prior, which is a uniform, or a beta one one. 
+
+So here's our default uniform prior.
+
+```{r}
+theta = seq(from=0, to=1, by=.01)
+plot(theta, dbeta(theta, 1, 1,), type="l")
+```
+ 
+All values probabilities between zero and one are equally likely, but this does not encode our belief that we think they're going to do better than just guessing randomly, so let's try a beta distribution that has prior mean two thirds. For example, a beta distribution with parameters four and two. 
+
+```{r}
+plot(theta, dbeta(theta, 4, 2,), type="l")
+plot(theta, dbeta(theta, 8, 4,), type="l")
+```
+
+So now we can see we're moving most of the mass higher. 
+
+Although, there's still some mass down here below 0.25. As we increase the parameter values, that increases the effect of sample size and concentrates the distribution. 
+
+So let's try a beta distribution with parameters eight and four, which still maintains a prior mean of two-thirds. 
+
+This distribution now is more concentrated and you can see pretty much all of masses between 0.25 and 1. So, this seems like a reasonable distribution to use as a prior for this problem. 
+
+4. We can now ask what are the prior probabilities that the parameter will be bigger than one-quarter, one-half, or 0.8. We can use the pbeta function. Pbeta gives us the cumulative distribution function for the beta distribution. But the problem is it's less than or equal to that value. So because we're asking probability it's greater than, we'll take one minus the pbeta function. 
+
+```{r}
+1-pbeta(.24, 8, 4)
+1-pbeta(.5, 8, 4)
+1-pbeta(.8, 8, 4)
+```
+
+We can see the probability it's greater than 2.5, is .9988 almost 1. The probability's greater than one-half is .887. The probability is greater than 0.8 is .16. 
+
+5. Those are prior probabilities. Now suppose we collect some data and the student gets 33 of the 40 questions right. What's our posterior distribution? 
+
+The posterior distribution will be beta with perimeters 8 plus 33. And four plus 40, minus 33, or a beta, 41, 11. The posterior mean is alpha over alpha plus beta. 
+
+```{r}
+41/41+11 #posterior mean
+33/34 #Max liklihood
+```
+
+We can also compare that to the maximum likely estimate. 
+
+Posterior mean is .788. And maximum likelihood estimate is .825. 
+
+So the posterior mean is somewhere in between the maximum likelihood estimate and the prior mean of two-thirds. We can plot this. Let's add to the plot of the prior. We'll add in the posterior distribution, the posterior density. 
+
+```{r}
+plot(theta, dbeta(theta, 8, 4,), type="l")
+lines(theta, dbeta(theta, 41, 11))
+```
+
+As we try to do that, we see that the posterior density is on a different scale and it goes off the top of the chart. 
+
+So if we plot that one first, r will make the y axis appropriately sized and we can put them both on the same plot. 
+
+So we'll do that in the other order. We'll plot the posterior first and then we'll add lines with the prior. In this case, I'm going to change the line type to make it a dashed line. LTY2, this is a dashed line for the prior. 
+
+```{r}
+plot(theta, dbeta(theta, 41, 11,), type="l")
+lines(theta, dbeta(theta, 8, 4), lty=2)
+```
+
+So here dashed line shows the prior and the solid line shows the posterior. As we get more information the distribution gets more concentrated. 
+
+We'd also add the likelihood to this. 
+
+L2Y3 would be a dotted line, we'll add a dotted line for the likelihood. 
+```{r}
+plot(theta, dbeta(theta, 41, 11,), type="l")
+lines(theta, dbeta(theta, 8, 4), lty=2)
+lines(theta, dbinom(33, size=40, p=theta), lty=3)
+```
+
+Turns out the likelihood is on a different scale. We're going to need to rescale it, because it doesn't have the same type of normalizing constant to make it a density. So, it doesn't have to be on the same scale. 
+
+So, we're going to rescale it just so we can plot it on the same plot. In this particular case, I've tried this in advance, and the number 44 works as a good scaling factor. So I'm just going to multiply it by 44 in order to have a pretty plot here. 
+
+```{r}
+plot(theta, dbeta(theta, 41, 11,), type="l")
+lines(theta, dbeta(theta, 8, 4), lty=2)
+lines(theta, 44*dbinom(33, size=40, p=theta), lty=3)
+```
+
+So now the dotted line is the likelihood, the solid line is the posterior, and the dash line is the prior. You can see the posterior is in between the prior and the likelihood. 
+
+It's closer to the likelihood because in this case there's more information in the likelihood. Recall, that we have 40 samples in the likelihood, and we have a prior, with an effective sample size of eight plus four is 12, and so, it makes sense that the posterior will be closer to the likelihood, than to the prior. 
+
+How about posterior probabilities. Posterior probability that theta will be greater than one quarter, one half or 0.8. Posterior probably that theta one is greater than a quarter is one to double precision and the probability it's greater than one half is almost one. 
+
+```{r}
+1-pbeta(.25, 41, 11)
+1-pbeta(.5, 41, 11)
+1-pbeta(.8, 41, 11)
+```
+
+Probably it's greater than 0.8 is now up to .4444, given that our data had a value bigger than 0.8 we have a fair amount of confidence, that theta one is a larger value now. 
+
+6. What would be an equal tailed 95% credible interval. We can use the q beta function, get the quintiles from the beta distribution and see that there's a 95% posterior probability that theta 1 is in between 0.669 and 0.887. 
+
+```{r}
+qbeta(.025, 41, 11)
+qbeta(.975, 41, 11)
+```
+
+And that's consistent with the plot above Most of the mass is between 0.669 and 0.887. 
+
+All right, now thinking about a second student. 
+
+Second student gets 24 out of 40 questions right. There Theta 2. Now we'll have a posterior that has a Beta distribution with the parameters (32,20). `Posterior is Beta(8+24, 4+40-24) = Beta(32,20)`
+
+Get the posterior mean and the maximum likelihood. 
+
+```{r}
+32/(32+40) #postrior mean
+24/40 #Max liklihood
+```
+
+Again, our prior mean was two thirds, the maximum likelihood estimate is 0.6, and the posterior mean is somewhere in between, 0.615. 
+
+We see a similar story when we plot these. 
+
+```{r}
+plot(theta, dbeta(theta, 32, 20), type = "l")
+lines(theta, dbeta(theta, 8, 4), lty=2)
+lines(theta, 44*dbinom(24, size = 40, p=theta), lty=3)
+```
+
+Here the prior is this dashed line centered at two thirds. The likelihood is the dotted line at 0.6 and then the posterior is the solid line in between the two closer to the likelihood. 
+
+It's the posterior mass is all sort of between 0.45 and 0.8 Indeed, if we ask what's the posterior probabilities of it being greater than a quarter, a half, or 0.8. 
+
+```{r}
+1-pbeta(.25, 32, 20)
+1-pbeta(.5, 32, 20)
+1-pbeta(.8, 32, 20)
+```
+
+We see that posterior probability close to 1 of being greater than a quarter. Probability of 0.95 being greater than a half. But probability very small, 0.00125, of being greater than 0.8. 
+
+Again, consistent with the plot above. 
+
+A 95% equal tailed credible interval for theta two. 
+
+```{r}
+qbeta(0.25, 32, 20)
+qbeta(.975, 32, 20)
+```
+
+That goes from .48 to .74. So this is smaller values than for the first student which makes sense because the second student didn't get as many questions right. 
+
+This interval overlaps with the 95% credible interval for the first student. There is some overlap, but they're centered very differently. 
+
+7. Our final question was, what's the probability that theta one is greater than theta two? 
+
+This would be difficult to do in closed form, so we're going to do it by simulation. 
+
+We're going to draw a 1000 samples from each posterior distribution and see how often we observe theta one greater than theta two. So I'll use the r beta function to generate random samples. From the first data distribution and from the second data distribution and then we'll look at whether theta 1 is greater than theta 2. 
+
+R will evaluate this statement as an indicator function so it'll be one when it's true and zero when it's false. So if we take the average of those indicator functions that will give us an empirical probability that theta 1 is greater than theta 2. 
+
+```{r}
+theta1 <- rbeta(1000, 41, 11)
+theta2 <- rbeta(1000, 32, 20)
+mean(theta1 > theta2)
+```
+
+So we can see here our empirical probability came out to be .967. So probability is close to 1 but not completely certain that theta 1 is great than theta 2. 
+ 
+
