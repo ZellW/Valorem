@@ -1,0 +1,373 @@
+---
+title: 'O365 Satisfy Engineering - Case Notes'
+output:
+    rmdformats::readthedown:
+      highlight: pygments
+---
+
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 14px;
+   line-height: 18px;
+}
+body{ /* Normal  */
+   font-size: 14px;
+}
+td {  /* Table  */
+   font-size: 12px;
+}
+h1 { /* Header 1 */
+font-size: 26px;
+color: #4294ce;
+}
+h2 { /* Header 2 */
+font-size: 22px;
+}
+h3 { /* Header 3 */
+font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 12px;
+}
+pre { /* Code block */
+  font-size: 12px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+```{r loadLibs1, warning=FALSE, message=FALSE, echo=FALSE}
+if(!require(kableExtra)){devtools::install_github("haozhu233/kableExtra")}
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("plyr", "dplyr", "ggplot2", "readr", "gridExtra", "readxl", "tidyr","stringr", "lubridate","knitr", "kableExtra",  prompt = FALSE)
+
+setwd("~/Github/Valorem/ClientProjects/MS_O365")
+```
+> The exploratory data analysis detail supporting reproducible research has been removed from this file version.  A detailed version is available upon request.
+
+# Introduction
+
+On January 15, 2018, Microsoft introduced a new feature to enable Case Notes Search to help Agents find answers more quickly to reduce the time it takes to close a case and improve client and agent satisfaction.  This analysis provides insight on the impact the new feature has on selected metrics.  
+
+The mterics evaluated are:
+
+- TTR
+- Agent Reopen
+- Customer Reopen
+- Repeat Caller
+- IsResolved
+
+TTR is a quantitative metric where the others are qualitative.  Therefore, difrferent statical methids are used  TTR.
+
+# Methodology
+
+During a Team Meeting Friday, January 19, 2018, the Team identified the methodology to be used in in this analysis.  
+
+- Data will be collected before the Case Notes feature was implemented and after implementation.
+- When the Case Notes feature is implemented, all CIs will get the new feature.
+- The difference between the metrics for CIs  and all other agents before and after the Case Notes feature is implemented will be used to calculate the impact of the new feature.  Using the difference between the two grouops (CI and all other agents NCIs) will be used to minimize the impact of confounding features.  Changes to the application happen frequently; minimizing the impact of other system changes is desirable.
+
+> This methodology is not ideal but adapted to the limitations the data store.  There is no way to randomly selected CI and NCI agents.  This prevents running the test with two populations simultaneously.  This forces the analysis to use before/after data and introduces confunding factor risks..
+
+#TTR Analysis
+
+```{r echo=FALSE}
+#See complete technical approach see CaseNotesTTR_Brad.Rmd
+load("CaseNotesTTR.RData")#From CaseNotesAnalysis.Rmd
+
+#This TTR analysis does not include TTR=0 values
+#Average TTR for CI (Control)
+CI_Control_df <- TTR_No_0 %>% filter(InsiderRole == 'CI', dateLive =="Control") %>% select(TTR) 
+CI_Control_nrow <- nrow(CI_Control_df)
+CI_Control_sd <- sd(CI_Control_df$TTR)
+CI_Control_mean <- mean(CI_Control_df$TTR)
+
+#Average TTR for NCI (Control)
+NCI_Control_df <- TTR_No_0 %>% filter(InsiderRole == 'NCI', dateLive =="Control") %>% select(TTR)
+NCI_Control_nrow <- nrow(NCI_Control_df)
+NCI_Control_sd <- sd(NCI_Control_df$TTR)
+NCI_Control_mean <- mean(NCI_Control_df$TTR)
+
+#Average TTR for  CI (Treatment)
+CI_Treatment_df <- TTR_No_0 %>% filter(InsiderRole == 'CI', dateLive == "Treatment") %>% select(TTR)
+CI_Treatment_nrow <- nrow(CI_Treatment_df)
+CI_Treatment_sd <- sd(CI_Treatment_df$TTR)
+CI_Treatment_mean <- mean(CI_Treatment_df$TTR)
+
+#Average TTR for NCI (Treatment)
+NCI_Treatment_df <- TTR_No_0 %>% filter(InsiderRole == 'NCI', dateLive == "Treatment") %>% select(TTR)
+NCI_Treatment_nrow <- nrow(NCI_Treatment_df)
+NCI_Treatment_sd <- sd(NCI_Treatment_df$TTR)
+NCI_Treatment_mean <- mean(NCI_Treatment_df$TTR)
+
+z_CI<- (CI_Treatment_mean - CI_Control_mean)/(CI_Control_sd/sqrt(CI_Control_nrow))
+z_NCI<- (NCI_Treatment_mean - NCI_Control_mean)/(NCI_Control_sd/sqrt(NCI_Control_nrow))
+
+f <- z_CI^2/z_NCI^2
+
+pvalue <- 1-pf(f, 1, 1)
+```
+
+```{r echo=FALSE}
+#This TTR analysis does INCLUDES TTR=0 values
+#Average TTR for CI (Control)
+CI_Control_df2 <- TTR_with_0 %>% filter(InsiderRole == 'CI', dateLive =="Control") %>% select(TTR) 
+CI_Control_nrow2 <- nrow(CI_Control_df2)
+CI_Control_sd2 <- sd(CI_Control_df2$TTR)
+CI_Control_mean2 <- mean(CI_Control_df2$TTR)
+
+#Average TTR for NCI (Control)
+NCI_Control_df2 <- TTR_with_0 %>% filter(InsiderRole == 'NCI', dateLive =="Control") %>% select(TTR)
+NCI_Control_nrow2 <- nrow(NCI_Control_df2)
+NCI_Control_sd2 <- sd(NCI_Control_df2$TTR)
+NCI_Control_mean2 <- mean(NCI_Control_df2$TTR)
+
+#Average TTR for  CI (Treatment)
+CI_Treatment_df2 <- TTR_with_0 %>% filter(InsiderRole == 'CI', dateLive == "Treatment") %>% select(TTR)
+CI_Treatment_nrow2 <- nrow(CI_Treatment_df2)
+CI_Treatment_sd2 <- sd(CI_Treatment_df2$TTR)
+CI_Treatment_mean2 <- mean(CI_Treatment_df2$TTR)
+
+#Average TTR for NCI (Treatment)
+NCI_Treatment_df2 <- TTR_with_0 %>% filter(InsiderRole == 'NCI', dateLive == "Treatment") %>% select(TTR)
+NCI_Treatment_nrow2 <- nrow(NCI_Treatment_df2)
+NCI_Treatment_sd2 <- sd(NCI_Treatment_df2$TTR)
+NCI_Treatment_mean2 <- mean(NCI_Treatment_df2$TTR)
+
+z_CI2<- (CI_Treatment_mean2 - CI_Control_mean2)/(CI_Control_sd2/sqrt(CI_Control_nrow2))
+z_NCI2<- (NCI_Treatment_mean2 - NCI_Control_mean2)/(NCI_Control_sd2/sqrt(NCI_Control_nrow2))
+
+f <- z_CI2^2/z_NCI2^2
+
+pvalue2 <- 1-pf(f, 1, 1)
+```
+
+## TTR Results
+
+TTR Results are reported separately from the other metrics; the methodology uses data differently and some odf the reported data does not fit well into the sumarry table for the other metrics.
+
+```{r kableExtraTable, echo=FALSE}
+#Build df for kable - https://cran.r-project.org/web/packages/kableExtra/vignettes/awesome_table_in_html.html
+myTableDF <- setNames(data.frame(matrix(ncol = 4, nrow = 8)), 
+                      c("pvalue", "Record Count", "Std Dev", "Mean"))
+rownames(myTableDF) <- c("Ave TTR Control CI", "Ave TTR Control NCI",  
+                         "Ave TTR Treatment CI", "Ave TTR Treatment NCI", 
+                         "Ave TTR Control CI ", "Ave TTR Control NCI ",  
+                         "Ave TTR Treatment CI ", "Ave TTR Treatment NCI ")
+myTableDF[1,1] <- round(pvalue, 5)
+myTableDF[1,2] <- CI_Control_nrow
+myTableDF[1,3] <- round(CI_Control_sd, 2)
+myTableDF[1,4] <- round(CI_Control_mean, 2)
+
+myTableDF[2,1] <- ""
+myTableDF[2,2] <- NCI_Control_nrow
+myTableDF[2,3] <- round(NCI_Control_sd, 2)
+myTableDF[2,4] <- round(NCI_Control_mean, 2)
+
+myTableDF[3,1] <- ""
+myTableDF[3,2] <- CI_Treatment_nrow
+myTableDF[3,3] <- round(CI_Treatment_sd, 2)
+myTableDF[3,4] <- round(CI_Treatment_mean, 2)
+
+myTableDF[4,1] <- ""
+myTableDF[4,2] <- NCI_Treatment_nrow
+myTableDF[4,3] <- round(NCI_Treatment_sd, 2)
+myTableDF[4,4] <- round(NCI_Treatment_mean, 2)
+
+#With TTR = 0 Values
+myTableDF[5,1] <- round(pvalue2,5)
+myTableDF[5,2] <- CI_Control_nrow2
+myTableDF[5,3] <- round(CI_Control_sd2, 2)
+myTableDF[5,4] <- round(CI_Control_mean2, 2)
+
+myTableDF[6,1] <- ""
+myTableDF[6,2] <- NCI_Control_nrow2
+myTableDF[6,3] <- round(NCI_Control_sd2, 2)
+myTableDF[6,4] <- round(NCI_Control_mean2, 2)
+
+myTableDF[7,1] <- ""
+myTableDF[7,2] <- CI_Treatment_nrow2
+myTableDF[7,3] <- round(CI_Treatment_sd2, 2)
+myTableDF[7,4] <- round(CI_Treatment_mean2, 2)
+
+myTableDF[8,1] <- ""
+myTableDF[8,2] <- NCI_Treatment_nrow2
+myTableDF[8,3] <- round(NCI_Treatment_sd2, 2)
+myTableDF[8,4] <- round(NCI_Treatment_mean2, 2)
+
+#color code p-values
+
+#color code p-values
+myTableDF <- myTableDF %>% mutate(TTR_Metric = row.names(.), pvalue = cell_spec(pvalue, 'html', color = ifelse(pvalue < 0.05, "green", "red")))
+
+myTableDF <- myTableDF %>% select(TTR_Metric, everything())
+
+kable(myTableDF, "html", escape = F, caption = "TTR Analysis Results") %>% 
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", full_width = F)) %>% 
+   group_rows("With TTR NO 0 values", 1, 4) %>% group_rows("TTR WITH 0 values", 5, 8) %>% 
+  footnote(general = "p-values in green are statistically significant (feature impacted metric values)",
+           number = c("p-value = 0 is simply rounded to 5 digits", "Low record counts minimize reliance of significant p-values")) 
+
+```
+
+## TTR Take-Aways
+
+> p-value (0.839/0.927) > 0.05
+
+The data does not provide sufficient evidence to reject the null hypothesis that the TTR means are from the same population:  *TTR was not siginficantly affected by the Case Search Notes feature*.
+
+> Action Item:  Deam & Team to understnad how TTR = 0 can exist.
+
+```{r propSummaryTable, echo=FALSE}
+#Build DF as the prop test are run so DF is availble for summary kable table
+#Build df for kable - https://cran.r-project.org/web/packages/kableExtra/vignettes/awesome_table_in_html.html
+
+rm(list= ls()[!(ls() %in% c('ABData_complete','AllAgents', 'TTR_2ndPeak'))])
+
+myTableDFp <- setNames(data.frame(matrix(ncol = 5, nrow = 4)), c("pvalue", "Control CI", "Treatment CI", 
+                                                                 "Control NCI", "Treatment NCI"))
+rownames(myTableDFp) <- c("Agent Reopen", "Customer Reopen", "Repeat Caller", "IsResolved")
+```
+
+# Other Metrics
+
+```{r echo=FALSE}
+#http://www.biochemia-medica.com/content/odds-ratio-calculation-usage-and-interpretation - Fishers Test
+Var1_CI <- nrow(filter(ABData_complete, ReScenario == 'Agent Reopen', dateLive == "Control", InsiderRole == 'CI'))
+Var2_CI <- nrow(filter(ABData_complete, ReScenario == 'Agent Reopen', dateLive == "Treatment", InsiderRole == 'CI'))
+
+Var3_CI <- nrow(filter(ABData_complete, ReScenario != 'No ReScenario', dateLive == "Control", InsiderRole == 'CI'))
+Var4_CI <- nrow(filter(ABData_complete, ReScenario != 'No ReScenario', dateLive == "Treatment", InsiderRole == 'CI'))
+#agentReopen_CI <- prop.test(c(Var1_CI, Var2_CI), c(Var3_CI, Var4_CI), correct =  F)
+
+Var1_NCI <- nrow(filter(ABData_complete, ReScenario == 'Agent Reopen', dateLive == "Control", InsiderRole == 'NCI'))
+Var2_NCI <- nrow(filter(ABData_complete, ReScenario == 'Agent Reopen', dateLive == "Treatment", InsiderRole == 'NCI'))
+
+Var3_NCI <- nrow(filter(ABData_complete, ReScenario != 'No ReScenario', dateLive == "Control", InsiderRole == 'NCI'))
+Var4_NCI <- nrow(filter(ABData_complete, ReScenario != 'No ReScenario', dateLive == "Treatment", InsiderRole == 'NCI'))
+#agentReopen_NCI <- prop.test(c(Var1_NCI, Var2_NCI), c(Var3_NCI, Var4_NCI), correct =  F)
+```
+
+```{r buildTableAgentReopen}
+#myMatrix <- matrix(c(Var1_CI, Var2_CI, Var1_NCI, Var2_NCI), nrow=2, byrow = T)
+myMatrix <- matrix(c(Var2_CI, Var1_CI, Var2_NCI, Var1_NCI), nrow=2, byrow = F)
+dimnames(myMatrix) <- list(c("Treatment", "Control"), c("CI", "NCI"))#row names, col names
+fisherAgentReopen <- fisher.test(myMatrix)
+
+myTableDFp[1,1] <- round(fisherAgentReopen$p.value,5)
+myTableDFp[1,2] <- Var1_CI
+myTableDFp[1,3] <- Var2_CI
+myTableDFp[1,4] <- Var1_NCI
+myTableDFp[1,5] <- Var2_NCI
+```
+
+```{r echo=FALSE}
+Var1_CI <- nrow(filter(ABData_complete, ReScenario == 'Customer Reopen' & dateLive == "Control",  InsiderRole == 'CI'))
+Var2_CI <- nrow(filter(ABData_complete, ReScenario == 'Customer Reopen' & dateLive == "Treatment",  InsiderRole == 'CI'))
+#custReopen_CI <- prop.test(c(Var1_CI, Var2_CI), c(Var3_CI, Var4_CI), correct =  F)
+
+Var1_NCI <- nrow(filter(ABData_complete, ReScenario == 'Customer Reopen' & dateLive == "Control",  InsiderRole == 'NCI'))
+Var2_NCI <- nrow(filter(ABData_complete, ReScenario == 'Customer Reopen' & dateLive == "Treatment",  InsiderRole == 'NCI'))
+#custReopen_NCI <-  prop.test(c(Var1_NCI, Var2_NCI), c(Var3_NCI, Var4_NCI), correct =  F)
+```
+
+```{r buildTableCustReopen}
+#myMatrix <- matrix(c(Var1_CI, Var2_CI, Var1_NCI, Var2_NCI), nrow=2, byrow = T)
+myMatrix <- matrix(c(Var2_CI, Var1_CI, Var2_NCI, Var1_NCI), nrow=2, byrow = F)
+dimnames(myMatrix) <- list(c("Treatment", "Control"), c("CI", "NCI"))#row names, col names
+fisherCustomerReopen <- fisher.test(myMatrix)
+
+myTableDFp[2,1] <- round(fisherCustomerReopen$p.value,5)
+myTableDFp[2,2] <- Var1_CI
+myTableDFp[2,3] <- Var2_CI
+myTableDFp[2,4] <- Var1_NCI
+myTableDFp[2,5] <- Var2_NCI
+```
+
+```{r}
+Var1_CI <- nrow(filter(ABData_complete, ReScenario == 'Repeat Caller' & dateLive == "Control",  InsiderRole == 'CI'))
+Var2_CI <- nrow(filter(ABData_complete, ReScenario == 'Repeat Caller' & dateLive == "Treatment",  InsiderRole == 'CI'))
+#repeatCaller_CI <- prop.test(c(Var1_CI, Var2_CI), c(Var3_CI, Var4_CI), correct = F)
+
+Var1_NCI <- nrow(filter(ABData_complete, ReScenario == 'Repeat Caller' & dateLive == "Control",  InsiderRole == 'NCI'))
+Var2_NCI <- nrow(filter(ABData_complete, ReScenario == 'Repeat Caller' & dateLive == "Treatment",  InsiderRole == 'NCI'))
+#repeatCaller_NCI <- prop.test(c(Var1_NCI, Var2_NCI), c(Var3_NCI, Var4_NCI), correct = F)
+```
+
+```{r buildTableRepeatCaller}
+#myMatrix <- matrix(c(Var1_CI, Var2_CI, Var1_NCI, Var2_NCI), nrow=2, byrow = T)
+myMatrix <- matrix(c(Var2_CI, Var1_CI, Var2_NCI, Var1_NCI), nrow=2, byrow = F)
+dimnames(myMatrix) <- list(c("Treatment", "Control"), c("CI", "NCI"))#row names, col names
+
+fisherRepeatCaller <- fisher.test(myMatrix)
+
+myTableDFp[3,1] <- round(fisherRepeatCaller$p.value,5)
+myTableDFp[3,2] <- Var1_CI
+myTableDFp[3,3] <- Var2_CI
+myTableDFp[3,4] <- Var1_NCI
+myTableDFp[3,5] <- Var2_NCI
+```
+
+```{r}
+Var1_CI <- nrow(filter(ABData_complete, IsResolved == 1 & dateLive == "Control",  InsiderRole == 'CI'))
+Var2_CI <- nrow(filter(ABData_complete, IsResolved == 1 & dateLive == "Treatment",  InsiderRole == 'CI'))
+
+Var3_CI <- nrow(filter(ABData_complete, IsResolved > -1,  dateLive == "Control", InsiderRole == 'CI'))
+Var4_CI <- nrow(filter(ABData_complete, IsResolved > -1, dateLive == "Treatment", InsiderRole == 'CI'))
+#IsResolved_CI <- prop.test(c(Var1_CI, Var2_CI), c(Var3_CI, Var4_CI), correct =  F)
+
+Var1_NCI <- nrow(filter(ABData_complete, IsResolved == 1 & dateLive == "Control",  InsiderRole == 'NCI'))
+Var2_NCI <- nrow(filter(ABData_complete, IsResolved == 1 & dateLive == "Treatment",  InsiderRole == 'NCI'))
+
+Var3_NCI <- nrow(filter(ABData_complete, IsResolved > -1,  dateLive == "Control", InsiderRole == 'NCI'))
+Var4_NCI <- nrow(filter(ABData_complete, IsResolved > -1, dateLive == "Treatment", InsiderRole == 'NCI'))
+#IsResolved_NCI <- prop.test(c(Var1_NCI, Var2_NCI), c(Var3_NCI, Var4_NCI), correct =  F)
+```
+
+```{r buildTableIsResolved}
+#https://www.math.wustl.edu/~victor/classes/ma322/r-eg-21.txt - Fisher interpretation example
+#myMatrix <- matrix(c(Var1_CI, Var2_CI, Var1_NCI, Var2_NCI), nrow=2, byrow = T)
+myMatrix <- matrix(c(Var2_CI, Var1_CI, Var2_NCI, Var1_NCI), nrow=2, byrow = F)
+dimnames(myMatrix) <- list(c("Treatment", "Control"), c("CI", "NCI"))#row names, col names
+
+fisherIsResolved <- fisher.test(myMatrix)
+
+myTableDFp[4,1] <- round(fisherIsResolved$p.value,5)
+myTableDFp[4,2] <- Var1_CI
+myTableDFp[4,3] <- Var2_CI
+myTableDFp[4,4] <- Var1_NCI
+myTableDFp[4,5] <- Var2_NCI
+```
+
+## Other Metrics Results
+
+```{r echo=FALSE}
+#color code p-values
+myTableDFp <- myTableDFp %>% mutate(Experiment = row.names(.), pvalue = cell_spec(pvalue, 'html', color = ifelse(pvalue < 0.05, "green", "red")))
+
+myTableDFp <- myTableDFp %>% select(Experiment, everything())
+
+kable(myTableDFp, "html", escape = F) %>%  kable_styling(bootstrap_options = c("condensed", full_width = F)) %>% 
+  add_header_above(c("Case Search Feature Analysis"=1, " " = 1, "Control Record Counts" = 2, 
+                     "Treatment Record Counts" = 2)) %>% 
+  footnote(general = "p-values in green are statistically significant (feature impacted metric values)",
+           number = c("p-value = 0 is simply rounded to 5 digits", "Low record counts minimize reliance of significant p-values"))
+```
+
+## Take-Aways
+
+- `IsResolved` provides sufficient significant statistical evidence to reject the null hypothesis suggesting the populations of the Control and Treatment groups are different (independent in Fisher Test nomenclature).  
+    - CI Agent tickets with the new feature were less likely (`r round(fisherIsResolved$estimate, 3)` times)   likely to close `IsResolved` than the Control CI Group.
+- The other metrics have afew records, but the Fisher Test is optimized for low recoerd counts.  (It works suitably for large records too.)

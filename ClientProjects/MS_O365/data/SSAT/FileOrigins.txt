@@ -1,0 +1,33 @@
+From: Dean Avila [mailto:Dean.Avila@microsoft.com] 
+Sent: Saturday, January 27, 2018 8:48 PM
+To: Cliff Weaver <cweaver@valorem.com>
+Subject: RE: SSAT Drop - New Priority
+
+Ticket data has now been uploaded to your share. You should see a 276 MB file titled 
+TicketListJuly01_Jan27.xlsx. Had difficulty saving as CSV so left as an Excel workbook. 
+Please note I’ve also included the SSAT survey data as an additional tab. You can use either 
+the original survey data file I sent you earlier in the week or the data on SSAT tab. 
+They’re almost identical except the newer source has a few more days worth of survey data. 
+Let me know if you have any questions. 
+
+Thanks, 
+--Dean
+
+Broke xlsx into 2 CSVs - SSATData and TicketData
+
+From: Dean Avila 
+Sent: Saturday, January 27, 2018 2:26 PM
+To: 'Cliff Weaver' <cweaver@valorem.com>
+Subject: RE: SSAT Drop - New Priority
+
+I found the problem! The access verification code was (for some reason) being sent to one of my 
+sub-folders due to a rule I had in place. So, the initial link was being sent to my Junk Mail, 
+and the verification code was being routed to a seemingly random subfolder! Ugh. Oh well. ??
+
+In any event, I’ve successfully uploaded the tenant list (550 MB). Please verify that you’ve 
+received and are having no problems accessing. 
+
+I’ll work on sending over the ticket list next (should be uploaded within an hour). 
+
+Thanks, 
+--Dean

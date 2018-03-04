@@ -1,0 +1,1637 @@
+---
+title: "DCX Exploratory"
+output:
+    rmdformats::readthedown:
+      highlight: pygments
+      code_folding: show
+      df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 14px;
+   line-height: 18px;
+}
+body{ /* Normal  */
+   font-size: 14px;
+}
+td {  /* Table  */
+   font-size: 12px;
+}
+h1 { /* Header 1 */
+font-size: 26px;
+color: #4294ce;
+}
+h2 { /* Header 2 */
+font-size: 22px;
+}
+h3 { /* Header 3 */
+font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 12px;
+}
+pre { /* Code block */
+  font-size: 12px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+```{r loadLibs1, warning=FALSE, message=FALSE, echo=FALSE}
+if(!require(easypackages)){install.packages("easypackages")}
+
+library(stringr)
+library(readxl)
+library(easypackages)
+packages("plyr", "dplyr", "data.table", "xda","ggplot2", "forcats", "readr", "gridExtra", "knitr", "onehot", "survival", "reshape", "stringr", prompt = FALSE)
+#data.table used only for fread
+```
+
+# Executive Sumarry
+
+## Introduction
+
+In January, 2018, Microsoft engaged with Valorem to evaluate data center construction project data to develop a solution forecasting project completion. Exploratory data analysis (EDA) is performed using project task data for build projects in the US.   Consistent with the process defined in the statement of work, this document details the findings from the EDA.
+
+>  This is a milestone checkpoint intended to ensure the Team is clear on the progress, results and the path forward.  This is not an end of a journey but a branch in the road where the Team determines which path to take next.
+
+An EDA often leads to paths not originally envisioned.  EDA is a process of exploration and learning.  The data analysis provides below points the Team in a direction that may provide the insight into how the overall project goal may be achieved.
+
+A thoughtful EDA process details what and why each data task is performed and what can be concluded from the results for each EDA process step:
+
+1.	Data ingestion:  
+2.	Data exploration:  Understand the data - types of data, range of values, variances, outliers, etc.
+3.	Data analysis - Defining what the data tells us in light of the project goal
+
+## Results
+
+The results of the exploratory data analysis of the data center build task data (project checkpoint milestone #1) reveals:
+
+*	The data is limited in the number of data points and projects to model
+*	The number of projects does not support training, testing and validating a predictive algorithm
+*	Expected milestones were not found in the project task data
+*	There are few common tasks between build project types to discover patterns in the data
+*	Additional data and project standardization may be required to provide an opportunity to develop, build, test and validate a data-driven  solution or process to improve overall project performance
+
+## Recommendations
+
+At this milestone checkpoint, the next path in this data journey is provided for Team evaluation.
+
+1.  Determine if the task descriptions across projects can be standardized.  A mapping exercise to identify seemingly disparate task descriptions into a common vernacular may provide data suitable for further analysis.
+2.  Develop standardized Level 1 and Level 2 project summary tasks across all Build and Lease Projects that are immutable.  This may provide sufficient data from predictive analysis.
+3.  Consider refocusing the project on Lease Projects in and outside the US.  This may provide a larger data source support predictive analysis.
+4.  Consume more data sources to discover insights not possible today.  The new data sources combined with the recommendations above may provide the opportunity to develop a formulaic project forecasting solution or service.
+
+> The remainder of the document details the EDA analysis supporting the conculsions and recommendations.
+
+----------------
+
+# Exploratory Data Analysis
+
+Exploratory Data Analysis is a critical step in all data science projects because it allows provides confidence that future results will be valid, correctly interpreted, and applicable to the desired business contexts. Such level of certainty can be achieved only after raw data is validated and checked for anomalies, ensuring that the data set was collected without errors. EDA also helps to find insights that were not evident or worth investigating to business stakeholders and data scientists but can be very informative about a particular business.  
+
+EDA is performed in order to define and refine the selection of feature variables that will be used for machine learning. Once data scientists become familiar with the data set, they often have to return to feature engineering step, since the initial features may turn out not to be serving their intended purpose. Once the EDA stage is complete, data scientists get a firm feature set they need for supervised and unsupervised machine learning.
+The steps in EDA minimally include:  Data Ingestion, Data Exploration and Data Analysis.
+
+## Data Ingestion
+
+Data ingestion is the process of accessing and importing the data from one or more data sources and importing them into an environment for analysis.  In the current project, the programming language R is the tool and the environment is using an R programming environment called RStudio.
+
+Microsoft provided access to data (a view from a SQL table) filtered to include records where:
+
+- Baseline = 0
+- ReportingRegion = "AMERS EAST" or "AMERS WEST"
+- ProjectStatus = "Active" or "Complete" 
+
+> On Jan 18, 2018, additional data was provided introducing useful data such as project types.
+
+```{r loadData, echo=FALSE, message=FALSE,warning=FALSE, results='hide'}
+dataimport <- read.delim("C:/Users/tbishop/Documents/Construction/UpdatedExport.txt", header = TRUE, sep = "\t", na.strings="NULL")
+```
+
+### Data Preprocessing
+
+Microsoft provided direction on data filtering rules. The first dataset is filtered to only include records where Baseline = 0, ReportingRegion = "AMERS EAST" or "AMERS WEST," and ProjectStatus = "Active" or "Complete." 
+
+Under the direction of Microsoft the following columns are removed:
+
+1. TaskBaselineFinishDate
+2. TaskBaselineStartDate
+3. TaskBaselineDuration
+4. Likelihood
+5. PercentLikelihood
+6. X50_Percent_Likelihood
+7. X90_Percent_Likelihood
+8. RFSRTEGCapacity
+9. ColoArea
+10. TaskIsSummary
+11. Campus
+
+The data is split into two datasets based on Program Type: one for `Build` and one for `Lease`.
+
+```{r splitData, echo=FALSE, message=FALSE,warning=FALSE, results='hide'}
+data <- filter(dataimport, dataimport$BaselineNumber == 0, dataimport$ReportingRegion %in% c("AMERS EAST", "AMERS WEST"), dataimport$ProjectStatus %in% c("Active", "Complete"))
+
+#Drop unusused columns 
+data <- data[ , !(names(data) %in% c("TaskBaselineFinishDate", "TaskBaselineStartDate", "TaskBaselineDuration", "Likelihood", "PercentLikelihood" ,"X50_Percent_Likelihood", "X90_Percent_Likelihood", "RFSRTEGCapacity", "ColoArea", "TaskIsSummary", "Campus",  "TaskOutlineLevel", "TaskOutlineNumber"))]
+
+#Transform date column to dates
+data %<>%
+  mutate(TaskStartDate = as.Date(data$TaskStartDate)) %>%
+  mutate(TaskFinishDate = as.Date(data$TaskFinishDate)) %>%
+  mutate(Snapshotdate = as.Date(data$Snapshotdate))
+```
+
+A regular expression is used to split the unique project number prefix off of the Task Names to allow for cross project comparison.
+
+```{r, message=FALSE}
+#Split the task name with regular expression
+data$TaskPlain <- (str_split_fixed(data$TaskName, " - ", 2)[,2])
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+
+#Split data into build projects
+builddata <- filter(data, data$ProgramType == "Build")
+builddata$SnapshotDateID <- factor(builddata$SnapshotDateID)
+
+#Split data into lease projects
+leasedata <- filter(data, data$ProgramType == "Lease")
+leasedata$SnapshotDateID <- factor(leasedata$SnapshotDateID)
+
+#ITPAC
+ITPAC <- filter(builddata, builddata$DCType == "ITPAC")
+
+#ScalableFormFactor
+ScalableFormFactor <- filter(builddata, builddata$DCType == "Scalable Form Factor")
+
+#Gen4.5
+Gen4.5 <- filter(builddata, builddata$DCType == "Gen 4.5")
+
+#Gen4.6
+Gen4.6 <- filter(builddata, builddata$DCType == "Gen 4.6")
+
+#DC2015
+DC2015 <- filter(builddata, builddata$DCType == "DC 2015")
+
+#DC2015.5
+DC2015.5 <- filter(builddata, builddata$DCType == "DC2015.5")
+```
+
+### Construction Start Date Filter
+
+The project focus is on tasks occurring at the start of construction.
+
+Tasks are filtered to only include those which occurred after the designated construction start date. This is defined as the `TaskStartDate` of the first instance per project marked with the Milestone of `Construction Start`.
+
+```{r warning=FALSE, message=FALSE}
+#Filter out tasks earlier than construction start
+constructionstart <- builddata %>%
+  filter(L2Milestone == "Construction Start" | T1Milestone == "Construction Start") %>%
+  group_by(ProjectID) %>%
+  summarise(ConstructionStartDate = min(TaskStartDate))
+
+df1 <- left_join(builddata, constructionstart)
+builddata <- filter(df1, TaskStartDate >= ConstructionStartDate)
+```
+
+The data has been ingested and is ready to explore.
+
+### DCType Project Split
+
+The Build data includes 6 different project types.
+
+1. ITPAC
+2. ScalableFormFactor
+3. Gen4.5
+4. Gen4.6
+5. DC2015
+6. DC2015.5
+
+Lease has only one DCType, so no further dataset splitting was required.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+
+#ITPAC
+ITPAC <- filter(builddata, builddata$DCType == "ITPAC")
+
+#ScalableFormFactor
+ScalableFormFactor <- filter(builddata, builddata$DCType == "Scalable Form Factor")
+
+#Gen4.5
+Gen4.5 <- filter(builddata, builddata$DCType == "Gen 4.5")
+
+#Gen4.6
+Gen4.6 <- filter(builddata, builddata$DCType == "Gen 4.6")
+
+#DC2015
+DC2015 <- filter(builddata, builddata$DCType == "DC 2015")
+
+#DC2015.5
+DC2015.5 <- filter(builddata, builddata$DCType == "DC2015.5")
+```
+
+## Data Exploration
+
+Understanding the dataset, knowing what it contains and understanding basic data summary statistics is the first step in the exploration process. Data is typically split into two primary categories: categorical and numeric. Categorical data is data that can be divided into groups and includes text/strings. Numeric data are fields which contain numbers. These data types are analyzed separately below.
+
+The exploration section will contain an overview analysis of the following subjects:
+
+- Categorical Variables
+- Numerical Variables
+  - Plots for Build
+  - Plots for Lease
+- Variability
+- Outliers
+- Duplicates
+
+### Categorical Variables
+
+Categorical variables are examined independently by Build and Lease projects and by project type. 
+
+The primary areas of interest are `miss%` and the number of unique variables. The `miss%` shows the percentage of data which is missing for the given variable. The unique count shows the total unique values that appear in the data. These together provide a general understanding of the dataset.
+
+#### Build
+```{r warning=FALSE, message=FALSE}
+charSummary(builddata)
+```
+
+For example, it is important to know that `SupplyPlanDate` is missing a large percentage of values.  This diminishes the value of the data point relative to algorithm development.
+
+#### Lease
+```{r warning=FALSE, message=FALSE}
+charSummary(leasedata)
+```
+
+#### ITPAC
+```{r warning=FALSE, message=FALSE}
+charSummary(ITPAC)
+```
+
+#### Scalable Form Factor
+```{r warning=FALSE, message=FALSE}
+charSummary(ScalableFormFactor)
+```
+
+#### Gen 4.5
+```{r warning=FALSE, message=FALSE}
+charSummary(Gen4.5)
+```
+
+#### Gen 4.6
+```{r warning=FALSE, message=FALSE}
+charSummary(Gen4.6)
+```
+
+#### DC 2015
+```{r warning=FALSE, message=FALSE}
+charSummary(DC2015)
+```
+
+#### DC 2015.5
+```{r warning=FALSE, message=FALSE}
+charSummary(DC2015.5)
+```
+
+There are 75 total snapshots in the dataset.  A summary of key findings is illustrated in the table below.
+
+| Project Type | Total Projects | Distinct L2 Milestones |
+| ----- | ----- | ----- |
+| Build | 20 | 89 |
+| Lease | 30 | 86 |
+| ITPAC | 3 | 37 |
+| Scalable Form Factor | 6 | 40 |
+| Gen 4.5 | 2 | 19 |
+| DC2015 | 3 | 53 |
+| DC2015.5 | 5 | 34 |
+
+A few observations:
+
+- There are not very many total projects. There are only 20 unique Build projects available for consideration.
+- When Build project are subset by project type, the data available for analytical consideration is further reduced.  For example,  there are 6 for Scalable Form Factor projects and only one Gen 4.6 project.
+
+This will be examined in greater depth, *infra*.
+
+### Numerical Data
+
+As the analysis below demonstrates, numerical data is analyzed differently from the data above.
+
+#### Build
+
+```{r warning=FALSE, message=FALSE}
+#Build Data
+myNumSum <- numSummary(builddata)[, c(1,7,8,16,17)]
+myNumSum <- tibble::rownames_to_column(myNumSum)
+names(myNumSum)[5] <- "missCNT"
+names(myNumSum)[1] <- "Variable_Name"
+myNumSum <- arrange(myNumSum, desc(n))
+head(myNumSum, 20)
+```
+
+The analysis reveals a few findings. `TaskPercentWorkCompleted` appears to be binary. This suggests that the value is not a continuous measure of task progress. 
+
+`Tranche` shows a high number of missing values. From discussions with Microsoft, it was learned `Tranche` data is a more recent addition to the dataset which may explain the missing values.
+
+#### Lease
+
+```{r warning=FALSE, message=FALSE}
+#Lease Data
+myNumSum <- numSummary(leasedata)[, c(1,7,8,16,17)]
+myNumSum <- tibble::rownames_to_column(myNumSum)
+names(myNumSum)[5] <- "missCNT"
+names(myNumSum)[1] <- "Variable_Name"
+myNumSum <- arrange(myNumSum, desc(n))
+head(myNumSum, 20)
+```
+
+Analysis of Lease data suggests `TaskPercentWorkCompleted` is not binary for lease projects. 
+
+> This is an example where Build and Lease projects appear to be managed differently, which suggests that they need to be analyzed separately
+
+`Tranche` also shows significantly more missing values than for Build.
+
+### Plot Numeric Values for Build
+
+Numeric values are plotted to identify any interesting distributions.
+
+```{r plotsNumericBuild, message=FALSE, warning=FALSE}
+library(purrr)
+library(tidyr)
+
+cntNumNames <- length((select_if(builddata,is.numeric)))
+#Make plots max 6 at a time - change if needed
+maxPlot = 6
+loopCnt <- cntNumNames %/% maxPlot
+remainder <- cntNumNames %% maxPlot
+
+myLoop_DF <- data.frame(x = seq(1, cntNumNames-remainder, by = maxPlot), y = seq(6, cntNumNames, by = maxPlot))
+myLoopMax <- max(myLoop_DF)
+
+for(i in 1:nrow(myLoop_DF)){
+  myplot <- select_if(data,is.numeric)[myLoop_DF[i,1]:myLoop_DF[i,2]]%>% gather() %>% ggplot(aes(value)) +
+      facet_wrap(~ key, scales = "free") + geom_histogram() #+  geom_density()
+  print(myplot)
+}
+```
+
+The binary nature of the `TaskPercentWorkCompleted` column are observed here. The values are either 0 or 100, suggesting the column is binary and used to determine if a task is complete.
+
+### Plot Numeric Values for Lease
+
+Numeric values for Lease projects are visualized below.
+
+```{r plotsNumericLease, message=FALSE, warning=FALSE}
+library(purrr)
+library(tidyr)
+
+cntNumNames <- length((select_if(leasedata,is.numeric)))
+#Make plots max 6 at a time - change if needed
+maxPlot = 6
+loopCnt <- cntNumNames %/% maxPlot
+remainder <- cntNumNames %% maxPlot
+
+myLoop_DF <- data.frame(x = seq(1, cntNumNames-remainder, by = maxPlot), y = seq(6, cntNumNames, by = maxPlot))
+myLoopMax <- max(myLoop_DF)
+
+for(i in 1:nrow(myLoop_DF)){
+  myplot <- select_if(data,is.numeric)[myLoop_DF[i,1]:myLoop_DF[i,2]]%>% gather() %>% ggplot(aes(value)) +
+      facet_wrap(~ key, scales = "free") + geom_histogram() #+  geom_density()
+  print(myplot)
+}
+```
+
+### Variability
+
+Machine learning algorithms require patterns in data in order to develop a predictive algorithm. If the values are all the same in a column, there is no pattern. Below column variability is evaluated:
+
+```{r message=FALSE, warning=FALSE}
+#Col 1 -s StoreId, 20 is Status
+myVariance <- as.data.frame(apply(builddata, 2, var))
+
+myVariance <- tibble::rownames_to_column(myVariance)
+names(myVariance)[2] <- "Variance"
+myVariance <-  myVariance %>% mutate(Variance2 = ifelse(Variance == 0, "No", "Yes"))
+table(myVariance$Variance2)
+```
+
+Because `r table(myVariance$Variance2)[1]` variable has no variance - all the values are the same - it can be removed from the working dataset.  If there are no differences in a column, it is of no use in the development of an algorithm.  The variable to be removed is:
+
+```{r warning=FALSE, message=FALSE}
+VarNames <- myVariance %>% filter(Variance > 0) %>% select(rowname)
+zeroVarNames <- myVariance %>% filter(Variance == 0) %>% select(rowname)
+#builddata <- builddata %>% select(StoreId, Status, unlist(VarNames))
+zeroVarNames
+```
+
+### Outlier Detection
+
+In the working dataset, there is one variable, `TaskDuration` evaluated to identify potential outliers.  Outliers are data points that are unusually distant from other data points.  Outliers can signify a number of things, including measurement error, a statistical anomaly, or variability in the data. In this case outliers may represent particularly difficult tasks within projects.
+
+There are many way to visualize outliers.  Boxplots are the most commonly used visualization.
+
+```{r warning=FALSE, message=FALSE}
+out2 <- ggplot(builddata, aes(x = "", y = TaskDuration)) + geom_boxplot(outlier.color="red", outlier.shape=8, outlier.size=4) 
+print(out2)
+```
+
+The boxplot reveals that there are potential outliers. 
+
+Here is a list of the highest 50 `TaskDuration` records:
+
+```{r warning=FALSE, message=FALSE}
+tmpDuration <- arrange(data, desc(TaskDuration)) %>% select(ProjectID, ProgramType, TaskName, TaskDuration) %>% unique() %>% head(50)
+#tmpDuration <- as.data.frame(head((tmpDuration$TaskDuration), 25))
+#names(tmpDuration) <- "Task Duration"
+tmpDuration
+```
+
+> Microsft may be able to identify is any of these projects are uniquely outliers and should be removed from consideration.
+
+### Duplicates
+
+A duplicate value would mean the same task and task attributes were recorded within a single snapshot. There should be no reason for this to occur. As expected no duplicates are found because each record has a unique `TaskID` and `SnapshotDateID` value.
+
+```{r dupes, warning=FALSE, message=FALSE}
+# Duplicate Build Records
+cat("The number of duplicated build records is", nrow(builddata) - nrow(unique(builddata)))  
+```
+
+```{r, warning=FALSE, message=FALSE}
+# Duplicate Lease Records
+cat("The number of duplicated lease records is", nrow(leasedata) - nrow(unique(leasedata)))
+```
+
+Had a duplicate been identified, it might indicate a data entry error or perhaps data corruption.  This is why the check is a necessary one.
+
+#Data Analysis
+
+The analysis portion of the exploratory analysis focuses on understanding the data within the business context and how it could be used in a data science model. The analyses  includes:
+
+- Project Types and Status
+- Task Analysis
+- Milestone Analysis
+- Project Duration
+
+##Project Types & Status
+
+There are only a small number of Build Projects. The number of projects/type are examined by project status (active or complete).
+
+```{r warning=FALSE, message=FALSE}
+data %>%  group_by(ProgramType) %>% summarise(ProjectCount = n_distinct(ProjectID),  
+                                      Active = n_distinct(ProjectID[ProjectStatus == "Active"]), 
+                                      Complete = n_distinct(ProjectID[ProjectStatus == "Complete"]))
+
+builddata %>% group_by(DCType) %>% summarise(ProjectCount = n_distinct(ProjectID),  
+                                       Active = n_distinct(ProjectID[ProjectStatus == "Active"]), 
+                                       Complete = n_distinct(ProjectID[ProjectStatus == "Complete"]))
+```
+
+Of the projects for which we have data, **only 5 Build and 10 Lease have completed**. This leaves 17 active Build and 20 active Lease projects.
+
+A further breakdown of these projects by `DCType` illustrates some interesting results. **The only completed projects are DC 2015 and Gen 4.5**. The rest of the project types, which all appear to be newer, do not have any completed projects.  
+
+The lack of fully completed projects poses a problem for analysis. In order to develop an algorithm, a critical mass of data is needed with which a model can be trained to identify patterns. Ideally there would be a significant number of completed projects for each of the different program types so that observations regarding the full lifecycle of a project could be made. Based on those observations predictions could be made about what may happen to similar projects in the future.
+
+> Completed projects are required for machine learnig algorithms to learn from.
+
+If common factors between different projects are found, it may be possible to identify patterns that extend to all Build projects regardless of type. 
+
+> The lack of historical data suggests Active projects may need to be considered for analysis. It may be possible to use project checkpoints and milestones from active projects to aid in the devlopment of a predictive tool.
+
+##Project Task Analysis
+
+If there are common project tasks across project types, useful data for analysis may be identified.  To evaluate this opportunity, the following exercises are performed:
+
+- Project Task Counts
+- Project Task Plots for Build by Type and Lease
+- Project Tasks by Tranch
+- Common Task Identification
+
+### Project Task Counts
+
+The number of unique tasks in a project may indicate the complexity of a project. A count of the number of tasks per each snapshot of data is calculated.  The task counts are plotted by weekly snapshot to show project activity over time. The shape of these graphs provides insights into  activity levels as a project progresses. 
+
+```{r warning=FALSE, message=FALSE, echo=FALSE}
+
+taskcount <- function(x) {
+  
+  TaskCounts <- ddply(x, .(x$ProjectID, x$SnapshotDateID), nrow)
+  names(TaskCounts) <- c("ProjectID", "SnapshotDateID", "Freq")
+  TaskCounts$SnapshotDateID <- factor(TaskCounts$SnapshotDateID)
+     
+  TaskCounts 
+}
+
+#Build task counts
+buildTaskCounts <- taskcount(builddata)
+
+#Lease task counts
+leaseTaskCounts <- taskcount(leasedata)
+
+#ITPACT task counts
+ITPACTaskCounts <- taskcount(ITPAC)
+  
+#ScalableFormFactor task counts
+ScalableFormFactorTaskCounts <- taskcount(ScalableFormFactor)
+
+#Gen4.5 task counts
+Gen4.5TaskCounts <- taskcount(Gen4.5)
+
+#Gen4.6 task counts
+Gen4.6TaskCounts <- taskcount(Gen4.6)
+
+#DC2015 task counts
+DC2015TaskCounts <- taskcount(DC2015)
+
+#DC2015.5 task counts
+DC2015.5TaskCounts <- taskcount(DC2015.5)
+```
+
+Below, note the significant variation in the shape of the plots.  The number of tasks by project is also inconsistent. 
+
+#### ITPAC
+```{r, message=FALSE, warning=FALSE}
+library(gridExtra)
+
+##################
+#     ITPAC      #
+##################
+
+#Graph all ITPAC projects task counts
+cntNumProjects <- nrow((distinct(ITPACTaskCounts, ProjectID)))
+ProjectList <- data.frame(distinct(ITPACTaskCounts, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- ITPACTaskCounts %>% filter(ProjectID == ProjectList[i,1])
+     
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=Freq)) + 
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "ITPAC") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, plot3, ncol=2)
+```
+
+Note the difference in the number of tasks and the variability in number of tasks between snapshots.
+
+#### Scalable Form Factor
+```{r, message=FALSE, warning=FALSE}
+########################
+#  ScalableFormFactor  #
+########################
+
+#Graph all ScalableFormFactor projects task counts
+cntNumProjects <- nrow((distinct(ScalableFormFactorTaskCounts, ProjectID)))
+ProjectList <- data.frame(distinct(ScalableFormFactorTaskCounts, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- ScalableFormFactorTaskCounts %>% filter(ProjectID == ProjectList[i,1])
+
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=Freq)) +
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "ScalableFormFactor") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=2)
+#grid.arrange(plot7, plot8, ncol=2)
+```
+
+#### Gen 4.5
+```{r, message=FALSE, warning=FALSE}
+###################
+#     Gen4.5      #
+###################
+
+#Graph all Gen4.5 projects task counts
+cntNumProjects <- nrow((distinct(Gen4.5TaskCounts, ProjectID)))
+ProjectList <- data.frame(distinct(Gen4.5TaskCounts, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- Gen4.5TaskCounts %>% filter(ProjectID == ProjectList[i,1])
+
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=Freq)) +
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "Gen4.5") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, ncol=2)
+```
+
+#### Gen 4.6
+```{r, message=FALSE, warning=FALSE}
+###################
+#     Gen4.6      #
+###################
+
+#Graph all Gen4.6 projects task counts
+cntNumProjects <- nrow((distinct(Gen4.6TaskCounts, ProjectID)))
+ProjectList <- data.frame(distinct(Gen4.6TaskCounts, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- Gen4.6TaskCounts %>% filter(ProjectID == ProjectList[i,1])
+     
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=Freq)) + 
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "Gen4.6") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, ncol=2)
+```
+
+#### DC 2015
+```{r, message=FALSE, warning=FALSE}
+###################
+#     DC2015      #
+###################
+
+#Graph all DC2015 projects task counts
+cntNumProjects <- nrow((distinct(DC2015TaskCounts, ProjectID)))
+ProjectList <- data.frame(distinct(DC2015TaskCounts, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- DC2015TaskCounts %>% filter(ProjectID == ProjectList[i,1])
+     
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=Freq)) + 
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "DC2015") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, plot3, ncol=2)
+```
+
+#### DC 2015.5
+```{r, message=FALSE, warning=FALSE}
+#####################
+#     DC2015.5      #
+#####################
+
+#Graph all DC2015.5 projects task counts
+cntNumProjects <- nrow((distinct(DC2015.5TaskCounts, ProjectID)))
+ProjectList <- data.frame(distinct(DC2015.5TaskCounts, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- DC2015.5TaskCounts %>% filter(ProjectID == ProjectList[i,1])
+     
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=Freq)) + 
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "DC2015.5") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, ncol=2)
+```
+
+There is little consistency illustrated above. While Gen 4.5 and DC 2015 show some consistency between projects, Scalable Form Factor and DC 2015.5, which contain the bulk of the current active projects, do not show data patterns. (Gen 4.6 has only one project and therefore there is nothing to compare.)
+
+### Plot Lease Task Counts
+
+The same task counts per snapshot were plotted for the Lease projects.
+
+```{r, message=FALSE, warning=FALSE}
+library(gridExtra)
+
+#Graph all build projects task counts
+cntNumProjects <- nrow((distinct(leaseTaskCounts, ProjectID)))
+ProjectList <- data.frame(distinct(leaseTaskCounts, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- leaseTaskCounts %>% filter(ProjectID == ProjectList[i,1])
+     
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=Freq)) + 
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1]) + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=2)
+grid.arrange(plot7, plot8, plot9, plot10, plot11, plot12, ncol=2)
+grid.arrange(plot13, plot14, plot15, plot16, plot17, plot18, ncol=2)
+grid.arrange(plot19, plot20, plot21, plot22, plot23, plot24, ncol=2)
+grid.arrange(plot25, plot26, plot27, plot28, plot29, plot30, ncol=2)
+```
+
+The Lease graphs show more consistency than the Build projects. 
+
+> Perhaps this should become a focus for futher development.
+
+### Tasks per Tranche
+
+The variations in the total tasks between projects of the same type may be explain by the number of tranches in a project. Two tranches may logically have the twice the number of tasks involved as a single tranche. The number of tranches and tasks per tranche are calculated by snapshot.
+
+#### ITPAC
+```{r, warning=FALSE, message=FALSE}
+
+pertranche <- function(x) {
+  
+  df <- data %>%
+        group_by(ProjectID, SnapshotDateID) %>%
+        summarise(NumberTranches = ifelse( !all(is.na(Tranche)), n_distinct(Tranche, na.rm=TRUE), 1))
+  
+  df$SnapshotDateID <- factor(df$SnapshotDateID)
+  inner_join(x, df)
+}
+
+pertranchegroup <- function(x) {
+  df<-
+pertranche(x) %>%
+    group_by(ProjectID, SnapshotDateID, Freq, NumberTranches) %>%
+    summarise(TaskPerTranche = Freq / NumberTranches)
+df <- ungroup(df)
+}
+
+#ITPACT task counts
+ITPACTrancheTask <- pertranchegroup(ITPACTaskCounts)
+
+#ScalableFormFactor task counts
+ScalableFormFactorTrancheTask <- pertranchegroup(ScalableFormFactorTaskCounts)
+
+#Gen4.5 task counts
+Gen4.5TrancheTask <- pertranchegroup(Gen4.5TaskCounts)
+
+#Gen4.6 task counts
+Gen4.6TrancheTask <- pertranchegroup(Gen4.6TaskCounts)
+
+#DC2015 task counts
+DC2015TrancheTask <- pertranchegroup(DC2015TaskCounts)
+
+#DC2015.5 task counts
+DC2015.5TrancheTask <- pertranchegroup(DC2015.5TaskCounts)
+
+#Lease task counts
+leaseTrancheTask <- pertranchegroup(leaseTaskCounts)
+
+##################
+#     ITPAC      #
+##################
+
+#Graph all ITPAC projects task counts
+cntNumProjects <- nrow((distinct(ITPACTrancheTask, ProjectID)))
+ProjectList <- data.frame(distinct(ITPACTrancheTask, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- ITPACTrancheTask %>% filter(ProjectID == ProjectList[i,1])
+     
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=TaskPerTranche)) + 
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "ITPAC") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, plot3, ncol=2)
+```
+
+#### Scalable Form Factor
+```{r, warning=FALSE, message=FALSE}
+########################
+#  ScalableFormFactor  #
+########################
+
+#Graph all ScalableFormFactor projects task counts
+cntNumProjects <- nrow((distinct(ScalableFormFactorTrancheTask, ProjectID)))
+ProjectList <- data.frame(distinct(ScalableFormFactorTrancheTask, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- ScalableFormFactorTrancheTask %>% filter(ProjectID == ProjectList[i,1])
+
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=TaskPerTranche)) +
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "ScalableFormFactor") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=2)
+grid.arrange(plot7, plot8, ncol=2)
+```
+
+#### Gen 4.5
+```{r, warning=FALSE, message=FALSE}
+###################
+#     Gen4.5      #
+###################
+
+#Graph all Gen4.5 projects task counts
+cntNumProjects <- nrow((distinct(Gen4.5TrancheTask, ProjectID)))
+ProjectList <- data.frame(distinct(Gen4.5TrancheTask, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- Gen4.5TrancheTask %>% filter(ProjectID == ProjectList[i,1])
+
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=TaskPerTranche)) +
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "Gen4.5") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, ncol=2)
+```
+
+#### Gen 4.6
+```{r, warning=FALSE, message=FALSE}
+###################
+#     Gen4.6      #
+###################
+
+#Graph all Gen4.6 projects task counts
+cntNumProjects <- nrow((distinct(Gen4.6TrancheTask, ProjectID)))
+ProjectList <- data.frame(distinct(Gen4.6TrancheTask, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- Gen4.6TrancheTask %>% filter(ProjectID == ProjectList[i,1])
+     
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=TaskPerTranche)) + 
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "Gen4.6") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, ncol=2)
+```
+
+#### DC 2015
+```{r, warning=FALSE, message=FALSE}
+###################
+#     DC2015      #
+###################
+
+#Graph all DC2015 projects task counts
+cntNumProjects <- nrow((distinct(DC2015TrancheTask, ProjectID)))
+ProjectList <- data.frame(distinct(DC2015TrancheTask, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- DC2015TrancheTask %>% filter(ProjectID == ProjectList[i,1])
+     
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=TaskPerTranche)) + 
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "DC2015") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, plot3, ncol=2)
+```
+
+Note the consistency in the DC 2015 Build project type above. 
+
+#### DC 2015.5
+```{r, warning=FALSE, message=FALSE}
+#####################
+#     DC2015.5      #
+#####################
+
+#Graph all DC2015.5 projects task counts
+cntNumProjects <- nrow((distinct(DC2015.5TrancheTask, ProjectID)))
+ProjectList <- data.frame(distinct(DC2015.5TrancheTask, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- DC2015.5TrancheTask %>% filter(ProjectID == ProjectList[i,1])
+     
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=TaskPerTranche)) + 
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "DC2015.5") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, ncol=2)
+```
+
+> The graphs of the tasks per tranche also illustrate a high degree of variability. 
+
+## Common Project Tasks
+
+Assess how many tasks common across all projects and within the project type groups. Discover which task names appeared in all of the Build projects and within project types.
+
+### All Build Data
+```{r, warning=FALSE, message=FALSE}
+
+common <- function(x) {
+  common <- data.frame()
+commontemp <- data.frame()
+cntNumProjects <- nrow((distinct(x, ProjectID)))
+ProjectList <- data.frame(distinct(x, ProjectID))
+
+for(i in 2:cntNumProjects){
+     df1 <- x %>% filter(ProjectID == ProjectList[i-1,1]) %>% select(TaskPlain)
+     df2 <- x %>% filter(ProjectID == ProjectList[i,1]) %>% select(TaskPlain)
+
+     commontemp <- intersect(df1,df2)
+
+     common <- if (length(common)==0) {
+       commontemp
+     } else {
+       intersect(common,commontemp)
+     }}
+
+  common
+}
+
+common(builddata)
+```
+
+### ITPAC
+```{r, warning=FALSE, message=FALSE}
+ITPACcommon <- common(ITPAC)
+ITPACcommon
+```
+
+### Scalable Form Factor
+```{r, warning=FALSE, message=FALSE}
+ScalableFormFactorcommon <- common(ScalableFormFactor)
+ScalableFormFactorcommon
+```
+
+### Gen 4.5
+```{r, warning=FALSE, message=FALSE}
+Gen4.5common <- common(Gen4.5)
+Gen4.5common
+```
+
+### Gen 4.6
+```{r, warning=FALSE, message=FALSE}
+Gen4.6common <- as.data.frame(unique(Gen4.6$TaskPlain))
+names(Gen4.6common) <- "TaskPlain"
+Gen4.6common
+```
+
+### DC 2015
+```{r, warning=FALSE, message=FALSE}
+DC2015common <- common(DC2015)
+DC2015common
+```
+
+### DC 2015.5
+```{r, warning=FALSE, message=FALSE}
+DC2015.5common <- common(DC2015.5)
+DC2015.5common
+```
+
+> There are not any tasks that are common among all projects.
+
+### Common Tasks Within Lease Project Types
+
+Lease project tasks were analyzed for task commonality.
+
+```{r, warning=FALSE, message=FALSE}
+#Loop to go through all lease projects and find common
+leasecommon <- data.frame()
+commontaskstemp <- data.frame()
+cntNumProjects <- nrow((distinct(leasedata, ProjectID)))
+ProjectList <- data.frame(distinct(leasedata, ProjectID))
+
+for(i in 2:cntNumProjects){
+     taskdf1 <- leasedata %>% filter(ProjectID == ProjectList[i-1,1]) %>% select(TaskPlain)
+     taskdf2 <- leasedata %>% filter(ProjectID == ProjectList[i,1]) %>% select(TaskPlain)
+     
+     commontaskstemp <- intersect(taskdf1,taskdf2)
+     
+     leasecommon <- if (length(leasecommon)==0) {
+       commontaskstemp
+     } else {
+       intersect(leasecommon,commontaskstemp)
+     }}
+
+leasecommon
+```
+
+> Similar to Build projects, there were no common task names for all of the Lease projects.
+
+### Common Task Summary
+
+A summary table of the common tasks compared to the total number of unique task names per project was compiled.
+
+```{r, warning=FALSE, message=FALSE}
+
+DCType <- c('ITPAC','Scalable Form Factor','Gen 4.5', 'DC 2015','DC2015.5')
+
+typecommontasks <- c(as.numeric(length(ITPACcommon$TaskPlain)), as.numeric(length(ScalableFormFactorcommon$TaskPlain)),  as.numeric(length(Gen4.5common$TaskPlain)), as.numeric(length(DC2015common$TaskPlain)), as.numeric(length(DC2015.5common$TaskPlain)))
+
+projectcommontasks <- data.frame(DCType, typecommontasks)
+
+projecttaskcount <-
+  builddata %>%
+  group_by(DCType) %>%
+  summarise(TotalTasks = n_distinct(TaskPlain))
+  
+  inner_join(projecttaskcount, projectcommontasks)
+```
+
+> Scalable Form Factor projects have the most unique task names and also the least number of tasks in common. 
+
+## Milestone Analysis
+
+Project milestones are evaluated to find commonality between projects.
+
+Microsoft provided a list of `L2Milestones` common to all projects. 
+
+**Build Milestones**
+
+1. Signal Received
+2.Charter Approved
+3. Design Kick off
+4. Issue for Construction (Design Complete)
+5. Construction Start
+6. Beneficial Use
+7. CX Level 3 Complete
+8. IST Complete
+9. Security Lockdown
+10. Turnover to Ops
+11. Colo Ready
+12. RTEG
+
+**Lease Milestones**
+
+1. apex Council Approved
+2. Charter Approved
+3. Signal Received
+4. Site Selection Approved
+5. Lease Contract Executed
+6. High Confidence RFS
+7. OPS Fitout Complete
+8. Colo Ready
+9. Security Lockdown
+10. RTEG
+
+Examine which milestones are common between all project types and within each project type group:
+
+### All Build Projects
+
+```{r, warning=FALSE, message=FALSE}
+
+common <- function(x) {
+  common <- data.frame()
+commontemp <- data.frame()
+cntNumProjects <- nrow((distinct(x, ProjectID)))
+ProjectList <- data.frame(distinct(x, ProjectID))
+
+x <- filter(x, L2Milestone != "N/A")
+
+for(i in 2:cntNumProjects){
+     df1 <- x %>% filter(ProjectID == ProjectList[i-1,1]) %>% select(L2Milestone)
+     df2 <- x %>% filter(ProjectID == ProjectList[i,1]) %>% select(L2Milestone)
+     
+     commontemp <- intersect(df1,df2)
+     
+     common <- if (length(common)==0) {
+       commontemp
+     } else {
+       intersect(common,commontemp)
+     }}
+
+  common 
+}
+
+common(builddata)
+```
+
+### ITPAC
+```{r, warning=FALSE, message=FALSE}
+#ITPAC
+ITPACmilestone <- common(ITPAC)
+ITPACmilestone
+```
+
+### Scalable Form Factor
+```{r, warning=FALSE, message=FALSE}
+#ScalableFormFactor
+ScalableFormFactormilestone <- common(ScalableFormFactor)
+ScalableFormFactormilestone
+```
+
+### Gen 4.5
+```{r, warning=FALSE, message=FALSE}
+#Gen4.5
+Gen4.5milestone <- common(Gen4.5)
+Gen4.5milestone
+```
+
+### Gen 4.6
+```{r, warning=FALSE, message=FALSE}
+#Gen4.6
+Gen4.6milestone <- as.data.frame(unique(Gen4.6$L2Milestone), col.names = "L2Milestone")
+colnames(Gen4.6milestone) <- c("L2Milestone")
+Gen4.6milestone
+```
+
+### DC 2015
+```{r, warning=FALSE, message=FALSE}
+#DC2015
+DC2015milestone <- common(DC2015)
+DC2015milestone
+```
+
+### DC 2015.5
+```{r, warning=FALSE, message=FALSE}
+#DC2015.5
+DC2015.5milestone <- common(DC2015.5)
+DC2015.5milestone
+```
+
+### Lease
+```{r, warning=FALSE, message=FALSE}
+#leasedata
+leasedatamilestone <- common(leasedata)
+leasedatamilestone
+```
+
+> The analysis revealed there are only two common milestones among all Build projects, "Colo Ready" and "RTEG." 
+
+There are many milestones unique to each different project type. For example, `DC 2015.5` has a milestone called `T-90 Checkpoint`.
+
+As with tasks, the lack of common milestones makes cross project type analysis difficult. It is possible some of the milestones may have specific names per project but are equivalent to milestones on other projects. 
+
+> A translation of these milestones to common terms could help improve the commonality we are able to find. 
+
+This may be a key consideration going forward.
+
+## Project Duration Analyses 
+
+### Task Start Date Changes
+
+The number and size of schedule changes is at the core of the business problem being examined.  It is a direct measure of schedule estimates. Each change in scheduled start date between snapshots of each task is captured and analyzed. The net total of the delays per task name along with the total number of changes to the task is evaluated for each project types.
+
+```{r, warning=FALSE, message=FALSE}
+
+taskstartchange <- function(x, y) {
+  
+workdf <- inner_join(x, y)
+
+#Order df for lag
+workdf <- workdf[order(workdf$TaskPlain, workdf$SnapshotDateID),]
+
+#Create lagged columns
+workdf <- 
+    workdf %>%
+    group_by(ProjectID, TaskPlain) %>%
+    mutate(SnapshotLag = dplyr::lag(SnapshotDateID, n = 1, default = NA)) %>%
+    mutate(TaskLag = dplyr::lag(TaskStartDate, n = 1, default = NA))
+
+#Calculate the delay per date change
+workdf$TaskDelay <- workdf$TaskStartDate - workdf$TaskLag
+
+select(workdf, TaskPlain, SnapshotDateID, TaskStartDate, TaskLag, TaskDelay)
+}
+
+taskchangesummary <- function(x) {
+  #Sum total of the delays per task and Count of StartDate changes per project and common task
+  x %>%
+  group_by(ProjectID, TaskPlain) %>%
+  summarise(TotalDelay = sum(TaskDelay, na.rm=TRUE), TaskChangeCount = length(unique(TaskStartDate))-1, DelayPerChange =  TotalDelay/TaskChangeCount)
+}
+```
+
+#### ITPAC
+```{r, warning=FALSE, message=FALSE}
+workdf <- taskstartchange(ITPAC, ITPACcommon)
+taskchangesummary(workdf)
+```
+
+#### Scalable Form Factor
+```{r, warning=FALSE, message=FALSE}
+workdf <- taskstartchange(ScalableFormFactor, ScalableFormFactorcommon)
+taskchangesummary(workdf)
+```
+
+#### Gen 4.5
+```{r, warning=FALSE, message=FALSE}
+workdf <- taskstartchange(Gen4.5, Gen4.5common)
+taskchangesummary(workdf)
+```
+
+#### Gen 4.6
+```{r, warning=FALSE, message=FALSE}
+workdf <- taskstartchange(Gen4.6, Gen4.6common)
+taskchangesummary(workdf)
+```
+
+#### DC 2015
+```{r, warning=FALSE, message=FALSE}
+workdf <- taskstartchange(DC2015, DC2015common)
+taskchangesummary(workdf)
+```
+
+#### DC 2015.5
+```{r, warning=FALSE, message=FALSE}
+workdf <- taskstartchange(DC2015.5, DC2015.5common)
+taskchangesummary(workdf)
+```
+
+This information identifies tasks that have a high degree of planning volatility. A large number of date changes may signify a task is dependent on other predecessor tasks. A large net delay in a task may reveal areas of work where planning is more difficult to  accurately forecast.
+
+### Milestone Durations
+
+The completion date is defined as the first `TaskFinishDate` which appears in the dataset with a `TaskPercentCompleted` of 100.
+
+Forecasted completion dates for each milestone is examined for each project and project type. Similar to the task analysis, the goal is to identify areas of the project with high degrees of volatility. 
+
+For each project and milestone, the net change from the initial forecasted finish date is calculated with the total number of date changes.  The average days number of days and the standard deviation of these changes is also presented. 
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+milestones <-  builddata %>% filter(TaskPercentCompleted == "100", L2Milestone != "N/A") %>%
+  group_by(ProjectID, Tranche, L2Milestone) %>% summarise(TaskCompleteDate = min(TaskFinishDate))
+
+milestones <- left_join(milestones, constructionstart)
+
+#Order within projects and tranches
+milestones <- milestones[order(milestones$ProjectID, milestones$Tranche, milestones$TaskCompleteDate),]
+
+#Create lagged columns
+milestones <- milestones %>%
+    group_by(ProjectID, Tranche) %>% mutate(MilestoneLag = dplyr::lag(TaskCompleteDate, n = 1, default = NA)) 
+
+#Calculate the delay per date change
+milestones$SinceLastMilestone <- milestones$TaskCompleteDate - milestones$MilestoneLag
+milestones$SinceConstructionStart <- milestones$TaskCompleteDate - milestones$ConstructionStartDate
+
+schedulechange <- function(x, y) {
+    
+    workdf <- inner_join(x, y)
+    
+    #Order df for lag
+    workdf <- workdf[order(workdf$ProjectID, workdf$Tranche, workdf$L2Milestone, workdf$SnapshotDateID),]
+    
+    #Create lagged columns
+    workdf <- 
+        workdf %>%
+        group_by(ProjectID, Tranche, L2Milestone, TaskPlain) %>%
+        mutate(SnapshotLag = dplyr::lag(SnapshotDateID, n = 1, default = NA)) %>%
+        mutate(MilestoneLag = dplyr::lag(TaskFinishDate, n = 1, default = NA))
+    
+    #Calculate the delay per date change
+    workdf$TaskDelay <- workdf$TaskFinishDate - workdf$MilestoneLag
+    
+    select(workdf, L2Milestone, SnapshotDateID, TaskFinishDate, MilestoneLag, TaskDelay)
+    }
+
+delaytotal <- function(x) {
+    
+    #Sum total of the delays per milestone
+    x %>%
+      group_by(L2Milestone, ProjectID) %>%
+      summarise(TotalDelay = sum(TaskDelay, na.rm=TRUE), SnapshotCount = sd(TaskDelay, na.rm=TRUE))
+    }
+
+changesummary <- function(x) {
+    
+    #Count of StartDate changes per project and common milestone
+    x %>% 
+      group_by(L2Milestone, ProjectID) %>% 
+      summarise(TotalDelay = sum(TaskDelay, na.rm=TRUE), MilestoneChangeCount = length(unique(TaskFinishDate))-1, SnapshotCount = n_distinct(SnapshotDateID), AvgDelayPerSnapshot = TotalDelay/MilestoneChangeCount, DelayStDev = sd(TaskDelay, na.rm=TRUE), ChangesPerSnapshot = MilestoneChangeCount/SnapshotCount) 
+    }
+```
+
+#### ITPAC
+
+```{r, warning=FALSE, message=FALSE}
+#ITPAC
+ITPACmiledelay <- schedulechange(ITPAC, ITPACmilestone)
+changesummary(ITPACmiledelay)
+```
+
+#### Scalable Form Factor
+
+```{r, warning=FALSE, message=FALSE}
+#ScalableFormFactor
+ScalableFormFactormiledelay <- schedulechange(ScalableFormFactor, ScalableFormFactormilestone)
+changesummary(ScalableFormFactormiledelay)
+```
+
+#### Gen 4.5
+
+```{r, warning=FALSE, message=FALSE}
+#Gen4.5
+Gen4.5miledelay <- schedulechange(Gen4.5, Gen4.5milestone)
+changesummary(Gen4.5miledelay)
+```
+
+#### Gen 4.6
+
+```{r, warning=FALSE, message=FALSE}
+#Gen4.6
+Gen4.6miledelay <- schedulechange(Gen4.6, Gen4.6milestone)
+changesummary(Gen4.6miledelay)
+```
+
+#### DC 2015
+
+```{r, warning=FALSE, message=FALSE}
+#DC2015
+DC2015miledelay <- schedulechange(DC2015, DC2015milestone)
+changesummary(DC2015miledelay)
+```
+
+#### DC 2015.5
+
+```{r, warning=FALSE, message=FALSE}
+#DC2015.5
+DC2015.5miledelay <- schedulechange(DC2015.5, DC2015.5milestone)
+changesummary(DC2015.5miledelay)
+```
+
+An interesting finding is milestones are not unique to `Tranches`. The same milestone can be associated with different stages of the project as determined by the `TaskName`. Therefore, it is not enough to look at just the `L2Milestone` value alone - the combination of milestone and task is necessary.
+
+#### Lease
+
+```{r, warning=FALSE, message=FALSE}
+#leasedata
+leasemiledelay <- schedulechange(leasedata, leasedatamilestone)
+myTmpDF <- changesummary(leasemiledelay)
+myTmpDF
+```
+
+Just reviewing one metric ans an example, the data above provides a standard deviation for `TotalDelay` = `r sd(myTmpDF$TotalDelay)`.  This is standard deviation of one year for the total delay of Lease Projects.
+
+### Change Summary by Project Type
+
+The milestone completion analysis was extended to look at project types as a group in addition to individual projects. It is useful to compare project types and continue the analysis of commonality between the project types. 
+
+#### All Build Projects
+```{r, warning=FALSE, message=FALSE}
+
+typeschedulechange <- function(x) {
+    
+    workdf <- x
+    
+    #Order df for lag
+    workdf <- workdf[order(workdf$ProjectID, workdf$Tranche, workdf$L2Milestone, workdf$SnapshotDateID),]
+    
+    #Create lagged columns
+    workdf <- 
+        workdf %>%
+        group_by(DCType, ProjectID, Tranche, L2Milestone, TaskPlain) %>%
+        mutate(SnapshotLag = dplyr::lag(SnapshotDateID, n = 1, default = NA)) %>%
+        mutate(MilestoneLag = dplyr::lag(TaskFinishDate, n = 1, default = NA))
+    
+    #Calculate the delay per date change
+    workdf$TaskDelay <- workdf$TaskFinishDate - workdf$MilestoneLag
+    
+    select(workdf, L2Milestone, SnapshotDateID, TaskFinishDate, MilestoneLag, TaskDelay)
+    }
+
+typechangesummary <- function(x) {
+    
+    #Count of StartDate changes per project and common milestone
+    x %>% 
+      group_by(DCType, L2Milestone) %>% 
+      summarise(TotalDelay = sum(TaskDelay, na.rm=TRUE), MilestoneChangeCount = length(unique(TaskFinishDate))-1, SnapshotCount = n_distinct(SnapshotDateID), AvgDelayPerSnapshot = TotalDelay/MilestoneChangeCount, DelayStDev = sd(TaskDelay, na.rm=TRUE), ChangesPerSnapshot = MilestoneChangeCount/SnapshotCount) 
+    }
+
+#Build
+temp <- typeschedulechange(builddata)
+typechangesummary(temp)
+```
+
+#### ITPAC
+```{r, warning=FALSE, message=FALSE}
+#ITPAC
+temp <- typeschedulechange(ITPAC)
+typechangesummary(temp)
+```
+
+#### Scalable Form Factor
+```{r, warning=FALSE, message=FALSE}
+#ScalableFormFactor
+temp <- typeschedulechange(ScalableFormFactor)
+typechangesummary(temp)
+```
+
+#### Gen 4.5
+```{r, warning=FALSE, message=FALSE}
+#Gen4.5
+temp <- typeschedulechange(Gen4.5)
+typechangesummary(temp)
+```
+
+#### Gen 4.6
+```{r, warning=FALSE, message=FALSE}
+#Gen4.6
+temp <- typeschedulechange(Gen4.6)
+typechangesummary(temp)
+```
+
+#### DC 2015
+```{r, warning=FALSE, message=FALSE}
+#DC2015
+temp <- typeschedulechange(DC2015)
+typechangesummary(temp)
+```
+
+#### DC 2015.5
+```{r, warning=FALSE, message=FALSE}
+#DC2015.5
+temp <- typeschedulechange(DC2015.5)
+typechangesummary(temp)
+```
+
+> The data pressented above continues to illustrate significant variation in most metrics.
+
+### Schedule Duration Analysis
+
+The total planned length of a project is the final metric examined. The total project length is defined as the total number of days from the construction start date to the maximum `TaskFinishDate`. This duration provides insight on how the planned work fluctuates over time.
+
+#### Calculate Project Length
+
+The total length is calculated for every data snapshot in each project. Build and Lease projects are evaluated separately. 
+
+#### Build
+```{r, warning=FALSE, message=FALSE}
+
+#Build Project Length
+projectLength <-
+builddata %>% 
+  group_by(ProjectID) %>% 
+  summarise(TaskStartDate = min(TaskStartDate), TaskFinishDate = max(TaskFinishDate))
+
+projectLength$Length <- projectLength$TaskFinishDate - projectLength$TaskStartDate
+
+projectLength
+```
+
+#### Lease
+```{r, warning=FALSE, message=FALSE}
+
+#Lease project Length
+projectLength <-
+leasedata %>% 
+  group_by(ProjectID) %>% 
+  summarise(TaskStartDate = min(TaskStartDate), TaskFinishDate = max(TaskFinishDate))
+
+projectLength$Length <- projectLength$TaskFinishDate - projectLength$TaskStartDate
+
+projectLength
+```
+
+### Project Length Graph
+
+The project length values are plotted against the project snapshots to provide a visual representation of the evolution of the project length over time. Each project type is plotted individually so the results could be compared within project types.
+
+#### ITPAC
+```{r, warning=FALSE, message=FALSE}
+
+projlength <- function(x) {
+    projectLength <-
+    x %>%
+      group_by(ProjectID, SnapshotDateID) %>%
+      summarise(TaskStartDate = min(TaskStartDate), TaskFinishDate = max(TaskFinishDate))
+    
+    projectLength$Length <- as.numeric(projectLength$TaskFinishDate - projectLength$TaskStartDate)
+    
+    projectLength
+    }
+
+##################
+#     ITPAC      #
+##################
+
+#ITPAC Project Length
+projectlength <- projlength(ITPAC)
+
+#Graph all ITPAC projects task counts
+cntNumProjects <- nrow((distinct(projectlength, ProjectID)))
+ProjectList <- data.frame(distinct(projectlength, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- ungroup(projectlength) %>% filter(ProjectID == ProjectList[i,1])
+
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=Length)) +
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "ITPAC") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, plot3, ncol=2)
+```
+
+#### Scalable Form Factor
+```{r, warning=FALSE, message=FALSE}
+
+########################
+#  ScalableFormFactor  #
+########################
+
+#ScalableFormFactor Project Length
+projectlength <- projlength(ScalableFormFactor)
+
+#Graph all ScalableFormFactor projects task counts
+cntNumProjects <- nrow((distinct(projectlength, ProjectID)))
+ProjectList <- data.frame(distinct(projectlength, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- ungroup(projectlength) %>% filter(ProjectID == ProjectList[i,1])
+
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=Length)) +
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "ScalableFormFactor") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, plot6, ncol=2)
+```
+
+#### Gen 4.5
+```{r, warning=FALSE, message=FALSE}
+
+###################
+#     Gen4.5      #
+###################
+
+#Gen4.5 Project Length
+projectlength <- projlength(Gen4.5)
+
+#Graph all Gen4.5 projects task counts
+cntNumProjects <- nrow((distinct(projectlength, ProjectID)))
+ProjectList <- data.frame(distinct(projectlength, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- ungroup(projectlength) %>% filter(ProjectID == ProjectList[i,1])
+
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=Length)) +
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "Gen4.5") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, ncol=2)
+```
+
+#### Gen 4.6
+```{r, warning=FALSE, message=FALSE}
+
+###################
+#     Gen4.6      #
+###################
+
+#Gen4.6 Project Length
+projectlength <- projlength(Gen4.6)
+
+#Graph all Gen4.6 projects task counts
+cntNumProjects <- nrow((distinct(projectlength, ProjectID)))
+ProjectList <- data.frame(distinct(projectlength, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- ungroup(projectlength) %>% filter(ProjectID == ProjectList[i,1])
+
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=Length)) +
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "Gen4.6") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, ncol=2)
+```
+
+#### DC 2015
+```{r, warning=FALSE, message=FALSE}
+
+###################
+#     DC2015      #
+###################
+
+#Gen4.6 Project Length
+projectlength <- projlength(DC2015)
+
+#Graph all Gen4.6 projects task counts
+cntNumProjects <- nrow((distinct(projectlength, ProjectID)))
+ProjectList <- data.frame(distinct(projectlength, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- ungroup(projectlength) %>% filter(ProjectID == ProjectList[i,1])
+
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=Length)) +
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "DC2015") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, plot3, ncol=2)
+```
+
+#### DC 2015.5
+```{r, warning=FALSE, message=FALSE}
+
+#####################
+#     DC2015.5      #
+#####################
+
+#Gen4.6 Project Length
+projectlength <- projlength(DC2015.5)
+
+#Graph all Gen4.6 projects task counts
+cntNumProjects <- nrow((distinct(projectlength, ProjectID)))
+ProjectList <- data.frame(distinct(projectlength, ProjectID))
+
+for(i in 1:cntNumProjects){
+     df1 <- ungroup(projectlength) %>% filter(ProjectID == ProjectList[i,1])
+
+     assign(paste0("plot", i),ggplot(df1, aes(x=SnapshotDateID, y=Length)) +
+          geom_bar(stat="identity") + ggtitle(ProjectList[i,1], subtitle = "DC2015.5") + theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),  axis.ticks.x=element_blank()) + theme(plot.title = element_text(size = 8)))
+}
+
+grid.arrange(plot1, plot2, plot3, plot4, plot5, ncol=2)
+```
+
+> The length of the projects per snapshot appear to be variable over time. 
+
+There are no recognizable patterns such as increasing or decreasing length as the project progresses. Additionally, there does not appear to be uniform trends among project types.

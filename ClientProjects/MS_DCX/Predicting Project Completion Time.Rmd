@@ -1,0 +1,3500 @@
+---
+title: "Predicting Project Completion Time"
+output:
+    rmdformats::readthedown:
+      highlight: pygments
+      code_folding: show
+      df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 14px;
+   line-height: 18px;
+}
+body{ /* Normal  */
+   font-size: 14px;
+}
+td {  /* Table  */
+   font-size: 12px;
+}
+h1 { /* Header 1 */
+font-size: 26px;
+color: #4294ce;
+}
+h2 { /* Header 2 */
+font-size: 22px;
+}
+h3 { /* Header 3 */
+font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 12px;
+}
+pre { /* Code block */
+  font-size: 12px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+```{r loadLibs1, warning=FALSE, message=FALSE, echo=FALSE, results="hide"}
+options(warn=-1)
+install.packages("easypackages", repos = "http://cran.us.r-project.org")
+library("easypackages")
+packages("readr", "stringr", "reshape2", "xgboost", "caret", "tibble", "tidyverse", prompt=FALSE)
+```
+
+# Introduction
+
+In the Technology and Construction industries, almost all work takes place in the form of projects.  Therefore, a framework for predicting the completion time of a project would have far-reaching implications across many organizations.  The purpose of this document is to showcase the methodology developed by Valorem for solving this problem.
+
+# Problem Statement
+
+Before we can begin creating the framework, we must define our problem.  At a high-level, we want to know how long a project will take to complete.  Technically, this can be broken down into two different questions.  First, what is the likelihood that the project will complete "Late"?  In Data Science, this type of question would often be solved via Classification.  We will see some approaches to this throughout this document.  Second, how long will it take for the project to be completed?  This type of question would often be solved via Regression.  As with the first statement, we will see examples of this throughout this document.
+
+# Dataset Assumptions
+
+Before we can begin gathering or creating data, we need to outline some fundamental assumptions.  It is often easiest to create a dataset with specific assumptions, then slowly weaken those assumptions as we develop better techniques.  Therefore, we start with the following assumptions.
+
+1. Every project can be defined by a set number of mutually-exclusive "Top Summary Tasks".
+2. In order for a project to be complete, every Top Summary Task must be complete.
+3. These Top Summary Tasks must be completed in the same order on every project and cannot be completed in parallel.
+
+Given these assumptions, we know that the total project completion time must be the sum of the completion times of all Top Summary Tasks.  This allowed us to create a randomized dataset.  In order to randomize the dataset, we generated completion times for each Top Summary Task from a right-skewed distribution.  This means that smaller completion times are more common, but it is possible to see substantially larger completion times in some cases.
+
+NOTE: For extensibility purposes, the dataset created contains fifteen Top Summary Tasks.  It also contains fifty Second Summary Tasks randomly assigned to a single Top Summary Tasks.  Finally, it contains one hundred fifty Detail Tasks randomly assigned to a single Second Summary Task.  For our initial framework, we have simply aggregated the lower level tasks out of the dataset.
+
+Due to the nature of random generation, there is no inherent relationship between the Top Summary Tasks.  This framework only makes of the inherent relationship between parts of a whole, or Top Summary Tasks of a Project in this case.  In real datasets, we would expect there to be relationships between the Top Summary Tasks.  Therefore, the evaluation metrics showcased in this document represent a "worst-case" scenario.
+
+The construction of this dataset can be found in the "Dataset Construction.xlsx" workbook.
+
+# Framework
+
+## Initial Data Preparation
+
+We start by importing our dataset.  For this showcase, we have created datasets with 50, 100, 200 and 400 completed projects.  This will allow us to examine the impact that sample size has on the different techniques.
+
+```{r loadData, echo=FALSE, message=FALSE,warning=FALSE, results='hide'}
+t50proj <- read_csv("C:/Users/bllewellyn/OneDrive - Valorem/DCX/DCX 50Proj 2018_02_13.csv")
+t100proj <- read_csv("C:/Users/bllewellyn/OneDrive - Valorem/DCX/DCX 100Proj 2018_02_13.csv")
+t200proj <- read_csv("C:/Users/bllewellyn/OneDrive - Valorem/DCX/DCX 200Proj 2018_02_13.csv")
+t400proj <- read_csv("C:/Users/bllewellyn/OneDrive - Valorem/DCX/DCX 400Proj 2018_02_13.csv")
+```
+
+```{r showData}
+head(t400proj)
+```
+
+Next, we need to aggregate these datasets up to the ProjectNumber and TopSummaryTaskNumber level.
+
+```{r InitialAgg}
+t50proj["TopSummaryTaskNumber"] <- paste("TopSummaryTask", str_pad(pull(t50proj, "TopSummaryTaskNumber"),2,pad="0"),sep="")
+t50proj_pvt <- dcast(t50proj, ProjectNumber ~ TopSummaryTaskNumber, sum, value.var="CompletionDays")
+t50proj_pvt["Total"] <- apply(t50proj_pvt[,2:16],MARGIN=1,FUN=sum)
+
+t100proj["TopSummaryTaskNumber"] <- paste("TopSummaryTask", str_pad(pull(t100proj, "TopSummaryTaskNumber"),2,pad="0"),sep="")
+t100proj_pvt <- dcast(t100proj, ProjectNumber ~ TopSummaryTaskNumber, sum, value.var="CompletionDays")
+t100proj_pvt["Total"] <- apply(t100proj_pvt[,2:16],MARGIN=1,FUN=sum)
+
+t200proj["TopSummaryTaskNumber"] <- paste("TopSummaryTask", str_pad(pull(t200proj, "TopSummaryTaskNumber"),2,pad="0"),sep="")
+t200proj_pvt <- dcast(t200proj, ProjectNumber ~ TopSummaryTaskNumber, sum, value.var="CompletionDays")
+t200proj_pvt["Total"] <- apply(t200proj_pvt[,2:16],MARGIN=1,FUN=sum)
+
+t400proj["TopSummaryTaskNumber"] <- paste("TopSummaryTask", str_pad(pull(t400proj, "TopSummaryTaskNumber"),2,pad="0"),sep="")
+t400proj_pvt <- dcast(t400proj, ProjectNumber ~ TopSummaryTaskNumber, sum, value.var="CompletionDays")
+t400proj_pvt["Total"] <- apply(t400proj_pvt[,2:16],MARGIN=1,FUN=sum)
+
+head(t400proj_pvt)
+```
+
+This dataset would be great for training a regression model to predict how long a project will take.  However, we also want to be able to predict whether a project will finish "Late".  In order to do this, we need to define what "Late" means.  In a real-world scenario, this would likely be provided by subject matter experts.  In our case, we chose two values, the median (50th percentile) and the 80th percentile of the Total Project Completion Times.  If we use the median, then half of our projects will be considered "Late".  If we use the 80th percentile, then 20% of our projects will be "Late".
+
+```{r TaskLate}
+thresh_50 <- quantile(pull(t400proj_pvt, "Total"), .5)
+thresh_80 <- quantile(pull(t400proj_pvt, "Total"), .8)
+
+t50proj_pvt["LateNum50"] <- ifelse(pull(t50proj_pvt, "Total") > thresh_50, 1, 0)
+t50proj_pvt["LateNum20"] <- ifelse(pull(t50proj_pvt, "Total") > thresh_80, 1, 0)
+t50proj_pvt["Late50"] <- ifelse(pull(t50proj_pvt, "Total") > thresh_50, "Late", "On Time")
+t50proj_pvt["Late20"] <- ifelse(pull(t50proj_pvt, "Total") > thresh_80, "Late", "On Time")
+
+t100proj_pvt["LateNum50"] <- ifelse(pull(t100proj_pvt, "Total") > thresh_50, 1, 0)
+t100proj_pvt["LateNum20"] <- ifelse(pull(t100proj_pvt, "Total") > thresh_80, 1, 0)
+t100proj_pvt["Late50"] <- ifelse(pull(t100proj_pvt, "Total") > thresh_50, "Late", "On Time")
+t100proj_pvt["Late20"] <- ifelse(pull(t100proj_pvt, "Total") > thresh_80, "Late", "On Time")
+
+t200proj_pvt["LateNum50"] <- ifelse(pull(t200proj_pvt, "Total") > thresh_50, 1, 0)
+t200proj_pvt["LateNum20"] <- ifelse(pull(t200proj_pvt, "Total") > thresh_80, 1, 0)
+t200proj_pvt["Late50"] <- ifelse(pull(t200proj_pvt, "Total") > thresh_50, "Late", "On Time")
+t200proj_pvt["Late20"] <- ifelse(pull(t200proj_pvt, "Total") > thresh_80, "Late", "On Time")
+
+t400proj_pvt["LateNum50"] <- ifelse(pull(t400proj_pvt, "Total") > thresh_50, 1, 0)
+t400proj_pvt["LateNum20"] <- ifelse(pull(t400proj_pvt, "Total") > thresh_80, 1, 0)
+t400proj_pvt["Late50"] <- ifelse(pull(t400proj_pvt, "Total") > thresh_50, "Late", "On Time")
+t400proj_pvt["Late20"] <- ifelse(pull(t400proj_pvt, "Total") > thresh_80, "Late", "On Time")
+
+head(t400proj_pvt)
+```
+
+Before we can use this data to evaluate any predictive models, we need to separate it into Training and Testing Sets.  This will allow us to test our models using data that was NOT used to train them.  This is an extremely important step that can not be skipped.  In this case, we will be randomly assigning 70% of the projects to the Training Set and the remaining 30% to the Testing Set.
+
+```{r TrainTestSplit}
+splitperc <- .7
+set.seed(50)
+
+datasize_50proj <- dim(t50proj_pvt)[1]
+sampsize_50proj <- datasize_50proj * splitperc
+samp_50proj <- sample(1:datasize_50proj,sampsize_50proj)
+train_50proj <- t50proj_pvt[samp_50proj,]
+test_50proj <- t50proj_pvt[-samp_50proj,]
+
+datasize_100proj <- dim(t100proj_pvt)[1]
+sampsize_100proj <- datasize_100proj * splitperc
+samp_100proj <- sample(1:datasize_100proj,sampsize_100proj)
+train_100proj <- t100proj_pvt[samp_100proj,]
+test_100proj <- t100proj_pvt[-samp_100proj,]
+
+datasize_200proj <- dim(t200proj_pvt)[1]
+sampsize_200proj <- datasize_200proj * splitperc
+samp_200proj <- sample(1:datasize_200proj,sampsize_200proj)
+train_200proj <- t200proj_pvt[samp_200proj,]
+test_200proj <- t200proj_pvt[-samp_200proj,]
+
+datasize_400proj <- dim(t400proj_pvt)[1]
+sampsize_400proj <- datasize_400proj * splitperc
+samp_400proj <- sample(1:datasize_400proj,sampsize_400proj)
+train_400proj <- t400proj_pvt[samp_400proj,]
+test_400proj <- t400proj_pvt[-samp_400proj,]
+```
+
+## Technical Problem Statement
+
+Now that we have datasets containing the completion time for each Top Summary Task within each project, we need to decide precisely what we want to predict.  Since the Total Project Completion Time is simply the sum of the Top Summary Task completion times, it would be trivial to predict the Total Project Completion Time using all of the Top Summary Tasks.  This would also have no real-world value.  Instead, we would assume that our project is currently incomplete and we want to predict how long it will take given that we only know the completion time of all but the last Top Summary Task.  Similar logic can be used to predict whether a project will complete "Late" based on the completion time of all but the last Top Summary Task.
+
+NOTE: For the initial analysis, we will only use the 400 project dataset.  The other datasets will be used later in this document.
+
+## Linear Regression
+
+This leads us to our first model, Linear Regression.  Linear Regression is one of the simpler models and may be useful for predicting the Total Project Completion Time.  First, we need to build temporary datasets using our Training Sets that contain only the variables of interest.
+
+```{r LinearRegression1}
+temp_400proj <- data.frame(pull(train_400proj, "Total"), train_400proj[,2:15])
+names(temp_400proj) <- c("Total", names(train_400proj[2:15]))
+
+head(temp_400proj)
+```
+
+Now, we can train our regression models.
+
+```{r LinearRegression2}
+lr_400proj <- lm(Total ~ ., data=temp_400proj)
+
+summary(lr_400proj)
+```
+
+A very quick way to analyze our model is to find the "Adjusted R-Squared".  We want this value to be as close to one as possible.  Values of greater than .8 are generally considered "good".  Obviously, a value of .9012 is above that threshold.  However, for posterity, we should be evaluating this metric using our Testing Set.  As the formula for Adjusted R-Squared is somewhat complex, we use the square of the correlation between the actual and predicted completion times as it is a close approximation.
+
+```{r LinearRegression3}
+temp_400proj <- data.frame(test_400proj[,2:15])
+names(temp_400proj) <- names(test_400proj[2:15])
+
+lrpred_400proj <- predict(lr_400proj, temp_400proj)
+
+r_sq <- cor(pull(test_400proj, "Total"), lrpred_400proj)^2
+
+disp <- data.frame(r_sq)
+names(disp) <- "R-Squared"
+disp
+```
+
+Without going too deep into the interpretation of R-Squared, we see that .936 is greater than .8.  This means that our Linear Regression model does a good job at predicting Total Project Completion Time if we know the completion times of the first fourteen out of fifteen Top Summary Tasks.  We'll reduce these numbers later in this document.
+
+## Logistic Regression
+
+While Linear Regression is extremely easy to use and understand, it doesn't have an intuitive evaluation metric.  Therefore, it may be easier for us to step back to a simpler question.  Can we predict if a project is going to complete "Late" using the same data we just saw? In this case, we have two different threshold for "Late", the median and the 80th percentile.  Since this is now a classification, we can utilize a Confusion Matrix.  We start by using the median threshold.
+
+```{r LogisticRegressionMedian, warning=FALSE}
+temp_400proj <- data.frame(as.factor(pull(train_400proj, "LateNum50")), train_400proj[,2:15])
+names(temp_400proj) <- c("LateNum50", names(train_400proj[2:15]))
+  
+log50_400proj <- glm(LateNum50 ~ ., data=temp_400proj, family=binomial(link="logit"))
+
+temp_400proj <- data.frame(test_400proj[,2:15])
+names(temp_400proj) <- names(test_400proj[2:15])
+
+log50pred_400proj <- ifelse(predict(log50_400proj, temp_400proj, type="response")>.5, "Late", "On Time")
+
+log_cm50_400proj <- confusionMatrix(log50pred_400proj, pull(test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+
+log_acc <- log_cm50_400proj$overall["Accuracy"]
+
+disp <- data.frame(log_acc)
+names(disp) <- "Accuracy"
+  
+log_cm50_400proj
+disp
+```
+
+The confusion matrix and statistics tell us that we were able to correctly predict whether a project would complete Late (using the median threshold) 93.3% of the time.  This metric (Accuracy) is far more intuitive than the R-Squared we saw earlier.  Next, we examine the models created by using the 80th percentile threshold.
+
+```{r LogisticRegression80thPercentile, warning=FALSE}
+temp_400proj <- data.frame(as.factor(pull(train_400proj, "LateNum20")), train_400proj[,2:15])
+names(temp_400proj) <- c("LateNum20", names(train_400proj[2:15]))
+
+log20_400proj <- glm(LateNum20 ~ ., data=temp_400proj, family=binomial(link="logit"))
+
+temp_400proj <- data.frame(test_400proj[,2:15])
+names(temp_400proj) <- names(test_400proj[2:15])
+
+log20pred_400proj <- ifelse(predict(log20_400proj, temp_400proj, type="response")>.5, "Late", "On Time")
+
+log_cm20_400proj <- confusionMatrix(log20pred_400proj, pull(test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+
+log_prec <- log_cm20_400proj$byClass["Precision"]
+log_rec <- log_cm20_400proj$byClass["Recall"]
+log_f1 <- log_cm20_400proj$byClass["F1"]
+
+disp <- data.frame(log_prec, log_rec, log_f1)
+names(disp) <- c("Precision", "Recall", "F1")
+
+log_cm20_400proj
+disp
+```
+
+With the new threshold, our Testing Set now has approximately 80% "On Time" projects and 20% "Late" projects.  Therefore, we need a new set of metrics to evaluate this model. Out of all the times we predict the project will be "Late", we are correct 91.3% of the time (Precision).  Out of all the projects that will be "Late", we identify 77.8% of them (Recall).  F1 does not have an intuitive definition.  However, it can be thought of as a midpoint between Precision and Recall.
+
+Before we put this framework to the test by reducing the number of completed Top Summary Tasks.  Let's try a few more approaches to the same classification problem.
+
+## Boosted Decision Tree
+
+The Boosted Decision Tree is one of the most heavily utilized classification algorithms in the Data Science industry.  This is due to it's ease of interpretability, training speed and high power, i.e. it predicts well.  Unlike the algoriths we have seen so far, the Boosted Decision Tree is heavily reliant on "hyperparameters".  There are an infinite number of ways to build a Boosted Decision Tree algorithm.  So, we use an approach known as "Tuning" to pick the best one.  First, we have to create a set of candidate hyperparameters.
+
+```{r BoostedDecisionTree1}
+set.seed(50)
+bdt_randopt <- 20
+nrounds <- seq(from=25, to=200, by=25)
+max_depth <- seq(from=1, to=10, by=1)
+eta <- seq(from=.1, to=1, by=.1)
+gamma <- seq(from=0, to=10, by=.2)
+colsample_bytree <- seq(from=.5, to=1, by=.05)
+min_child_weight <- 1
+subsample <- 1
+len <- length(nrounds)*length(max_depth)*length(eta)*length(gamma)*length(colsample_bytree)*length(min_child_weight)*length(subsample)
+rand <- ceiling(runif(bdt_randopt)*len)
+bdt_grid <- expand.grid(nrounds, max_depth, eta, gamma, colsample_bytree, min_child_weight, subsample)[rand,]
+bdt_grid[bdt_randopt+1,] <- c(1,1,1,0,1,1,1)
+names(bdt_grid) <- c("nrounds", "max_depth", "eta", "gamma", "colsample_bytree", "min_child_weight", "subsample")
+bdt_grid
+```
+
+Next, we train our models.  However, we only want the "best" model for each dataset.  So, we will use the "Kappa" metric to identify which models have the highest accuracy.  We chose Kappa because it is not influenced by imbalance in the Training Set.  In other words, it's effective for the Median and 80th Percentile thresholds.  During the training process, we preprocessed the data using centering and scaling, and we trained using five-fold cross-validation.
+
+```{r BoostedDecisionTree2, warning=FALSE}
+temp_400proj <- data.frame(as.factor(pull(train_400proj, "LateNum50")), train_400proj[,2:15])
+names(temp_400proj) <- c("LateNum50", names(train_400proj[2:15]))
+
+bdt50_400proj <- train(LateNum50 ~ ., data=temp_400proj, method="xgbTree", preProc=c("center", "scale")
+                           ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+
+temp_400proj <- data.frame(as.factor(pull(train_400proj, "LateNum20")), train_400proj[,2:15])
+names(temp_400proj) <- c("LateNum20", names(train_400proj[2:15]))
+
+bdt20_400proj <- train(LateNum20 ~ ., data=temp_400proj, method="xgbTree", preProc=c("center", "scale")
+                           ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+
+temp_400proj <- data.frame(test_400proj[,2:15])
+names(temp_400proj) <- names(test_400proj[2:15])
+
+bdt50pred_400proj <- ifelse(predict(bdt50_400proj, temp_400proj)==1, "Late", "On Time")
+
+bdt20pred_400proj <- ifelse(predict(bdt20_400proj, temp_400proj)==1, "Late", "On Time")
+
+bdt_cm50_400proj <- confusionMatrix(bdt50pred_400proj, pull(test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+
+bdt_cm20_400proj <- confusionMatrix(bdt20pred_400proj, pull(test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+
+bdt_acc <- bdt_cm50_400proj$overall["Accuracy"]
+bdt_prec <- bdt_cm20_400proj$byClass["Precision"]
+bdt_rec <- bdt_cm20_400proj$byClass["Recall"]
+bdt_f1 <- bdt_cm20_400proj$byClass["F1"]
+
+disp <- data.frame(bdt_acc, bdt_prec, bdt_rec, bdt_f1)
+names(disp) <- c("Accuracy", "Precision", "Recall", "F1")
+disp
+```
+
+These metrics are noticeably lower than those of Logistic Regression.
+
+## Classification via Linear Regression
+
+It's also possible to use Linear Regression to predict whether a project is going to complete "Late".  We chose to use two predictions from the Linear Regression models we built earlier, the prediction (mean) and the lower bound of the prediction interval.  If we compare these values to the "Late" thresholds, we can create our own classification.  We start with the prediction.
+
+```{r LinearRegressionClassificationMean}
+temp_400proj <- data.frame(test_400proj[,2:15])
+names(temp_400proj) <- names(test_400proj[2:15])
+
+lravg50pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+
+lravg20pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+
+lravg_cm50_400proj <- confusionMatrix(lravg50pred_400proj, pull(test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+
+lravg_cm20_400proj <- confusionMatrix(lravg20pred_400proj, pull(test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+
+lravg_acc <- lravg_cm50_400proj$overall["Accuracy"]
+lravg_prec <- lravg_cm20_400proj$byClass["Precision"]
+lravg_rec <- lravg_cm20_400proj$byClass["Recall"]
+lravg_f1 <- lravg_cm20_400proj$byClass["F1"]
+
+disp <- data.frame(lravg_acc, lravg_prec, lravg_rec, lravg_f1)
+names(disp) <- c("Accuracy", "Precision", "Recall", "F1")
+disp
+```
+
+These metrics are slightly better than those from Logistic Regression.  Next, we try using the lower bound of the prediction interval.
+
+```{r LinearRegressionClassificationLowerBound}
+temp_400proj <- data.frame(test_400proj[,2:15])
+names(temp_400proj) <- names(test_400proj[2:15])
+
+lrlwr50pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+
+lrlwr20pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+
+lrlwr_cm50_400proj <- confusionMatrix(lrlwr50pred_400proj, pull(test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+
+lrlwr_cm20_400proj <- confusionMatrix(lrlwr20pred_400proj, pull(test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+
+lrlwr_acc <- lrlwr_cm50_400proj$overall["Accuracy"]
+lrlwr_prec <- lrlwr_cm20_400proj$byClass["Precision"]
+lrlwr_rec <- lrlwr_cm20_400proj$byClass["Recall"]
+lrlwr_f1 <- lrlwr_cm20_400proj$byClass["F1"]
+
+disp <- data.frame(lrlwr_acc, lrlwr_prec, lrlwr_rec, lrlwr_f1)
+names(disp) <- c("Accuracy", "Precision", "Recall", "F1")
+disp
+```
+
+These metrics are also low.
+
+## One Model per Top Summary Task per Sample
+
+Now that we have showcased all of the different options we have for predictive models.  Let's run them at full scale.  We want to create each set of predictive models for each Top Summary Task.  So, we will have one set of predictive models trying to predict the Total Completion Time using only the completion time of Top Summary Task 1.  We will have another set of models trying to predict the Total Completion Time using the completion time of Top Summary Tasks 1 and 2.  This will repeat until we have fourteen sets of models.
+
+```{r FullScale, warning=FALSE, message=FALSE, echo=FALSE, results="hide"}
+
+t50proj <- read_csv("C:/Users/bllewellyn/OneDrive - Valorem/DCX/DCX 50Proj 2018_02_13.csv")
+t100proj <- read_csv("C:/Users/bllewellyn/OneDrive - Valorem/DCX/DCX 100Proj 2018_02_13.csv")
+t200proj <- read_csv("C:/Users/bllewellyn/OneDrive - Valorem/DCX/DCX 200Proj 2018_02_13.csv")
+t400proj <- read_csv("C:/Users/bllewellyn/OneDrive - Valorem/DCX/DCX 400Proj 2018_02_13.csv")
+
+## Summarize and Pivot Data
+
+t50proj["TopSummaryTaskNumber"] <- paste("TopSummaryTask", str_pad(pull(t50proj, "TopSummaryTaskNumber"),2,pad="0"),sep="")
+t50proj_pvt <- dcast(t50proj, ProjectNumber ~ TopSummaryTaskNumber, sum, value.var="CompletionDays")
+t50proj_pvt["Total"] <- apply(t50proj_pvt[,2:16],MARGIN=1,FUN=sum)
+
+t100proj["TopSummaryTaskNumber"] <- paste("TopSummaryTask", str_pad(pull(t100proj, "TopSummaryTaskNumber"),2,pad="0"),sep="")
+t100proj_pvt <- dcast(t100proj, ProjectNumber ~ TopSummaryTaskNumber, sum, value.var="CompletionDays")
+t100proj_pvt["Total"] <- apply(t100proj_pvt[,2:16],MARGIN=1,FUN=sum)
+
+t200proj["TopSummaryTaskNumber"] <- paste("TopSummaryTask", str_pad(pull(t200proj, "TopSummaryTaskNumber"),2,pad="0"),sep="")
+t200proj_pvt <- dcast(t200proj, ProjectNumber ~ TopSummaryTaskNumber, sum, value.var="CompletionDays")
+t200proj_pvt["Total"] <- apply(t200proj_pvt[,2:16],MARGIN=1,FUN=sum)
+
+t400proj["TopSummaryTaskNumber"] <- paste("TopSummaryTask", str_pad(pull(t400proj, "TopSummaryTaskNumber"),2,pad="0"),sep="")
+t400proj_pvt <- dcast(t400proj, ProjectNumber ~ TopSummaryTaskNumber, sum, value.var="CompletionDays")
+t400proj_pvt["Total"] <- apply(t400proj_pvt[,2:16],MARGIN=1,FUN=sum)
+
+## Determine "On-Time" Threshold
+
+thresh_50 <- quantile(pull(t400proj_pvt, "Total"), .5)
+thresh_80 <- quantile(pull(t400proj_pvt, "Total"), .8)
+thresh_90 <- quantile(pull(t400proj_pvt, "Total"), .9)
+thresh_95 <- quantile(pull(t400proj_pvt, "Total"), .95)
+
+t50proj_pvt["LateNum50"] <- ifelse(pull(t50proj_pvt, "Total") > thresh_50, 1, 0)
+t50proj_pvt["LateNum20"] <- ifelse(pull(t50proj_pvt, "Total") > thresh_80, 1, 0)
+t50proj_pvt["LateNum10"] <- ifelse(pull(t50proj_pvt, "Total") > thresh_90, 1, 0)
+t50proj_pvt["LateNum05"] <- ifelse(pull(t50proj_pvt, "Total") > thresh_95, 1, 0)
+t50proj_pvt["Late50"] <- ifelse(pull(t50proj_pvt, "Total") > thresh_50, "Late", "On Time")
+t50proj_pvt["Late20"] <- ifelse(pull(t50proj_pvt, "Total") > thresh_80, "Late", "On Time")
+t50proj_pvt["Late10"] <- ifelse(pull(t50proj_pvt, "Total") > thresh_90, "Late", "On Time")
+t50proj_pvt["Late05"] <- ifelse(pull(t50proj_pvt, "Total") > thresh_95, "Late", "On Time")
+
+t100proj_pvt["LateNum50"] <- ifelse(pull(t100proj_pvt, "Total") > thresh_50, 1, 0)
+t100proj_pvt["LateNum20"] <- ifelse(pull(t100proj_pvt, "Total") > thresh_80, 1, 0)
+t100proj_pvt["LateNum10"] <- ifelse(pull(t100proj_pvt, "Total") > thresh_90, 1, 0)
+t100proj_pvt["LateNum05"] <- ifelse(pull(t100proj_pvt, "Total") > thresh_95, 1, 0)
+t100proj_pvt["Late50"] <- ifelse(pull(t100proj_pvt, "Total") > thresh_50, "Late", "On Time")
+t100proj_pvt["Late20"] <- ifelse(pull(t100proj_pvt, "Total") > thresh_80, "Late", "On Time")
+t100proj_pvt["Late10"] <- ifelse(pull(t100proj_pvt, "Total") > thresh_90, "Late", "On Time")
+t100proj_pvt["Late05"] <- ifelse(pull(t100proj_pvt, "Total") > thresh_95, "Late", "On Time")
+
+t200proj_pvt["LateNum50"] <- ifelse(pull(t200proj_pvt, "Total") > thresh_50, 1, 0)
+t200proj_pvt["LateNum20"] <- ifelse(pull(t200proj_pvt, "Total") > thresh_80, 1, 0)
+t200proj_pvt["LateNum10"] <- ifelse(pull(t200proj_pvt, "Total") > thresh_90, 1, 0)
+t200proj_pvt["LateNum05"] <- ifelse(pull(t200proj_pvt, "Total") > thresh_95, 1, 0)
+t200proj_pvt["Late50"] <- ifelse(pull(t200proj_pvt, "Total") > thresh_50, "Late", "On Time")
+t200proj_pvt["Late20"] <- ifelse(pull(t200proj_pvt, "Total") > thresh_80, "Late", "On Time")
+t200proj_pvt["Late10"] <- ifelse(pull(t200proj_pvt, "Total") > thresh_90, "Late", "On Time")
+t200proj_pvt["Late05"] <- ifelse(pull(t200proj_pvt, "Total") > thresh_95, "Late", "On Time")
+
+t400proj_pvt["LateNum50"] <- ifelse(pull(t400proj_pvt, "Total") > thresh_50, 1, 0)
+t400proj_pvt["LateNum20"] <- ifelse(pull(t400proj_pvt, "Total") > thresh_80, 1, 0)
+t400proj_pvt["LateNum10"] <- ifelse(pull(t400proj_pvt, "Total") > thresh_90, 1, 0)
+t400proj_pvt["LateNum05"] <- ifelse(pull(t400proj_pvt, "Total") > thresh_95, 1, 0)
+t400proj_pvt["Late50"] <- ifelse(pull(t400proj_pvt, "Total") > thresh_50, "Late", "On Time")
+t400proj_pvt["Late20"] <- ifelse(pull(t400proj_pvt, "Total") > thresh_80, "Late", "On Time")
+t400proj_pvt["Late10"] <- ifelse(pull(t400proj_pvt, "Total") > thresh_90, "Late", "On Time")
+t400proj_pvt["Late05"] <- ifelse(pull(t400proj_pvt, "Total") > thresh_95, "Late", "On Time")
+
+## Create Testing and Training Split
+
+splitperc <- .7
+set.seed(50)
+
+datasize_50proj <- dim(t50proj_pvt)[1]
+sampsize_50proj <- datasize_50proj * splitperc
+samp_50proj <- sample(1:datasize_50proj,sampsize_50proj)
+train_50proj <- t50proj_pvt[samp_50proj,]
+test_50proj <- t50proj_pvt[-samp_50proj,]
+
+datasize_100proj <- dim(t100proj_pvt)[1]
+sampsize_100proj <- datasize_100proj * splitperc
+samp_100proj <- sample(1:datasize_100proj,sampsize_100proj)
+train_100proj <- t100proj_pvt[samp_100proj,]
+test_100proj <- t100proj_pvt[-samp_100proj,]
+
+datasize_200proj <- dim(t200proj_pvt)[1]
+sampsize_200proj <- datasize_200proj * splitperc
+samp_200proj <- sample(1:datasize_200proj,sampsize_200proj)
+train_200proj <- t200proj_pvt[samp_200proj,]
+test_200proj <- t200proj_pvt[-samp_200proj,]
+
+datasize_400proj <- dim(t400proj_pvt)[1]
+sampsize_400proj <- datasize_400proj * splitperc
+samp_400proj <- sample(1:datasize_400proj,sampsize_400proj)
+train_400proj <- t400proj_pvt[samp_400proj,]
+test_400proj <- t400proj_pvt[-samp_400proj,]
+
+## Fit Linear Regression and Boosted Decision Tree Models using Training Set
+
+lrs_50proj <- list()
+lrs_100proj <- list()
+lrs_200proj <- list()
+lrs_400proj <- list()
+bdts50_50proj <- list()
+bdts50_100proj <- list()
+bdts50_200proj <- list()
+bdts50_400proj <- list()
+bdts20_50proj <- list()
+bdts20_100proj <- list()
+bdts20_200proj <- list()
+bdts20_400proj <- list()
+logs50_50proj <- list()
+logs50_100proj <- list()
+logs50_200proj <- list()
+logs50_400proj <- list()
+logs20_50proj <- list()
+logs20_100proj <- list()
+logs20_200proj <- list()
+logs20_400proj <- list()
+r_sq <- data.frame(NA, NA, NA, NA)
+names(r_sq) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lravg_acc <- data.frame(NA, NA, NA, NA)
+names(lravg_acc) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lravg_prec <- data.frame(NA, NA, NA, NA)
+names(lravg_prec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lravg_rec <- data.frame(NA, NA, NA, NA)
+names(lravg_rec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lravg_f1 <- data.frame(NA, NA, NA, NA)
+names(lravg_f1) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lrlwr_acc <- data.frame(NA, NA, NA, NA)
+names(lrlwr_acc) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lrlwr_prec <- data.frame(NA, NA, NA, NA)
+names(lrlwr_prec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lrlwr_rec <- data.frame(NA, NA, NA, NA)
+names(lrlwr_rec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lrlwr_f1 <- data.frame(NA, NA, NA, NA)
+names(lrlwr_f1) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+bdt_acc <- data.frame(NA, NA, NA, NA)
+names(bdt_acc) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+bdt_prec <- data.frame(NA, NA, NA, NA)
+names(bdt_prec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+bdt_rec <- data.frame(NA, NA, NA, NA)
+names(bdt_rec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+bdt_f1 <- data.frame(NA, NA, NA, NA)
+names(bdt_f1) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+log_acc <- data.frame(NA, NA, NA, NA)
+names(log_acc) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+log_prec <- data.frame(NA, NA, NA, NA)
+names(log_prec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+log_rec <- data.frame(NA, NA, NA, NA)
+names(log_rec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+log_f1 <- data.frame(NA, NA, NA, NA)
+names(log_f1) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+
+bdt_randopt <- 20
+nrounds <- seq(from=25, to=200, by=25)
+max_depth <- seq(from=1, to=10, by=1)
+eta <- seq(from=.1, to=1, by=.1)
+gamma <- seq(from=0, to=10, by=.2)
+colsample_bytree <- seq(from=.5, to=1, by=.05)
+min_child_weight <- 1
+subsample <- 1
+len <- length(nrounds)*length(max_depth)*length(eta)*length(gamma)*length(colsample_bytree)*length(min_child_weight)*length(subsample)
+rand <- ceiling(runif(bdt_randopt)*len)
+bdt_grid <- expand.grid(nrounds, max_depth, eta, gamma, colsample_bytree, min_child_weight, subsample)[rand,]
+bdt_grid[bdt_randopt+1,] <- c(1,1,1,0,1,1,1)
+names(bdt_grid) <- c("nrounds", "max_depth", "eta", "gamma", "colsample_bytree", "min_child_weight", "subsample")
+
+for(i in 1:14){
+  
+  temp_50proj <- data.frame(pull(train_50proj, "Total"), train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("Total", names(train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(pull(train_100proj, "Total"), train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("Total", names(train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(pull(train_200proj, "Total"), train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("Total", names(train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(pull(train_400proj, "Total"), train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("Total", names(train_400proj[2:(i+1)]))
+
+## Fit Linear Regression Model
+  
+  lr_50proj <- lm(Total ~ ., data=temp_50proj)
+  lr_100proj <- lm(Total ~ ., data=temp_100proj)
+  lr_200proj <- lm(Total ~ ., data=temp_200proj)
+  lr_400proj <- lm(Total ~ ., data=temp_400proj)
+
+  lrs_50proj[[i]] <- lr_50proj
+  lrs_100proj[[i]] <- lr_100proj
+  lrs_200proj[[i]] <- lr_200proj
+  lrs_400proj[[i]] <- lr_400proj
+
+## Fit Boosted Decision Tree Model
+  
+  temp_50proj <- data.frame(as.factor(pull(train_50proj, "LateNum50")), train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("LateNum50", names(train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(as.factor(pull(train_100proj, "LateNum50")), train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("LateNum50", names(train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(as.factor(pull(train_200proj, "LateNum50")), train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("LateNum50", names(train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(as.factor(pull(train_400proj, "LateNum50")), train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("LateNum50", names(train_400proj[2:(i+1)]))
+  
+  bdt50_50proj <- train(LateNum50 ~ ., data=temp_50proj, method="xgbTree", preProc=c("center", "scale")
+                            ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt50_100proj <- train(LateNum50 ~ ., data=temp_100proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt50_200proj <- train(LateNum50 ~ ., data=temp_200proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt50_400proj <- train(LateNum50 ~ ., data=temp_400proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  
+  bdts50_50proj[[i]] <- bdt50_50proj
+  bdts50_100proj[[i]] <- bdt50_100proj
+  bdts50_200proj[[i]] <- bdt50_200proj
+  bdts50_400proj[[i]] <- bdt50_400proj
+  
+  temp_50proj <- data.frame(as.factor(pull(train_50proj, "LateNum20")), train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("LateNum20", names(train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(as.factor(pull(train_100proj, "LateNum20")), train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("LateNum20", names(train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(as.factor(pull(train_200proj, "LateNum20")), train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("LateNum20", names(train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(as.factor(pull(train_400proj, "LateNum20")), train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("LateNum20", names(train_400proj[2:(i+1)]))
+  
+  bdt20_50proj <- train(LateNum20 ~ ., data=temp_50proj, method="xgbTree", preProc=c("center", "scale")
+                            ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt20_100proj <- train(LateNum20 ~ ., data=temp_100proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt20_200proj <- train(LateNum20 ~ ., data=temp_200proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt20_400proj <- train(LateNum20 ~ ., data=temp_400proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  
+  bdts20_50proj[[i]] <- bdt20_50proj
+  bdts20_100proj[[i]] <- bdt20_100proj
+  bdts20_200proj[[i]] <- bdt20_200proj
+  bdts20_400proj[[i]] <- bdt20_400proj
+  
+## Fit Logistic Regression Model
+  
+  temp_50proj <- data.frame(as.factor(pull(train_50proj, "LateNum50")), train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("LateNum50", names(train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(as.factor(pull(train_100proj, "LateNum50")), train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("LateNum50", names(train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(as.factor(pull(train_200proj, "LateNum50")), train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("LateNum50", names(train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(as.factor(pull(train_400proj, "LateNum50")), train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("LateNum50", names(train_400proj[2:(i+1)]))
+  
+  log50_50proj <- glm(LateNum50 ~ ., data=temp_50proj, family=binomial(link="logit"))
+  log50_100proj <- glm(LateNum50 ~ ., data=temp_100proj, family=binomial(link="logit"))
+  log50_200proj <- glm(LateNum50 ~ ., data=temp_200proj, family=binomial(link="logit"))
+  log50_400proj <- glm(LateNum50 ~ ., data=temp_400proj, family=binomial(link="logit"))
+  
+  logs50_50proj[[i]] <- log50_50proj
+  logs50_100proj[[i]] <- log50_100proj
+  logs50_200proj[[i]] <- log50_200proj
+  logs50_400proj[[i]] <- log50_400proj
+  
+  temp_50proj <- data.frame(as.factor(pull(train_50proj, "LateNum20")), train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("LateNum20", names(train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(as.factor(pull(train_100proj, "LateNum20")), train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("LateNum20", names(train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(as.factor(pull(train_200proj, "LateNum20")), train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("LateNum20", names(train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(as.factor(pull(train_400proj, "LateNum20")), train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("LateNum20", names(train_400proj[2:(i+1)]))
+  
+  log20_50proj <- glm(LateNum20 ~ ., data=temp_50proj, family=binomial(link="logit"))
+  log20_100proj <- glm(LateNum20 ~ ., data=temp_100proj, family=binomial(link="logit"))
+  log20_200proj <- glm(LateNum20 ~ ., data=temp_200proj, family=binomial(link="logit"))
+  log20_400proj <- glm(LateNum20 ~ ., data=temp_400proj, family=binomial(link="logit"))
+  
+  logs20_50proj[[i]] <- log20_50proj
+  logs20_100proj[[i]] <- log20_100proj
+  logs20_200proj[[i]] <- log20_200proj
+  logs20_400proj[[i]] <- log20_400proj
+  
+## Generate Predictions Using Testing Set
+  
+  temp_50proj <- data.frame(test_50proj[,2:(i+1)])
+  names(temp_50proj) <- names(test_50proj[2:(i+1)])
+  
+  temp_100proj <- data.frame(test_100proj[,2:(i+1)])
+  names(temp_100proj) <- names(test_100proj[2:(i+1)])
+  
+  temp_200proj <- data.frame(test_200proj[,2:(i+1)])
+  names(temp_200proj) <- names(test_200proj[2:(i+1)])
+  
+  temp_400proj <- data.frame(test_400proj[,2:(i+1)])
+  names(temp_400proj) <- names(test_400proj[2:(i+1)])
+  
+  lrpred_50proj <- predict(lr_50proj, temp_50proj)
+  lrpred_100proj <- predict(lr_100proj, temp_100proj)
+  lrpred_200proj <- predict(lr_200proj, temp_200proj)
+  lrpred_400proj <- predict(lr_400proj, temp_400proj)
+  
+  lravg50pred_50proj <- ifelse(predict(lr_50proj, temp_50proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  lravg50pred_100proj <- ifelse(predict(lr_100proj, temp_100proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  lravg50pred_200proj <- ifelse(predict(lr_200proj, temp_200proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  lravg50pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  
+  lravg20pred_50proj <- ifelse(predict(lr_50proj, temp_50proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  lravg20pred_100proj <- ifelse(predict(lr_100proj, temp_100proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  lravg20pred_200proj <- ifelse(predict(lr_200proj, temp_200proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  lravg20pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  
+  lrlwr50pred_50proj <- ifelse(predict(lr_50proj, temp_50proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  lrlwr50pred_100proj <- ifelse(predict(lr_100proj, temp_100proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  lrlwr50pred_200proj <- ifelse(predict(lr_200proj, temp_200proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  lrlwr50pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  
+  lrlwr20pred_50proj <- ifelse(predict(lr_50proj, temp_50proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  lrlwr20pred_100proj <- ifelse(predict(lr_100proj, temp_100proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  lrlwr20pred_200proj <- ifelse(predict(lr_200proj, temp_200proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  lrlwr20pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  
+  bdt50pred_50proj <- ifelse(predict(bdt50_50proj, temp_50proj)==1, "Late", "On Time")
+  bdt50pred_100proj <- ifelse(predict(bdt50_100proj, temp_100proj)==1, "Late", "On Time")
+  bdt50pred_200proj <- ifelse(predict(bdt50_200proj, temp_200proj)==1, "Late", "On Time")
+  bdt50pred_400proj <- ifelse(predict(bdt50_400proj, temp_400proj)==1, "Late", "On Time")
+  
+  bdt20pred_50proj <- ifelse(predict(bdt20_50proj, temp_50proj)==1, "Late", "On Time")
+  bdt20pred_100proj <- ifelse(predict(bdt20_100proj, temp_100proj)==1, "Late", "On Time")
+  bdt20pred_200proj <- ifelse(predict(bdt20_200proj, temp_200proj)==1, "Late", "On Time")
+  bdt20pred_400proj <- ifelse(predict(bdt20_400proj, temp_400proj)==1, "Late", "On Time")
+  
+  log50pred_50proj <- ifelse(predict(log50_50proj, temp_50proj, type="response")>.5, "Late", "On Time")
+  log50pred_100proj <- ifelse(predict(log50_100proj, temp_100proj, type="response")>.5, "Late", "On Time")
+  log50pred_200proj <- ifelse(predict(log50_200proj, temp_200proj, type="response")>.5, "Late", "On Time")
+  log50pred_400proj <- ifelse(predict(log50_400proj, temp_400proj, type="response")>.5, "Late", "On Time")
+  
+  log20pred_50proj <- ifelse(predict(log20_50proj, temp_50proj, type="response")>.5, "Late", "On Time")
+  log20pred_100proj <- ifelse(predict(log20_100proj, temp_100proj, type="response")>.5, "Late", "On Time")
+  log20pred_200proj <- ifelse(predict(log20_200proj, temp_200proj, type="response")>.5, "Late", "On Time")
+  log20pred_400proj <- ifelse(predict(log20_400proj, temp_400proj, type="response")>.5, "Late", "On Time")
+  
+  
+## Calculate Evaluation Metrics
+  
+  r_sq[i,1] <- cor(pull(test_50proj, "Total"), lrpred_50proj)^2
+  r_sq[i,2] <- cor(pull(test_100proj, "Total"), lrpred_100proj)^2
+  r_sq[i,3] <- cor(pull(test_200proj, "Total"), lrpred_200proj)^2
+  r_sq[i,4] <- cor(pull(test_400proj, "Total"), lrpred_400proj)^2
+  
+  lravg_cm50_50proj <- confusionMatrix(lravg50pred_50proj, pull(test_50proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm50_100proj <- confusionMatrix(lravg50pred_100proj, pull(test_100proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm50_200proj <- confusionMatrix(lravg50pred_200proj, pull(test_200proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm50_400proj <- confusionMatrix(lravg50pred_400proj, pull(test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lravg_cm20_50proj <- confusionMatrix(lravg20pred_50proj, pull(test_50proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm20_100proj <- confusionMatrix(lravg20pred_100proj, pull(test_100proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm20_200proj <- confusionMatrix(lravg20pred_200proj, pull(test_200proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm20_400proj <- confusionMatrix(lravg20pred_400proj, pull(test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lrlwr_cm50_50proj <- confusionMatrix(lrlwr50pred_50proj, pull(test_50proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm50_100proj <- confusionMatrix(lrlwr50pred_100proj, pull(test_100proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm50_200proj <- confusionMatrix(lrlwr50pred_200proj, pull(test_200proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm50_400proj <- confusionMatrix(lrlwr50pred_400proj, pull(test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lrlwr_cm20_50proj <- confusionMatrix(lrlwr20pred_50proj, pull(test_50proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm20_100proj <- confusionMatrix(lrlwr20pred_100proj, pull(test_100proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm20_200proj <- confusionMatrix(lrlwr20pred_200proj, pull(test_200proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm20_400proj <- confusionMatrix(lrlwr20pred_400proj, pull(test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  bdt_cm50_50proj <- confusionMatrix(bdt50pred_50proj, pull(test_50proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm50_100proj <- confusionMatrix(bdt50pred_100proj, pull(test_100proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm50_200proj <- confusionMatrix(bdt50pred_200proj, pull(test_200proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm50_400proj <- confusionMatrix(bdt50pred_400proj, pull(test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  bdt_cm20_50proj <- confusionMatrix(bdt20pred_50proj, pull(test_50proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm20_100proj <- confusionMatrix(bdt20pred_100proj, pull(test_100proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm20_200proj <- confusionMatrix(bdt20pred_200proj, pull(test_200proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm20_400proj <- confusionMatrix(bdt20pred_400proj, pull(test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  log_cm50_50proj <- confusionMatrix(log50pred_50proj, pull(test_50proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm50_100proj <- confusionMatrix(log50pred_100proj, pull(test_100proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm50_200proj <- confusionMatrix(log50pred_200proj, pull(test_200proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm50_400proj <- confusionMatrix(log50pred_400proj, pull(test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  log_cm20_50proj <- confusionMatrix(log20pred_50proj, pull(test_50proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm20_100proj <- confusionMatrix(log20pred_100proj, pull(test_100proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm20_200proj <- confusionMatrix(log20pred_200proj, pull(test_200proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm20_400proj <- confusionMatrix(log20pred_400proj, pull(test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lravg_acc[i,1] <- lravg_cm50_50proj$overall["Accuracy"]
+  lravg_acc[i,2] <- lravg_cm50_100proj$overall["Accuracy"]
+  lravg_acc[i,3] <- lravg_cm50_200proj$overall["Accuracy"]
+  lravg_acc[i,4] <- lravg_cm50_400proj$overall["Accuracy"]
+  
+  lravg_prec[i,1] <- lravg_cm20_50proj$byClass["Precision"]
+  lravg_prec[i,2] <- lravg_cm20_100proj$byClass["Precision"]
+  lravg_prec[i,3] <- lravg_cm20_200proj$byClass["Precision"]
+  lravg_prec[i,4] <- lravg_cm20_400proj$byClass["Precision"]
+  
+  lravg_rec[i,1] <- lravg_cm20_50proj$byClass["Recall"]
+  lravg_rec[i,2] <- lravg_cm20_100proj$byClass["Recall"]
+  lravg_rec[i,3] <- lravg_cm20_200proj$byClass["Recall"]
+  lravg_rec[i,4] <- lravg_cm20_400proj$byClass["Recall"]
+  
+  lravg_f1[i,1] <- lravg_cm20_50proj$byClass["F1"]
+  lravg_f1[i,2] <- lravg_cm20_100proj$byClass["F1"]
+  lravg_f1[i,3] <- lravg_cm20_200proj$byClass["F1"]
+  lravg_f1[i,4] <- lravg_cm20_400proj$byClass["F1"]
+  
+  lrlwr_acc[i,1] <- lrlwr_cm50_50proj$overall["Accuracy"]
+  lrlwr_acc[i,2] <- lrlwr_cm50_100proj$overall["Accuracy"]
+  lrlwr_acc[i,3] <- lrlwr_cm50_200proj$overall["Accuracy"]
+  lrlwr_acc[i,4] <- lrlwr_cm50_400proj$overall["Accuracy"]
+  
+  lrlwr_prec[i,1] <- lrlwr_cm20_50proj$byClass["Precision"]
+  lrlwr_prec[i,2] <- lrlwr_cm20_100proj$byClass["Precision"]
+  lrlwr_prec[i,3] <- lrlwr_cm20_200proj$byClass["Precision"]
+  lrlwr_prec[i,4] <- lrlwr_cm20_400proj$byClass["Precision"]
+  
+  lrlwr_rec[i,1] <- lrlwr_cm20_50proj$byClass["Recall"]
+  lrlwr_rec[i,2] <- lrlwr_cm20_100proj$byClass["Recall"]
+  lrlwr_rec[i,3] <- lrlwr_cm20_200proj$byClass["Recall"]
+  lrlwr_rec[i,4] <- lrlwr_cm20_400proj$byClass["Recall"]
+  
+  lrlwr_f1[i,1] <- lrlwr_cm20_50proj$byClass["F1"]
+  lrlwr_f1[i,2] <- lrlwr_cm20_100proj$byClass["F1"]
+  lrlwr_f1[i,3] <- lrlwr_cm20_200proj$byClass["F1"]
+  lrlwr_f1[i,4] <- lrlwr_cm20_400proj$byClass["F1"]
+  
+  bdt_acc[i,1] <- bdt_cm50_50proj$overall["Accuracy"]
+  bdt_acc[i,2] <- bdt_cm50_100proj$overall["Accuracy"]
+  bdt_acc[i,3] <- bdt_cm50_200proj$overall["Accuracy"]
+  bdt_acc[i,4] <- bdt_cm50_400proj$overall["Accuracy"]
+  
+  bdt_prec[i,1] <- bdt_cm20_50proj$byClass["Precision"]
+  bdt_prec[i,2] <- bdt_cm20_100proj$byClass["Precision"]
+  bdt_prec[i,3] <- bdt_cm20_200proj$byClass["Precision"]
+  bdt_prec[i,4] <- bdt_cm20_400proj$byClass["Precision"]
+  
+  bdt_rec[i,1] <- bdt_cm20_50proj$byClass["Recall"]
+  bdt_rec[i,2] <- bdt_cm20_100proj$byClass["Recall"]
+  bdt_rec[i,3] <- bdt_cm20_200proj$byClass["Recall"]
+  bdt_rec[i,4] <- bdt_cm20_400proj$byClass["Recall"]
+  
+  bdt_f1[i,1] <- bdt_cm20_50proj$byClass["F1"]
+  bdt_f1[i,2] <- bdt_cm20_100proj$byClass["F1"]
+  bdt_f1[i,3] <- bdt_cm20_200proj$byClass["F1"]
+  bdt_f1[i,4] <- bdt_cm20_400proj$byClass["F1"]
+  
+  log_acc[i,1] <- log_cm50_50proj$overall["Accuracy"]
+  log_acc[i,2] <- log_cm50_100proj$overall["Accuracy"]
+  log_acc[i,3] <- log_cm50_200proj$overall["Accuracy"]
+  log_acc[i,4] <- log_cm50_400proj$overall["Accuracy"]
+  
+  log_prec[i,1] <- log_cm20_50proj$byClass["Precision"]
+  log_prec[i,2] <- log_cm20_100proj$byClass["Precision"]
+  log_prec[i,3] <- log_cm20_200proj$byClass["Precision"]
+  log_prec[i,4] <- log_cm20_400proj$byClass["Precision"]
+  
+  log_rec[i,1] <- log_cm20_50proj$byClass["Recall"]
+  log_rec[i,2] <- log_cm20_100proj$byClass["Recall"]
+  log_rec[i,3] <- log_cm20_200proj$byClass["Recall"]
+  log_rec[i,4] <- log_cm20_400proj$byClass["Recall"]
+  
+  log_f1[i,1] <- log_cm20_50proj$byClass["F1"]
+  log_f1[i,2] <- log_cm20_100proj$byClass["F1"]
+  log_f1[i,3] <- log_cm20_200proj$byClass["F1"]
+  log_f1[i,4] <- log_cm20_400proj$byClass["F1"]
+}
+```
+
+## Results
+
+```{r FullScaleResultsOverallAcc}
+plot(lravg_acc[,4], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) with 400 Projects", sub="Red=Lin Reg (Mean), Blue=Lin Reg (Lower), Green=XGBoost, Orange=Log Reg")
+lines(lrlwr_acc[,4], col="blue")
+lines(bdt_acc[,4], col="green")
+lines(log_acc[,4], col="orange")
+abline(h=.5)
+abline(h=.8, lty=2)
+```
+
+This first plot shows us that the Linear Regression Mean and Logistic Regression algorithms provide the best results for this type of data.  However, the Boosted Decision Tree is not far behind and should be considered in real-world use cases.  We also note that the top algorithms reach 80% accuracy after completing ten Top Summary Tasks.
+
+```{r FullScaleResultsOverallF1}
+plot(lravg_f1[,4], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) with 400 Projects", sub="Red=Lin Reg (Mean), Blue=Lin Reg (Lower), Green=XGBoost, Orange=Log Reg")
+lines(lrlwr_f1[,4], col="blue")
+lines(bdt_f1[,4], col="green")
+lines(log_f1[,4], col="orange")
+abline(h=.5)
+abline(h=.7, lty=2)
+```
+
+This plot shows the same results we saw in the first one.  This further solidifies Linear and Logistic Regression as the top algorithms.  We also note that these algorithms reach .75 F1 after completing eleven Top Summary Tasks.
+
+```{r FullScaleResults}
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Linear Regression Plot", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(r_sq[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="R-Squared"
+     ,main="Predicting Total Completion Time via Linear Regression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(r_sq[,2], col="blue")
+lines(r_sq[,3], col="green")
+lines(r_sq[,4], col="orange")
+abline(h=.8)
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Linear Regression Mean Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(lravg_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lravg_acc[,2], col="blue")
+lines(lravg_acc[,3], col="green")
+lines(lravg_acc[,4], col="orange")
+abline(h=.5)
+
+prec_base <- sum(pull(t400proj_pvt, "LateNum20"))/sum(1-pull(t400proj_pvt, "LateNum20"))
+
+plot(lravg_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lravg_prec[,2], col="blue")
+lines(lravg_prec[,3], col="green")
+lines(lravg_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(lravg_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lravg_rec[,2], col="blue")
+lines(lravg_rec[,3], col="green")
+lines(lravg_rec[,4], col="orange")
+abline(h=.5)
+
+plot(lravg_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lravg_f1[,2], col="blue")
+lines(lravg_f1[,3], col="green")
+lines(lravg_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Linear Regression Lower Bound Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(lrlwr_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lrlwr_acc[,2], col="blue")
+lines(lrlwr_acc[,3], col="green")
+lines(lrlwr_acc[,4], col="orange")
+abline(h=.5)
+
+plot(lrlwr_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lrlwr_prec[,2], col="blue")
+lines(lrlwr_prec[,3], col="green")
+lines(lrlwr_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(lrlwr_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lrlwr_rec[,2], col="blue")
+lines(lrlwr_rec[,3], col="green")
+lines(lrlwr_rec[,4], col="orange")
+abline(h=.5)
+
+plot(lrlwr_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lrlwr_f1[,2], col="blue")
+lines(lrlwr_f1[,3], col="green")
+lines(lrlwr_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Boosted Decision Tree Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(bdt_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Boosted Decision \n", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(bdt_acc[,2], col="blue")
+lines(bdt_acc[,3], col="green")
+lines(bdt_acc[,4], col="orange")
+abline(h=.5)
+
+plot(bdt_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Boosted Decision \nTree", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(bdt_prec[,2], col="blue")
+lines(bdt_prec[,3], col="green")
+lines(bdt_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(bdt_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Boosted Decision \nTree", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(bdt_rec[,2], col="blue")
+lines(bdt_rec[,3], col="green")
+lines(bdt_rec[,4], col="orange")
+abline(h=.5)
+
+plot(bdt_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Boosted Decision \nTree", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(bdt_f1[,2], col="blue")
+lines(bdt_f1[,3], col="green")
+lines(bdt_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Logistic Regression Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(log_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(log_acc[,2], col="blue")
+lines(log_acc[,3], col="green")
+lines(log_acc[,4], col="orange")
+abline(h=.5)
+
+plot(log_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(log_prec[,2], col="blue")
+lines(log_prec[,3], col="green")
+lines(log_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(log_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(log_rec[,2], col="blue")
+lines(log_rec[,3], col="green")
+lines(log_rec[,4], col="orange")
+abline(h=.5)
+
+plot(log_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Top Summary Tasks Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(log_f1[,2], col="blue")
+lines(log_f1[,3], col="green")
+lines(log_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+```
+
+The remaining plots show additional details about each algorithm.  As we've already established Linear Regression Mean and Logistic Regression as the top algorithms, we focus mainly on them.  We see that both algorithms are relatively stable at low sample sizes when dealing with 50% "Late" projects.  However, when the number of "Late" projects drops to 20%, the algorithms don't stabilize until sample sizes over two hundred.
+
+# Alternative Framework
+
+## Introduction
+
+The initial framework attempted to predict Total Project Completion Time by knowing the Completion Time of the Top Summary Tasks.  However, this approach has a couple potential issues.
+
+1. What if we don't know the exact Completion Time for each Top Summary Task?
+2. We won't know the exact end date of each Top Summary Task in advance.  This would make it difficult and/or inefficient to productionalize this algorithm in its current state.
+
+So, we developed an alternative methodology that can utilize the same dataset.  Instead of looking at the Completion Time of each Top Summary Task, we take snapshots at set intervals and count the number of completed Top Summary Tasks.  Would this provide better results?
+
+NOTE: In this example, we used ten snapshots at sixty day intervals.
+
+## Initial Data Preparation
+
+First, we build our new datasets using the same data as the original datasets.  For consistency, we use the same Training and Testing split as earlier.
+```{r FixedTimeframe}
+dayspergroup <- 60
+groups <- 10
+
+d50proj_sum <- t50proj %>% group_by(ProjectNumber, TopSummaryTaskNumber) %>% summarise(CompletionDays=sum(CompletionDays))
+d50proj_cumsum <- add_column(d50proj_sum, ave(pull(d50proj_sum, "CompletionDays"), pull(d50proj_sum, "ProjectNumber"), FUN=cumsum))
+names(d50proj_cumsum) <- c(names(d50proj_sum), "CumulativeCompletionDays")
+
+d100proj_sum <- t100proj %>% group_by(ProjectNumber, TopSummaryTaskNumber) %>% summarise(CompletionDays=sum(CompletionDays))
+d100proj_cumsum <- add_column(d100proj_sum, ave(pull(d100proj_sum, "CompletionDays"), pull(d100proj_sum, "ProjectNumber"), FUN=cumsum))
+names(d100proj_cumsum) <- c(names(d100proj_sum), "CumulativeCompletionDays")
+
+d200proj_sum <- t200proj %>% group_by(ProjectNumber, TopSummaryTaskNumber) %>% summarise(CompletionDays=sum(CompletionDays))
+d200proj_cumsum <- add_column(d200proj_sum, ave(pull(d200proj_sum, "CompletionDays"), pull(d200proj_sum, "ProjectNumber"), FUN=cumsum))
+names(d200proj_cumsum) <- c(names(d200proj_sum), "CumulativeCompletionDays")
+
+d400proj_sum <- t400proj %>% group_by(ProjectNumber, TopSummaryTaskNumber) %>% summarise(CompletionDays=sum(CompletionDays))
+d400proj_cumsum <- add_column(d400proj_sum, ave(pull(d400proj_sum, "CompletionDays"), pull(d400proj_sum, "ProjectNumber"), FUN=cumsum))
+names(d400proj_cumsum) <- c(names(d400proj_sum), "CumulativeCompletionDays")
+
+d50proj <- data.frame(sort(unique(t50proj$ProjectNumber)))
+names(d50proj) <- "ProjectNumber"
+
+d100proj <- data.frame(sort(unique(t100proj$ProjectNumber)))
+names(d100proj) <- "ProjectNumber"
+
+d200proj <- data.frame(sort(unique(t200proj$ProjectNumber)))
+names(d200proj) <- "ProjectNumber"
+
+d400proj <- data.frame(sort(unique(t400proj$ProjectNumber)))
+names(d400proj) <- "ProjectNumber"
+
+for(i in 1:groups){
+   thresh <- i*dayspergroup
+   
+   d50proj_temp <- d50proj_cumsum[d50proj_cumsum$CumulativeCompletionDays <= thresh,] %>% group_by(ProjectNumber) %>% summarise(TopSummaryTasksCompleted=n())
+   names_temp <- names(d50proj)
+   d50proj[,i+1] <- coalesce(left_join(d50proj, d50proj_temp, by="ProjectNumber", all.x=TRUE)[,i+1],as.integer(0))
+   names(d50proj) <- c(names_temp, paste(thresh, "Days", sep=""))
+   
+   d100proj_temp <- d100proj_cumsum[d100proj_cumsum$CumulativeCompletionDays <= thresh,] %>% group_by(ProjectNumber) %>% summarise(TopSummaryTasksCompleted=n())
+   names_temp <- names(d100proj)
+   d100proj[,i+1] <- coalesce(left_join(d100proj, d100proj_temp, by="ProjectNumber", all.x=TRUE)[,i+1],as.integer(0))
+   names(d100proj) <- c(names_temp, paste(thresh, "Days", sep=""))
+   
+   d200proj_temp <- d200proj_cumsum[d200proj_cumsum$CumulativeCompletionDays <= thresh,] %>% group_by(ProjectNumber) %>% summarise(TopSummaryTasksCompleted=n())
+   names_temp <- names(d200proj)
+   d200proj[,i+1] <- coalesce(left_join(d200proj, d200proj_temp, by="ProjectNumber", all.x=TRUE)[,i+1],as.integer(0))
+   names(d200proj) <- c(names_temp, paste(thresh, "Days", sep=""))
+   
+   d400proj_temp <- d400proj_cumsum[d400proj_cumsum$CumulativeCompletionDays <= thresh,] %>% group_by(ProjectNumber) %>% summarise(TopSummaryTasksCompleted=n())
+   names_temp <- names(d400proj)
+   d400proj[,i+1] <- coalesce(left_join(d400proj, d400proj_temp, by="ProjectNumber", all.x=TRUE)[,i+1],as.integer(0))
+   names(d400proj) <- c(names_temp, paste(thresh, "Days", sep=""))
+}
+
+d50proj["Total"] <- t50proj_pvt["Total"]
+d50proj["LateNum50"] <- t50proj_pvt["LateNum50"]
+d50proj["LateNum20"] <- t50proj_pvt["LateNum20"]
+d50proj["LateNum10"] <- t50proj_pvt["LateNum10"]
+d50proj["LateNum05"] <- t50proj_pvt["LateNum05"]
+d50proj["Late50"] <- t50proj_pvt["Late50"]
+d50proj["Late20"] <- t50proj_pvt["Late20"]
+d50proj["Late10"] <- t50proj_pvt["Late10"]
+d50proj["Late05"] <- t50proj_pvt["Late05"]
+
+d100proj["Total"] <- t100proj_pvt["Total"]
+d100proj["LateNum50"] <- t100proj_pvt["LateNum50"]
+d100proj["LateNum20"] <- t100proj_pvt["LateNum20"]
+d100proj["LateNum10"] <- t100proj_pvt["LateNum10"]
+d100proj["LateNum05"] <- t100proj_pvt["LateNum05"]
+d100proj["Late50"] <- t100proj_pvt["Late50"]
+d100proj["Late20"] <- t100proj_pvt["Late20"]
+d100proj["Late10"] <- t100proj_pvt["Late10"]
+d100proj["Late05"] <- t100proj_pvt["Late05"]
+
+d200proj["Total"] <- t200proj_pvt["Total"]
+d200proj["LateNum50"] <- t200proj_pvt["LateNum50"]
+d200proj["LateNum20"] <- t200proj_pvt["LateNum20"]
+d200proj["LateNum10"] <- t200proj_pvt["LateNum10"]
+d200proj["LateNum05"] <- t200proj_pvt["LateNum05"]
+d200proj["Late50"] <- t200proj_pvt["Late50"]
+d200proj["Late20"] <- t200proj_pvt["Late20"]
+d200proj["Late10"] <- t200proj_pvt["Late10"]
+d200proj["Late05"] <- t200proj_pvt["Late05"]
+
+d400proj["Total"] <- t400proj_pvt["Total"]
+d400proj["LateNum50"] <- t400proj_pvt["LateNum50"]
+d400proj["LateNum20"] <- t400proj_pvt["LateNum20"]
+d400proj["LateNum10"] <- t400proj_pvt["LateNum10"]
+d400proj["LateNum05"] <- t400proj_pvt["LateNum05"]
+d400proj["Late50"] <- t400proj_pvt["Late50"]
+d400proj["Late20"] <- t400proj_pvt["Late20"]
+d400proj["Late10"] <- t400proj_pvt["Late10"]
+d400proj["Late05"] <- t400proj_pvt["Late05"]
+
+## Create Testing and Training Splits Using Same Index as Earlier
+
+d_train_50proj <- d50proj[samp_50proj,]
+d_test_50proj <- d50proj[-samp_50proj,]
+
+d_train_100proj <- d100proj[samp_100proj,]
+d_test_100proj <- d100proj[-samp_100proj,]
+
+d_train_200proj <- d200proj[samp_200proj,]
+d_test_200proj <- d200proj[-samp_200proj,]
+
+d_train_400proj <- d400proj[samp_400proj,]
+d_test_400proj <- d400proj[-samp_400proj,]
+
+head(d_train_400proj)
+```
+
+## One Model per Top Summary Task per Sample
+
+Next, we use almost identical code to earlier to create our set of evalution metrics.  For consistency, we use the same grid of hyperparameters for the Boosted Decision Tree algorithm.
+
+```{r FullScaleFixedTimeframe, warning=FALSE, message=FALSE, echo=FALSE, results="hide"}
+d_lrs_50proj <- list()
+d_lrs_100proj <- list()
+d_lrs_200proj <- list()
+d_lrs_400proj <- list()
+d_bdts50_50proj <- list()
+d_bdts50_100proj <- list()
+d_bdts50_200proj <- list()
+d_bdts50_400proj <- list()
+d_bdts20_50proj <- list()
+d_bdts20_100proj <- list()
+d_bdts20_200proj <- list()
+d_bdts20_400proj <- list()
+d_logs50_50proj <- list()
+d_logs50_100proj <- list()
+d_logs50_200proj <- list()
+d_logs50_400proj <- list()
+d_logs20_50proj <- list()
+d_logs20_100proj <- list()
+d_logs20_200proj <- list()
+d_logs20_400proj <- list()
+d_r_sq <- data.frame(NA, NA, NA, NA)
+names(d_r_sq) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+d_lravg_acc <- data.frame(NA, NA, NA, NA)
+names(d_lravg_acc) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+d_lravg_prec <- data.frame(NA, NA, NA, NA)
+names(d_lravg_prec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+d_lravg_rec <- data.frame(NA, NA, NA, NA)
+names(d_lravg_rec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+d_lravg_f1 <- data.frame(NA, NA, NA, NA)
+names(d_lravg_f1) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+d_lrlwr_acc <- data.frame(NA, NA, NA, NA)
+names(d_lrlwr_acc) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+d_lrlwr_prec <- data.frame(NA, NA, NA, NA)
+names(d_lrlwr_prec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+d_lrlwr_rec <- data.frame(NA, NA, NA, NA)
+names(d_lrlwr_rec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+d_lrlwr_f1 <- data.frame(NA, NA, NA, NA)
+names(d_lrlwr_f1) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+d_bdt_acc <- data.frame(NA, NA, NA, NA)
+names(d_bdt_acc) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+d_bdt_prec <- data.frame(NA, NA, NA, NA)
+names(d_bdt_prec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+d_bdt_rec <- data.frame(NA, NA, NA, NA)
+names(d_bdt_rec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+d_bdt_f1 <- data.frame(NA, NA, NA, NA)
+names(d_bdt_f1) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+d_log_acc <- data.frame(NA, NA, NA, NA)
+names(d_log_acc) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+d_log_prec <- data.frame(NA, NA, NA, NA)
+names(d_log_prec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+d_log_rec <- data.frame(NA, NA, NA, NA)
+names(d_log_rec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+d_log_f1 <- data.frame(NA, NA, NA, NA)
+names(d_log_f1) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+
+for(i in 1:groups){
+  
+  temp_50proj <- data.frame(pull(d_train_50proj, "Total"), d_train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("Total", names(d_train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(pull(d_train_100proj, "Total"), d_train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("Total", names(d_train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(pull(d_train_200proj, "Total"), d_train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("Total", names(d_train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(pull(d_train_400proj, "Total"), d_train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("Total", names(d_train_400proj[2:(i+1)]))
+  
+  ## Fit Linear Regression Model
+  
+  lr_50proj <- lm(Total ~ ., data=temp_50proj)
+  lr_100proj <- lm(Total ~ ., data=temp_100proj)
+  lr_200proj <- lm(Total ~ ., data=temp_200proj)
+  lr_400proj <- lm(Total ~ ., data=temp_400proj)
+  
+  d_lrs_50proj[[i]] <- lr_50proj
+  d_lrs_100proj[[i]] <- lr_100proj
+  d_lrs_200proj[[i]] <- lr_200proj
+  d_lrs_400proj[[i]] <- lr_400proj
+  
+  ## Fit Boosted Decision Tree Model
+  
+  temp_50proj <- data.frame(as.factor(pull(d_train_50proj, "LateNum50")), d_train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("LateNum50", names(d_train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(as.factor(pull(d_train_100proj, "LateNum50")), d_train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("LateNum50", names(d_train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(as.factor(pull(d_train_200proj, "LateNum50")), d_train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("LateNum50", names(d_train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(as.factor(pull(d_train_400proj, "LateNum50")), d_train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("LateNum50", names(d_train_400proj[2:(i+1)]))
+  
+  bdt50_50proj <- train(LateNum50 ~ ., data=temp_50proj, method="xgbTree", preProc=c("center", "scale")
+                        ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt50_100proj <- train(LateNum50 ~ ., data=temp_100proj, method="xgbTree", preProc=c("center", "scale")
+                         ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt50_200proj <- train(LateNum50 ~ ., data=temp_200proj, method="xgbTree", preProc=c("center", "scale")
+                         ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt50_400proj <- train(LateNum50 ~ ., data=temp_400proj, method="xgbTree", preProc=c("center", "scale")
+                         ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  
+  d_bdts50_50proj[[i]] <- bdt50_50proj
+  d_bdts50_100proj[[i]] <- bdt50_100proj
+  d_bdts50_200proj[[i]] <- bdt50_200proj
+  d_bdts50_400proj[[i]] <- bdt50_400proj
+  
+  temp_50proj <- data.frame(as.factor(pull(d_train_50proj, "LateNum20")), d_train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("LateNum20", names(d_train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(as.factor(pull(d_train_100proj, "LateNum20")), d_train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("LateNum20", names(d_train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(as.factor(pull(d_train_200proj, "LateNum20")), d_train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("LateNum20", names(d_train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(as.factor(pull(d_train_400proj, "LateNum20")), d_train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("LateNum20", names(d_train_400proj[2:(i+1)]))
+  
+  bdt20_50proj <- train(LateNum20 ~ ., data=temp_50proj, method="xgbTree", preProc=c("center", "scale")
+                        ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt20_100proj <- train(LateNum20 ~ ., data=temp_100proj, method="xgbTree", preProc=c("center", "scale")
+                         ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt20_200proj <- train(LateNum20 ~ ., data=temp_200proj, method="xgbTree", preProc=c("center", "scale")
+                         ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt20_400proj <- train(LateNum20 ~ ., data=temp_400proj, method="xgbTree", preProc=c("center", "scale")
+                         ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  
+  d_bdts20_50proj[[i]] <- bdt20_50proj
+  d_bdts20_100proj[[i]] <- bdt20_100proj
+  d_bdts20_200proj[[i]] <- bdt20_200proj
+  d_bdts20_400proj[[i]] <- bdt20_400proj
+  
+  ## Fit Logistic Regression Model
+  
+  temp_50proj <- data.frame(as.factor(pull(d_train_50proj, "LateNum50")), d_train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("LateNum50", names(d_train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(as.factor(pull(d_train_100proj, "LateNum50")), d_train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("LateNum50", names(d_train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(as.factor(pull(d_train_200proj, "LateNum50")), d_train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("LateNum50", names(d_train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(as.factor(pull(d_train_400proj, "LateNum50")), d_train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("LateNum50", names(d_train_400proj[2:(i+1)]))
+  
+  log50_50proj <- glm(LateNum50 ~ ., data=temp_50proj, family=binomial(link="logit"))
+  log50_100proj <- glm(LateNum50 ~ ., data=temp_100proj, family=binomial(link="logit"))
+  log50_200proj <- glm(LateNum50 ~ ., data=temp_200proj, family=binomial(link="logit"))
+  log50_400proj <- glm(LateNum50 ~ ., data=temp_400proj, family=binomial(link="logit"))
+  
+  d_logs50_50proj[[i]] <- log50_50proj
+  d_logs50_100proj[[i]] <- log50_100proj
+  d_logs50_200proj[[i]] <- log50_200proj
+  d_logs50_400proj[[i]] <- log50_400proj
+  
+  temp_50proj <- data.frame(as.factor(pull(d_train_50proj, "LateNum20")), d_train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("LateNum20", names(d_train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(as.factor(pull(d_train_100proj, "LateNum20")), d_train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("LateNum20", names(d_train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(as.factor(pull(d_train_200proj, "LateNum20")), d_train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("LateNum20", names(d_train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(as.factor(pull(d_train_400proj, "LateNum20")), d_train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("LateNum20", names(d_train_400proj[2:(i+1)]))
+  
+  log20_50proj <- glm(LateNum20 ~ ., data=temp_50proj, family=binomial(link="logit"))
+  log20_100proj <- glm(LateNum20 ~ ., data=temp_100proj, family=binomial(link="logit"))
+  log20_200proj <- glm(LateNum20 ~ ., data=temp_200proj, family=binomial(link="logit"))
+  log20_400proj <- glm(LateNum20 ~ ., data=temp_400proj, family=binomial(link="logit"))
+  
+  d_logs20_50proj[[i]] <- log20_50proj
+  d_logs20_100proj[[i]] <- log20_100proj
+  d_logs20_200proj[[i]] <- log20_200proj
+  d_logs20_400proj[[i]] <- log20_400proj
+  
+  ## Generate Predictions Using Testing Set
+  
+  temp_50proj <- data.frame(d_test_50proj[,2:(i+1)])
+  names(temp_50proj) <- names(d_test_50proj[2:(i+1)])
+  
+  temp_100proj <- data.frame(d_test_100proj[,2:(i+1)])
+  names(temp_100proj) <- names(d_test_100proj[2:(i+1)])
+  
+  temp_200proj <- data.frame(d_test_200proj[,2:(i+1)])
+  names(temp_200proj) <- names(d_test_200proj[2:(i+1)])
+  
+  temp_400proj <- data.frame(d_test_400proj[,2:(i+1)])
+  names(temp_400proj) <- names(d_test_400proj[2:(i+1)])
+  
+  lrpred_50proj <- predict(lr_50proj, temp_50proj)
+  lrpred_100proj <- predict(lr_100proj, temp_100proj)
+  lrpred_200proj <- predict(lr_200proj, temp_200proj)
+  lrpred_400proj <- predict(lr_400proj, temp_400proj)
+  
+  lravg50pred_50proj <- ifelse(predict(lr_50proj, temp_50proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  lravg50pred_100proj <- ifelse(predict(lr_100proj, temp_100proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  lravg50pred_200proj <- ifelse(predict(lr_200proj, temp_200proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  lravg50pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  
+  lravg20pred_50proj <- ifelse(predict(lr_50proj, temp_50proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  lravg20pred_100proj <- ifelse(predict(lr_100proj, temp_100proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  lravg20pred_200proj <- ifelse(predict(lr_200proj, temp_200proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  lravg20pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  
+  lrlwr50pred_50proj <- ifelse(predict(lr_50proj, temp_50proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  lrlwr50pred_100proj <- ifelse(predict(lr_100proj, temp_100proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  lrlwr50pred_200proj <- ifelse(predict(lr_200proj, temp_200proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  lrlwr50pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  
+  lrlwr20pred_50proj <- ifelse(predict(lr_50proj, temp_50proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  lrlwr20pred_100proj <- ifelse(predict(lr_100proj, temp_100proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  lrlwr20pred_200proj <- ifelse(predict(lr_200proj, temp_200proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  lrlwr20pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  
+  bdt50pred_50proj <- ifelse(predict(bdt50_50proj, temp_50proj)==1, "Late", "On Time")
+  bdt50pred_100proj <- ifelse(predict(bdt50_100proj, temp_100proj)==1, "Late", "On Time")
+  bdt50pred_200proj <- ifelse(predict(bdt50_200proj, temp_200proj)==1, "Late", "On Time")
+  bdt50pred_400proj <- ifelse(predict(bdt50_400proj, temp_400proj)==1, "Late", "On Time")
+  
+  bdt20pred_50proj <- ifelse(predict(bdt20_50proj, temp_50proj)==1, "Late", "On Time")
+  bdt20pred_100proj <- ifelse(predict(bdt20_100proj, temp_100proj)==1, "Late", "On Time")
+  bdt20pred_200proj <- ifelse(predict(bdt20_200proj, temp_200proj)==1, "Late", "On Time")
+  bdt20pred_400proj <- ifelse(predict(bdt20_400proj, temp_400proj)==1, "Late", "On Time")
+  
+  log50pred_50proj <- ifelse(predict(log50_50proj, temp_50proj, type="response")>.5, "Late", "On Time")
+  log50pred_100proj <- ifelse(predict(log50_100proj, temp_100proj, type="response")>.5, "Late", "On Time")
+  log50pred_200proj <- ifelse(predict(log50_200proj, temp_200proj, type="response")>.5, "Late", "On Time")
+  log50pred_400proj <- ifelse(predict(log50_400proj, temp_400proj, type="response")>.5, "Late", "On Time")
+  
+  log20pred_50proj <- ifelse(predict(log20_50proj, temp_50proj, type="response")>.5, "Late", "On Time")
+  log20pred_100proj <- ifelse(predict(log20_100proj, temp_100proj, type="response")>.5, "Late", "On Time")
+  log20pred_200proj <- ifelse(predict(log20_200proj, temp_200proj, type="response")>.5, "Late", "On Time")
+  log20pred_400proj <- ifelse(predict(log20_400proj, temp_400proj, type="response")>.5, "Late", "On Time")
+  
+  
+  ## Calculate Evaluation Metrics
+  
+  d_r_sq[i,1] <- cor(pull(d_test_50proj, "Total"), lrpred_50proj)^2
+  d_r_sq[i,2] <- cor(pull(d_test_100proj, "Total"), lrpred_100proj)^2
+  d_r_sq[i,3] <- cor(pull(d_test_200proj, "Total"), lrpred_200proj)^2
+  d_r_sq[i,4] <- cor(pull(d_test_400proj, "Total"), lrpred_400proj)^2
+  
+  lravg_cm50_50proj <- confusionMatrix(lravg50pred_50proj, pull(d_test_50proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm50_100proj <- confusionMatrix(lravg50pred_100proj, pull(d_test_100proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm50_200proj <- confusionMatrix(lravg50pred_200proj, pull(d_test_200proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm50_400proj <- confusionMatrix(lravg50pred_400proj, pull(d_test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lravg_cm20_50proj <- confusionMatrix(lravg20pred_50proj, pull(d_test_50proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm20_100proj <- confusionMatrix(lravg20pred_100proj, pull(d_test_100proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm20_200proj <- confusionMatrix(lravg20pred_200proj, pull(d_test_200proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm20_400proj <- confusionMatrix(lravg20pred_400proj, pull(d_test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lrlwr_cm50_50proj <- confusionMatrix(lrlwr50pred_50proj, pull(d_test_50proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm50_100proj <- confusionMatrix(lrlwr50pred_100proj, pull(d_test_100proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm50_200proj <- confusionMatrix(lrlwr50pred_200proj, pull(d_test_200proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm50_400proj <- confusionMatrix(lrlwr50pred_400proj, pull(d_test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lrlwr_cm20_50proj <- confusionMatrix(lrlwr20pred_50proj, pull(d_test_50proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm20_100proj <- confusionMatrix(lrlwr20pred_100proj, pull(d_test_100proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm20_200proj <- confusionMatrix(lrlwr20pred_200proj, pull(d_test_200proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm20_400proj <- confusionMatrix(lrlwr20pred_400proj, pull(d_test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  bdt_cm50_50proj <- confusionMatrix(bdt50pred_50proj, pull(d_test_50proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm50_100proj <- confusionMatrix(bdt50pred_100proj, pull(d_test_100proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm50_200proj <- confusionMatrix(bdt50pred_200proj, pull(d_test_200proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm50_400proj <- confusionMatrix(bdt50pred_400proj, pull(d_test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  bdt_cm20_50proj <- confusionMatrix(bdt20pred_50proj, pull(d_test_50proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm20_100proj <- confusionMatrix(bdt20pred_100proj, pull(d_test_100proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm20_200proj <- confusionMatrix(bdt20pred_200proj, pull(d_test_200proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm20_400proj <- confusionMatrix(bdt20pred_400proj, pull(d_test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  log_cm50_50proj <- confusionMatrix(log50pred_50proj, pull(d_test_50proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm50_100proj <- confusionMatrix(log50pred_100proj, pull(d_test_100proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm50_200proj <- confusionMatrix(log50pred_200proj, pull(d_test_200proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm50_400proj <- confusionMatrix(log50pred_400proj, pull(d_test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  log_cm20_50proj <- confusionMatrix(log20pred_50proj, pull(d_test_50proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm20_100proj <- confusionMatrix(log20pred_100proj, pull(d_test_100proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm20_200proj <- confusionMatrix(log20pred_200proj, pull(d_test_200proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm20_400proj <- confusionMatrix(log20pred_400proj, pull(d_test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  d_lravg_acc[i,1] <- lravg_cm50_50proj$overall["Accuracy"]
+  d_lravg_acc[i,2] <- lravg_cm50_100proj$overall["Accuracy"]
+  d_lravg_acc[i,3] <- lravg_cm50_200proj$overall["Accuracy"]
+  d_lravg_acc[i,4] <- lravg_cm50_400proj$overall["Accuracy"]
+  
+  d_lravg_prec[i,1] <- lravg_cm20_50proj$byClass["Precision"]
+  d_lravg_prec[i,2] <- lravg_cm20_100proj$byClass["Precision"]
+  d_lravg_prec[i,3] <- lravg_cm20_200proj$byClass["Precision"]
+  d_lravg_prec[i,4] <- lravg_cm20_400proj$byClass["Precision"]
+  
+  d_lravg_rec[i,1] <- lravg_cm20_50proj$byClass["Recall"]
+  d_lravg_rec[i,2] <- lravg_cm20_100proj$byClass["Recall"]
+  d_lravg_rec[i,3] <- lravg_cm20_200proj$byClass["Recall"]
+  d_lravg_rec[i,4] <- lravg_cm20_400proj$byClass["Recall"]
+  
+  d_lravg_f1[i,1] <- lravg_cm20_50proj$byClass["F1"]
+  d_lravg_f1[i,2] <- lravg_cm20_100proj$byClass["F1"]
+  d_lravg_f1[i,3] <- lravg_cm20_200proj$byClass["F1"]
+  d_lravg_f1[i,4] <- lravg_cm20_400proj$byClass["F1"]
+  
+  d_lrlwr_acc[i,1] <- lrlwr_cm50_50proj$overall["Accuracy"]
+  d_lrlwr_acc[i,2] <- lrlwr_cm50_100proj$overall["Accuracy"]
+  d_lrlwr_acc[i,3] <- lrlwr_cm50_200proj$overall["Accuracy"]
+  d_lrlwr_acc[i,4] <- lrlwr_cm50_400proj$overall["Accuracy"]
+  
+  d_lrlwr_prec[i,1] <- lrlwr_cm20_50proj$byClass["Precision"]
+  d_lrlwr_prec[i,2] <- lrlwr_cm20_100proj$byClass["Precision"]
+  d_lrlwr_prec[i,3] <- lrlwr_cm20_200proj$byClass["Precision"]
+  d_lrlwr_prec[i,4] <- lrlwr_cm20_400proj$byClass["Precision"]
+  
+  d_lrlwr_rec[i,1] <- lrlwr_cm20_50proj$byClass["Recall"]
+  d_lrlwr_rec[i,2] <- lrlwr_cm20_100proj$byClass["Recall"]
+  d_lrlwr_rec[i,3] <- lrlwr_cm20_200proj$byClass["Recall"]
+  d_lrlwr_rec[i,4] <- lrlwr_cm20_400proj$byClass["Recall"]
+  
+  d_lrlwr_f1[i,1] <- lrlwr_cm20_50proj$byClass["F1"]
+  d_lrlwr_f1[i,2] <- lrlwr_cm20_100proj$byClass["F1"]
+  d_lrlwr_f1[i,3] <- lrlwr_cm20_200proj$byClass["F1"]
+  d_lrlwr_f1[i,4] <- lrlwr_cm20_400proj$byClass["F1"]
+  
+  d_bdt_acc[i,1] <- bdt_cm50_50proj$overall["Accuracy"]
+  d_bdt_acc[i,2] <- bdt_cm50_100proj$overall["Accuracy"]
+  d_bdt_acc[i,3] <- bdt_cm50_200proj$overall["Accuracy"]
+  d_bdt_acc[i,4] <- bdt_cm50_400proj$overall["Accuracy"]
+  
+  d_bdt_prec[i,1] <- bdt_cm20_50proj$byClass["Precision"]
+  d_bdt_prec[i,2] <- bdt_cm20_100proj$byClass["Precision"]
+  d_bdt_prec[i,3] <- bdt_cm20_200proj$byClass["Precision"]
+  d_bdt_prec[i,4] <- bdt_cm20_400proj$byClass["Precision"]
+  
+  d_bdt_rec[i,1] <- bdt_cm20_50proj$byClass["Recall"]
+  d_bdt_rec[i,2] <- bdt_cm20_100proj$byClass["Recall"]
+  d_bdt_rec[i,3] <- bdt_cm20_200proj$byClass["Recall"]
+  d_bdt_rec[i,4] <- bdt_cm20_400proj$byClass["Recall"]
+  
+  d_bdt_f1[i,1] <- bdt_cm20_50proj$byClass["F1"]
+  d_bdt_f1[i,2] <- bdt_cm20_100proj$byClass["F1"]
+  d_bdt_f1[i,3] <- bdt_cm20_200proj$byClass["F1"]
+  d_bdt_f1[i,4] <- bdt_cm20_400proj$byClass["F1"]
+  
+  d_log_acc[i,1] <- log_cm50_50proj$overall["Accuracy"]
+  d_log_acc[i,2] <- log_cm50_100proj$overall["Accuracy"]
+  d_log_acc[i,3] <- log_cm50_200proj$overall["Accuracy"]
+  d_log_acc[i,4] <- log_cm50_400proj$overall["Accuracy"]
+  
+  d_log_prec[i,1] <- log_cm20_50proj$byClass["Precision"]
+  d_log_prec[i,2] <- log_cm20_100proj$byClass["Precision"]
+  d_log_prec[i,3] <- log_cm20_200proj$byClass["Precision"]
+  d_log_prec[i,4] <- log_cm20_400proj$byClass["Precision"]
+  
+  d_log_rec[i,1] <- log_cm20_50proj$byClass["Recall"]
+  d_log_rec[i,2] <- log_cm20_100proj$byClass["Recall"]
+  d_log_rec[i,3] <- log_cm20_200proj$byClass["Recall"]
+  d_log_rec[i,4] <- log_cm20_400proj$byClass["Recall"]
+  
+  d_log_f1[i,1] <- log_cm20_50proj$byClass["F1"]
+  d_log_f1[i,2] <- log_cm20_100proj$byClass["F1"]
+  d_log_f1[i,3] <- log_cm20_200proj$byClass["F1"]
+  d_log_f1[i,4] <- log_cm20_400proj$byClass["F1"]
+}
+```
+
+## Results
+
+Now, we check to see how the algorithms work with the alternative structure.
+
+```{r FullScaleFixedTimeframeResultsOverallAcc}
+days <- 1:groups*dayspergroup
+
+plot(x=days, y=d_lravg_acc[,4], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) with 400 Projects", sub="Red=Lin Reg (Mean), Blue=Lin Reg (Lower), Green=XGBoost, Orange=Log Reg")
+lines(x=days, y=d_lrlwr_acc[,4], col="blue")
+lines(x=days, y=d_bdt_acc[,4], col="green")
+lines(x=days, y=d_log_acc[,4], col="orange")
+abline(h=.5)
+abline(h=.8, lty=2)
+```
+
+The major difference between this plot and the one we saw for the initial framework is that the Boosted Decision Tree has now joined the mix as a top algorithm.  We notice that the algorithms reach 80% accuracy at 360 days.  Is this earlier than "after completing ten Top Summary Tasks"?
+
+```{r TopSummaryTaskTimes}
+d400proj_tst10 <- d400proj_cumsum[d400proj_cumsum$TopSummaryTaskNumber == "TopSummaryTask10",]
+hist(d400proj_tst10$CumulativeCompletionDays, main="Cumulative Completion Days for Top Summary Task 10", xlab="Cumulative Completion Days")
+abline(v=360, col="red")
+
+summary_temp <- summary(d400proj_tst10$CumulativeCompletionDays)
+disp <- data.frame(as.numeric(summary_temp["Min."]), as.numeric(summary_temp["1st Qu."]), as.numeric(summary_temp["Median"]),
+                   as.numeric(summary_temp["Mean"]), as.numeric(summary_temp["3rd Qu."]), as.numeric(summary_temp["Max."]))
+names(disp) <- c("Min", "1st Quartile", "Median", "Mean", "3rd Quartile", "Max")
+disp
+```
+
+The answer is no.  These two frameworks produce very similar results.  This leads us to believe that the framework should be chosen based on the real-world use case.  We move on to the 20% Late algorithms.
+
+```{r FullScaleFixedTimeframeResultsOverallF1}
+plot(x=days, y=d_lravg_f1[,4], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) with 400 Projects", sub="Red=Lin Reg (Mean), Blue=Lin Reg (Lower), Green=XGBoost, Orange=Log Reg")
+lines(x=days, y=d_lrlwr_f1[,4], col="blue")
+lines(x=days, y=d_bdt_f1[,4], col="green")
+lines(x=days, y=d_log_f1[,4], col="orange")
+abline(h=.5)
+abline(h=.75, lty=2)
+```
+
+As with the Accuracy plot above, we find that the Linear Regression Mean, Logistic Regression and Boosted Decision Tree algorithms provide similar results.  It is important to notice that the Boosted Decision Tree algorithm appears to be less stable.  These algorithms pass .75 F1 around day 420.  Is this ealier than than "after completing eleven Top Summary Tasks"?
+
+```{r}
+d400proj_tst11 <- d400proj_cumsum[d400proj_cumsum$TopSummaryTaskNumber == "TopSummaryTask11",]
+hist(d400proj_tst11$CumulativeCompletionDays, main="Cumulative Completion Days for Top Summary Task 11", xlab="Cumulative Completion Days")
+abline(v=420, col="red")
+
+summary_temp <- summary(d400proj_tst11$CumulativeCompletionDays)
+disp <- data.frame(as.numeric(summary_temp["Min."]), as.numeric(summary_temp["1st Qu."]), as.numeric(summary_temp["Median"]),
+                   as.numeric(summary_temp["Mean"]), as.numeric(summary_temp["3rd Qu."]), as.numeric(summary_temp["Max."]))
+names(disp) <- c("Min", "1st Quartile", "Median", "Mean", "3rd Quartile", "Max")
+disp
+```
+
+The difference here is even more substantial.  With a mean and median of around 400 days for completing Top Summary Task 11, the initial framework provides substantially higher F1 for imbalanced datasets.  Before we draw any conclusions, we examine the remaining plots.
+
+```{r FullScaleFixedTimeframeResults}
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Linear Regression Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(x=days, y=d_r_sq[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="R-Squared"
+     ,main="Predicting Total Completion Time via Linear Regression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(x=days, y=d_r_sq[,2], col="blue")
+lines(x=days, y=d_r_sq[,3], col="green")
+lines(x=days, y=d_r_sq[,4], col="orange")
+abline(h=.8)
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Linear Regression Mean Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(x=days, y=d_lravg_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(x=days, y=d_lravg_acc[,2], col="blue")
+lines(x=days, y=d_lravg_acc[,3], col="green")
+lines(x=days, y=d_lravg_acc[,4], col="orange")
+abline(h=.5)
+
+prec_base <- sum(pull(t400proj_pvt, "LateNum20"))/sum(1-pull(t400proj_pvt, "LateNum20"))
+
+plot(x=days, y=d_lravg_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(x=days, y=d_lravg_prec[,2], col="blue")
+lines(x=days, y=d_lravg_prec[,3], col="green")
+lines(x=days, y=d_lravg_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(x=days, y=d_lravg_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(x=days, y=d_lravg_rec[,2], col="blue")
+lines(x=days, y=d_lravg_rec[,3], col="green")
+lines(x=days, y=d_lravg_rec[,4], col="orange")
+abline(h=.5)
+
+plot(x=days, y=d_lravg_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(x=days, y=d_lravg_f1[,2], col="blue")
+lines(x=days, y=d_lravg_f1[,3], col="green")
+lines(x=days, y=d_lravg_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Linear Regression Lower Bound Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(x=days, y=d_lrlwr_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(x=days, y=d_lrlwr_acc[,2], col="blue")
+lines(x=days, y=d_lrlwr_acc[,3], col="green")
+lines(x=days, y=d_lrlwr_acc[,4], col="orange")
+abline(h=.5)
+
+plot(d_lrlwr_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(d_lrlwr_prec[,2], col="blue")
+lines(d_lrlwr_prec[,3], col="green")
+lines(d_lrlwr_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(x=days, y=d_lrlwr_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(x=days, y=d_lrlwr_rec[,2], col="blue")
+lines(x=days, y=d_lrlwr_rec[,3], col="green")
+lines(x=days, y=d_lrlwr_rec[,4], col="orange")
+abline(h=.5)
+
+plot(x=days, y=d_lrlwr_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(x=days, y=d_lrlwr_f1[,2], col="blue")
+lines(x=days, y=d_lrlwr_f1[,3], col="green")
+lines(x=days, y=d_lrlwr_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Boosted Decision Tree Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(x=days, y=d_bdt_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Boosted Decision \nTree", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(x=days, y=d_bdt_acc[,2], col="blue")
+lines(x=days, y=d_bdt_acc[,3], col="green")
+lines(x=days, y=d_bdt_acc[,4], col="orange")
+abline(h=.5)
+
+plot(x=days, y=d_bdt_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Boosted Decision \nTree", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(x=days, y=d_bdt_prec[,2], col="blue")
+lines(x=days, y=d_bdt_prec[,3], col="green")
+lines(x=days, y=d_bdt_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(x=days, y=d_bdt_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Boosted Decision \nTree", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(x=days, y=d_bdt_rec[,2], col="blue")
+lines(x=days, y=d_bdt_rec[,3], col="green")
+lines(x=days, y=d_bdt_rec[,4], col="orange")
+abline(h=.5)
+
+plot(x=days, y=d_bdt_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Boosted Decision \nTree", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(x=days, y=d_bdt_f1[,2], col="blue")
+lines(x=days, y=d_bdt_f1[,3], col="green")
+lines(x=days, y=d_bdt_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Logistic Regression Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(x=days, y=d_log_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(x=days, y=d_log_acc[,2], col="blue")
+lines(x=days, y=d_log_acc[,3], col="green")
+lines(x=days, y=d_log_acc[,4], col="orange")
+abline(h=.5)
+
+plot(x=days, y=d_log_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(x=days, y=d_log_prec[,2], col="blue")
+lines(x=days, y=d_log_prec[,3], col="green")
+lines(x=days, y=d_log_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(x=days, y=d_log_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(x=days, y=d_log_rec[,2], col="blue")
+lines(x=days, y=d_log_rec[,3], col="green")
+lines(x=days, y=d_log_rec[,4], col="orange")
+abline(h=.5)
+
+plot(x=days, y=d_log_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Days Since Project Start", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(x=days, y=d_log_f1[,2], col="blue")
+lines(x=days, y=d_log_f1[,3], col="green")
+lines(x=days, y=d_log_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+```
+
+One thing is apparent in these chart.  The alternative framework produces substantially less useful Linear Regression results than the initial framework.  Combining this result with what we found earlier leads us to conclude that the initial framework is the optimal strategy for dealing with this type of data.
+
+# DCX-Specific Data
+
+## Introduction
+
+For the Microsoft DCX engagement, we were provided with a scenario similar to what was proposed as the basis for this framework.  This data came in as weekly snapshots.  This means that a single project will have a record every week noting the progress that has been made.  A major concern of using this data in its current state is "overfitting".  This is an issue where a large number of records show the same patterns.  This can lead to a model that predicts that particular dataset well, but does not extrapolate to other datasets well.  In this case, this is caused by the fact that there are a large number of records, but a relatively small number of projects.
+
+We also found that matching up tasks across projects needs much more work before the dataset would be viable.  Microsoft provided a mapping for twelve milestones.  These are very similar to the Top Summary Tasks we used in the framework.  After cleansing on our side, we found four projects that could potentially be used for prediction.  Since four projects is much too small a sample for our needs, we developed a way to lay our framework, and the associated test data, on top of the DCX data provided.
+
+## Dataset Preparation
+
+To prepare our test datasets, we first calculated the mean and standard deviation for each milestone.
+
+```{r DCXLoadData, echo=FALSE, message=FALSE,warning=FALSE, results='hide'}
+dcx <- read_csv("C:/Users/bllewellyn/OneDrive - Valorem/DCX/DCX Data 2018_02_21.csv")
+```
+
+```{r DCXPrepData1}
+dcx.df <- apply(data.frame(dcx)[,-(1:3)], 2, FUN=as.numeric)
+dcx.mean <- apply(dcx.df, 2, FUN=mean, na.rm=TRUE)
+dcx.sd <- apply(dcx.df, 2, FUN=sd, na.rm=TRUE)
+
+disp <- data.frame(dcx.mean, dcx.sd)
+names(disp) <- c("Mean", "Standard Deviation")
+row.names(disp) <- names(dcx.mean)
+disp
+```
+
+The milestones that do not have standard deviations contain only one record.  Therefore, we need a way to infer what these standard deviations are.  In order to do this, we find the ratio between the overall mean and the overall standard deviation.  We can combine this with the mean to infer what the standard deviation of the individual milestone would be.  Obviously, this is a biased approach.  However, we have such little data that we must make some assumptions in order to proceed
+
+```{r DCXPrepData2}
+dcx.mean.overall <- mean(dcx.df, na.rm=TRUE)
+dcx.sd.overall <- sd(dcx.df, na.rm=TRUE)
+dcx.ratio <- dcx.sd.overall / dcx.mean.overall
+dcx.sd.new <- coalesce(dcx.sd, dcx.mean*dcx.ratio)
+
+disp <- data.frame(dcx.mean, dcx.sd.new)
+names(disp) <- c("Mean", "Standard Deviation")
+row.names(disp) <- names(dcx.mean)
+disp
+```
+
+The variables with standard deviations of zero would provide no value to any predictive model.  Therefore, we remove them from our dataset.  Then, we rename the Top Summary Tasks from our test data and scale them according to the new mean and standard deviation.  This will create our new datasets.
+
+```{r DCXPrepData3}
+dcx.mean.final <- dcx.mean[dcx.sd.new>0]
+dcx.sd.final <- dcx.sd.new[dcx.sd.new>0]
+
+dcx50proj_init <- t50proj_pvt[,1:(length(dcx.mean.final)+1)]
+dcx50proj <- data.frame(t50proj_pvt[,1])
+
+for(i in 2:dim(dcx50proj_init)[2]){
+  dcx50proj[,i] <- scale(dcx50proj_init[,i]) * dcx.sd.final[i-1] + dcx.mean.final[i-1]
+}
+
+names(dcx50proj) <- c(names(t50proj_pvt)[1], names(dcx.mean.final))
+
+dcx100proj_init <- t100proj_pvt[,1:(length(dcx.mean.final)+1)]
+dcx100proj <- data.frame(t100proj_pvt[,1])
+
+for(i in 2:dim(dcx100proj_init)[2]){
+  dcx100proj[,i] <- scale(dcx100proj_init[,i]) * dcx.sd.final[i-1] + dcx.mean.final[i-1]
+}
+
+names(dcx100proj) <- c(names(t100proj_pvt)[1], names(dcx.mean.final))
+
+dcx200proj_init <- t200proj_pvt[,1:(length(dcx.mean.final)+1)]
+dcx200proj <- data.frame(t200proj_pvt[,1])
+
+for(i in 2:dim(dcx200proj_init)[2]){
+  dcx200proj[,i] <- scale(dcx200proj_init[,i]) * dcx.sd.final[i-1] + dcx.mean.final[i-1]
+}
+
+names(dcx200proj) <- c(names(t200proj_pvt)[1], names(dcx.mean.final))
+
+dcx400proj_init <- t400proj_pvt[,1:(length(dcx.mean.final)+1)]
+dcx400proj <- data.frame(t400proj_pvt[,1])
+
+for(i in 2:dim(dcx400proj_init)[2]){
+  dcx400proj[,i] <- scale(dcx400proj_init[,i]) * dcx.sd.final[i-1] + dcx.mean.final[i-1]
+}
+
+names(dcx400proj) <- c(names(t400proj_pvt)[1], names(dcx.mean.final))
+
+head(dcx400proj)
+```
+
+## Results
+
+We run the same code as in the initial framework.  The only modification is that we change the names of the datsets.
+
+```{r DCXFullScale, warning=FALSE, message=FALSE, echo=FALSE, results="hide"}
+dcx50proj["Total"] <- apply(dcx50proj[,2:11],MARGIN=1,FUN=sum)
+dcx100proj["Total"] <- apply(dcx100proj[,2:11],MARGIN=1,FUN=sum)
+dcx200proj["Total"] <- apply(dcx200proj[,2:11],MARGIN=1,FUN=sum)
+dcx400proj["Total"] <- apply(dcx400proj[,2:11],MARGIN=1,FUN=sum)
+
+## Determine "On-Time" Threshold
+
+thresh_50 <- quantile(pull(dcx400proj, "Total"), .5)
+thresh_80 <- quantile(pull(dcx400proj, "Total"), .8)
+
+dcx50proj["LateNum50"] <- ifelse(pull(dcx50proj, "Total") > thresh_50, 1, 0)
+dcx50proj["LateNum20"] <- ifelse(pull(dcx50proj, "Total") > thresh_80, 1, 0)
+dcx50proj["Late50"] <- ifelse(pull(dcx50proj, "Total") > thresh_50, "Late", "On Time")
+dcx50proj["Late20"] <- ifelse(pull(dcx50proj, "Total") > thresh_80, "Late", "On Time")
+
+dcx100proj["LateNum50"] <- ifelse(pull(dcx100proj, "Total") > thresh_50, 1, 0)
+dcx100proj["LateNum20"] <- ifelse(pull(dcx100proj, "Total") > thresh_80, 1, 0)
+dcx100proj["Late50"] <- ifelse(pull(dcx100proj, "Total") > thresh_50, "Late", "On Time")
+dcx100proj["Late20"] <- ifelse(pull(dcx100proj, "Total") > thresh_80, "Late", "On Time")
+
+dcx200proj["LateNum50"] <- ifelse(pull(dcx200proj, "Total") > thresh_50, 1, 0)
+dcx200proj["LateNum20"] <- ifelse(pull(dcx200proj, "Total") > thresh_80, 1, 0)
+dcx200proj["Late50"] <- ifelse(pull(dcx200proj, "Total") > thresh_50, "Late", "On Time")
+dcx200proj["Late20"] <- ifelse(pull(dcx200proj, "Total") > thresh_80, "Late", "On Time")
+
+dcx400proj["LateNum50"] <- ifelse(pull(dcx400proj, "Total") > thresh_50, 1, 0)
+dcx400proj["LateNum20"] <- ifelse(pull(dcx400proj, "Total") > thresh_80, 1, 0)
+dcx400proj["Late50"] <- ifelse(pull(dcx400proj, "Total") > thresh_50, "Late", "On Time")
+dcx400proj["Late20"] <- ifelse(pull(dcx400proj, "Total") > thresh_80, "Late", "On Time")
+
+## Create Testing and Training Split
+
+splitperc <- .7
+set.seed(50)
+
+datasize_50proj <- dim(dcx50proj)[1]
+sampsize_50proj <- datasize_50proj * splitperc
+samp_50proj <- sample(1:datasize_50proj,sampsize_50proj)
+train_50proj <- dcx50proj[samp_50proj,]
+test_50proj <- dcx50proj[-samp_50proj,]
+
+datasize_100proj <- dim(dcx100proj)[1]
+sampsize_100proj <- datasize_100proj * splitperc
+samp_100proj <- sample(1:datasize_100proj,sampsize_100proj)
+train_100proj <- dcx100proj[samp_100proj,]
+test_100proj <- dcx100proj[-samp_100proj,]
+
+datasize_200proj <- dim(dcx200proj)[1]
+sampsize_200proj <- datasize_200proj * splitperc
+samp_200proj <- sample(1:datasize_200proj,sampsize_200proj)
+train_200proj <- dcx200proj[samp_200proj,]
+test_200proj <- dcx200proj[-samp_200proj,]
+
+datasize_400proj <- dim(dcx400proj)[1]
+sampsize_400proj <- datasize_400proj * splitperc
+samp_400proj <- sample(1:datasize_400proj,sampsize_400proj)
+train_400proj <- dcx400proj[samp_400proj,]
+test_400proj <- dcx400proj[-samp_400proj,]
+
+## Fit Linear Regression and Boosted Decision Tree Models using Training Set
+
+lrs_50proj <- list()
+lrs_100proj <- list()
+lrs_200proj <- list()
+lrs_400proj <- list()
+bdts50_50proj <- list()
+bdts50_100proj <- list()
+bdts50_200proj <- list()
+bdts50_400proj <- list()
+bdts20_50proj <- list()
+bdts20_100proj <- list()
+bdts20_200proj <- list()
+bdts20_400proj <- list()
+logs50_50proj <- list()
+logs50_100proj <- list()
+logs50_200proj <- list()
+logs50_400proj <- list()
+logs20_50proj <- list()
+logs20_100proj <- list()
+logs20_200proj <- list()
+logs20_400proj <- list()
+r_sq <- data.frame(NA, NA, NA, NA)
+names(r_sq) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lravg_acc <- data.frame(NA, NA, NA, NA)
+names(lravg_acc) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lravg_prec <- data.frame(NA, NA, NA, NA)
+names(lravg_prec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lravg_rec <- data.frame(NA, NA, NA, NA)
+names(lravg_rec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lravg_f1 <- data.frame(NA, NA, NA, NA)
+names(lravg_f1) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lrlwr_acc <- data.frame(NA, NA, NA, NA)
+names(lrlwr_acc) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lrlwr_prec <- data.frame(NA, NA, NA, NA)
+names(lrlwr_prec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lrlwr_rec <- data.frame(NA, NA, NA, NA)
+names(lrlwr_rec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lrlwr_f1 <- data.frame(NA, NA, NA, NA)
+names(lrlwr_f1) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+bdt_acc <- data.frame(NA, NA, NA, NA)
+names(bdt_acc) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+bdt_prec <- data.frame(NA, NA, NA, NA)
+names(bdt_prec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+bdt_rec <- data.frame(NA, NA, NA, NA)
+names(bdt_rec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+bdt_f1 <- data.frame(NA, NA, NA, NA)
+names(bdt_f1) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+log_acc <- data.frame(NA, NA, NA, NA)
+names(log_acc) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+log_prec <- data.frame(NA, NA, NA, NA)
+names(log_prec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+log_rec <- data.frame(NA, NA, NA, NA)
+names(log_rec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+log_f1 <- data.frame(NA, NA, NA, NA)
+names(log_f1) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+
+bdt_randopt <- 20
+nrounds <- seq(from=25, to=200, by=25)
+max_depth <- seq(from=1, to=10, by=1)
+eta <- seq(from=.1, to=1, by=.1)
+gamma <- seq(from=0, to=10, by=.2)
+colsample_bytree <- seq(from=.5, to=1, by=.05)
+min_child_weight <- 1
+subsample <- 1
+len <- length(nrounds)*length(max_depth)*length(eta)*length(gamma)*length(colsample_bytree)*length(min_child_weight)*length(subsample)
+rand <- ceiling(runif(bdt_randopt)*len)
+bdt_grid <- expand.grid(nrounds, max_depth, eta, gamma, colsample_bytree, min_child_weight, subsample)[rand,]
+bdt_grid[bdt_randopt+1,] <- c(1,1,1,0,1,1,1)
+names(bdt_grid) <- c("nrounds", "max_depth", "eta", "gamma", "colsample_bytree", "min_child_weight", "subsample")
+
+for(i in 1:10){
+  
+  temp_50proj <- data.frame(pull(train_50proj, "Total"), train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("Total", names(train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(pull(train_100proj, "Total"), train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("Total", names(train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(pull(train_200proj, "Total"), train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("Total", names(train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(pull(train_400proj, "Total"), train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("Total", names(train_400proj[2:(i+1)]))
+
+## Fit Linear Regression Model
+  
+  lr_50proj <- lm(Total ~ ., data=temp_50proj)
+  lr_100proj <- lm(Total ~ ., data=temp_100proj)
+  lr_200proj <- lm(Total ~ ., data=temp_200proj)
+  lr_400proj <- lm(Total ~ ., data=temp_400proj)
+
+  lrs_50proj[[i]] <- lr_50proj
+  lrs_100proj[[i]] <- lr_100proj
+  lrs_200proj[[i]] <- lr_200proj
+  lrs_400proj[[i]] <- lr_400proj
+
+## Fit Boosted Decision Tree Model
+  
+  temp_50proj <- data.frame(as.factor(pull(train_50proj, "LateNum50")), train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("LateNum50", names(train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(as.factor(pull(train_100proj, "LateNum50")), train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("LateNum50", names(train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(as.factor(pull(train_200proj, "LateNum50")), train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("LateNum50", names(train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(as.factor(pull(train_400proj, "LateNum50")), train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("LateNum50", names(train_400proj[2:(i+1)]))
+  
+  bdt50_50proj <- train(LateNum50 ~ ., data=temp_50proj, method="xgbTree", preProc=c("center", "scale")
+                            ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt50_100proj <- train(LateNum50 ~ ., data=temp_100proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt50_200proj <- train(LateNum50 ~ ., data=temp_200proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt50_400proj <- train(LateNum50 ~ ., data=temp_400proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  
+  bdts50_50proj[[i]] <- bdt50_50proj
+  bdts50_100proj[[i]] <- bdt50_100proj
+  bdts50_200proj[[i]] <- bdt50_200proj
+  bdts50_400proj[[i]] <- bdt50_400proj
+  
+  temp_50proj <- data.frame(as.factor(pull(train_50proj, "LateNum20")), train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("LateNum20", names(train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(as.factor(pull(train_100proj, "LateNum20")), train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("LateNum20", names(train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(as.factor(pull(train_200proj, "LateNum20")), train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("LateNum20", names(train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(as.factor(pull(train_400proj, "LateNum20")), train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("LateNum20", names(train_400proj[2:(i+1)]))
+  
+  bdt20_50proj <- train(LateNum20 ~ ., data=temp_50proj, method="xgbTree", preProc=c("center", "scale")
+                            ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt20_100proj <- train(LateNum20 ~ ., data=temp_100proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt20_200proj <- train(LateNum20 ~ ., data=temp_200proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt20_400proj <- train(LateNum20 ~ ., data=temp_400proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  
+  bdts20_50proj[[i]] <- bdt20_50proj
+  bdts20_100proj[[i]] <- bdt20_100proj
+  bdts20_200proj[[i]] <- bdt20_200proj
+  bdts20_400proj[[i]] <- bdt20_400proj
+  
+## Fit Logistic Regression Model
+  
+  temp_50proj <- data.frame(as.factor(pull(train_50proj, "LateNum50")), train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("LateNum50", names(train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(as.factor(pull(train_100proj, "LateNum50")), train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("LateNum50", names(train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(as.factor(pull(train_200proj, "LateNum50")), train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("LateNum50", names(train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(as.factor(pull(train_400proj, "LateNum50")), train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("LateNum50", names(train_400proj[2:(i+1)]))
+  
+  log50_50proj <- glm(LateNum50 ~ ., data=temp_50proj, family=binomial(link="logit"))
+  log50_100proj <- glm(LateNum50 ~ ., data=temp_100proj, family=binomial(link="logit"))
+  log50_200proj <- glm(LateNum50 ~ ., data=temp_200proj, family=binomial(link="logit"))
+  log50_400proj <- glm(LateNum50 ~ ., data=temp_400proj, family=binomial(link="logit"))
+  
+  logs50_50proj[[i]] <- log50_50proj
+  logs50_100proj[[i]] <- log50_100proj
+  logs50_200proj[[i]] <- log50_200proj
+  logs50_400proj[[i]] <- log50_400proj
+  
+  temp_50proj <- data.frame(as.factor(pull(train_50proj, "LateNum20")), train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("LateNum20", names(train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(as.factor(pull(train_100proj, "LateNum20")), train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("LateNum20", names(train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(as.factor(pull(train_200proj, "LateNum20")), train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("LateNum20", names(train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(as.factor(pull(train_400proj, "LateNum20")), train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("LateNum20", names(train_400proj[2:(i+1)]))
+  
+  log20_50proj <- glm(LateNum20 ~ ., data=temp_50proj, family=binomial(link="logit"))
+  log20_100proj <- glm(LateNum20 ~ ., data=temp_100proj, family=binomial(link="logit"))
+  log20_200proj <- glm(LateNum20 ~ ., data=temp_200proj, family=binomial(link="logit"))
+  log20_400proj <- glm(LateNum20 ~ ., data=temp_400proj, family=binomial(link="logit"))
+  
+  logs20_50proj[[i]] <- log20_50proj
+  logs20_100proj[[i]] <- log20_100proj
+  logs20_200proj[[i]] <- log20_200proj
+  logs20_400proj[[i]] <- log20_400proj
+  
+## Generate Predictions Using Testing Set
+  
+  temp_50proj <- data.frame(test_50proj[,2:(i+1)])
+  names(temp_50proj) <- names(test_50proj[2:(i+1)])
+  
+  temp_100proj <- data.frame(test_100proj[,2:(i+1)])
+  names(temp_100proj) <- names(test_100proj[2:(i+1)])
+  
+  temp_200proj <- data.frame(test_200proj[,2:(i+1)])
+  names(temp_200proj) <- names(test_200proj[2:(i+1)])
+  
+  temp_400proj <- data.frame(test_400proj[,2:(i+1)])
+  names(temp_400proj) <- names(test_400proj[2:(i+1)])
+  
+  lrpred_50proj <- predict(lr_50proj, temp_50proj)
+  lrpred_100proj <- predict(lr_100proj, temp_100proj)
+  lrpred_200proj <- predict(lr_200proj, temp_200proj)
+  lrpred_400proj <- predict(lr_400proj, temp_400proj)
+  
+  lravg50pred_50proj <- ifelse(predict(lr_50proj, temp_50proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  lravg50pred_100proj <- ifelse(predict(lr_100proj, temp_100proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  lravg50pred_200proj <- ifelse(predict(lr_200proj, temp_200proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  lravg50pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  
+  lravg20pred_50proj <- ifelse(predict(lr_50proj, temp_50proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  lravg20pred_100proj <- ifelse(predict(lr_100proj, temp_100proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  lravg20pred_200proj <- ifelse(predict(lr_200proj, temp_200proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  lravg20pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  
+  lrlwr50pred_50proj <- ifelse(predict(lr_50proj, temp_50proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  lrlwr50pred_100proj <- ifelse(predict(lr_100proj, temp_100proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  lrlwr50pred_200proj <- ifelse(predict(lr_200proj, temp_200proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  lrlwr50pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  
+  lrlwr20pred_50proj <- ifelse(predict(lr_50proj, temp_50proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  lrlwr20pred_100proj <- ifelse(predict(lr_100proj, temp_100proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  lrlwr20pred_200proj <- ifelse(predict(lr_200proj, temp_200proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  lrlwr20pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  
+  bdt50pred_50proj <- ifelse(predict(bdt50_50proj, temp_50proj)==1, "Late", "On Time")
+  bdt50pred_100proj <- ifelse(predict(bdt50_100proj, temp_100proj)==1, "Late", "On Time")
+  bdt50pred_200proj <- ifelse(predict(bdt50_200proj, temp_200proj)==1, "Late", "On Time")
+  bdt50pred_400proj <- ifelse(predict(bdt50_400proj, temp_400proj)==1, "Late", "On Time")
+  
+  bdt20pred_50proj <- ifelse(predict(bdt20_50proj, temp_50proj)==1, "Late", "On Time")
+  bdt20pred_100proj <- ifelse(predict(bdt20_100proj, temp_100proj)==1, "Late", "On Time")
+  bdt20pred_200proj <- ifelse(predict(bdt20_200proj, temp_200proj)==1, "Late", "On Time")
+  bdt20pred_400proj <- ifelse(predict(bdt20_400proj, temp_400proj)==1, "Late", "On Time")
+  
+  log50pred_50proj <- ifelse(predict(log50_50proj, temp_50proj, type="response")>.5, "Late", "On Time")
+  log50pred_100proj <- ifelse(predict(log50_100proj, temp_100proj, type="response")>.5, "Late", "On Time")
+  log50pred_200proj <- ifelse(predict(log50_200proj, temp_200proj, type="response")>.5, "Late", "On Time")
+  log50pred_400proj <- ifelse(predict(log50_400proj, temp_400proj, type="response")>.5, "Late", "On Time")
+  
+  log20pred_50proj <- ifelse(predict(log20_50proj, temp_50proj, type="response")>.5, "Late", "On Time")
+  log20pred_100proj <- ifelse(predict(log20_100proj, temp_100proj, type="response")>.5, "Late", "On Time")
+  log20pred_200proj <- ifelse(predict(log20_200proj, temp_200proj, type="response")>.5, "Late", "On Time")
+  log20pred_400proj <- ifelse(predict(log20_400proj, temp_400proj, type="response")>.5, "Late", "On Time")
+  
+  
+## Calculate Evaluation Metrics
+  
+  r_sq[i,1] <- cor(pull(test_50proj, "Total"), lrpred_50proj)^2
+  r_sq[i,2] <- cor(pull(test_100proj, "Total"), lrpred_100proj)^2
+  r_sq[i,3] <- cor(pull(test_200proj, "Total"), lrpred_200proj)^2
+  r_sq[i,4] <- cor(pull(test_400proj, "Total"), lrpred_400proj)^2
+  
+  lravg_cm50_50proj <- confusionMatrix(lravg50pred_50proj, pull(test_50proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm50_100proj <- confusionMatrix(lravg50pred_100proj, pull(test_100proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm50_200proj <- confusionMatrix(lravg50pred_200proj, pull(test_200proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm50_400proj <- confusionMatrix(lravg50pred_400proj, pull(test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lravg_cm20_50proj <- confusionMatrix(lravg20pred_50proj, pull(test_50proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm20_100proj <- confusionMatrix(lravg20pred_100proj, pull(test_100proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm20_200proj <- confusionMatrix(lravg20pred_200proj, pull(test_200proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm20_400proj <- confusionMatrix(lravg20pred_400proj, pull(test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lrlwr_cm50_50proj <- confusionMatrix(lrlwr50pred_50proj, pull(test_50proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm50_100proj <- confusionMatrix(lrlwr50pred_100proj, pull(test_100proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm50_200proj <- confusionMatrix(lrlwr50pred_200proj, pull(test_200proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm50_400proj <- confusionMatrix(lrlwr50pred_400proj, pull(test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lrlwr_cm20_50proj <- confusionMatrix(lrlwr20pred_50proj, pull(test_50proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm20_100proj <- confusionMatrix(lrlwr20pred_100proj, pull(test_100proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm20_200proj <- confusionMatrix(lrlwr20pred_200proj, pull(test_200proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm20_400proj <- confusionMatrix(lrlwr20pred_400proj, pull(test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  bdt_cm50_50proj <- confusionMatrix(bdt50pred_50proj, pull(test_50proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm50_100proj <- confusionMatrix(bdt50pred_100proj, pull(test_100proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm50_200proj <- confusionMatrix(bdt50pred_200proj, pull(test_200proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm50_400proj <- confusionMatrix(bdt50pred_400proj, pull(test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  bdt_cm20_50proj <- confusionMatrix(bdt20pred_50proj, pull(test_50proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm20_100proj <- confusionMatrix(bdt20pred_100proj, pull(test_100proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm20_200proj <- confusionMatrix(bdt20pred_200proj, pull(test_200proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm20_400proj <- confusionMatrix(bdt20pred_400proj, pull(test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  log_cm50_50proj <- confusionMatrix(log50pred_50proj, pull(test_50proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm50_100proj <- confusionMatrix(log50pred_100proj, pull(test_100proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm50_200proj <- confusionMatrix(log50pred_200proj, pull(test_200proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm50_400proj <- confusionMatrix(log50pred_400proj, pull(test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  log_cm20_50proj <- confusionMatrix(log20pred_50proj, pull(test_50proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm20_100proj <- confusionMatrix(log20pred_100proj, pull(test_100proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm20_200proj <- confusionMatrix(log20pred_200proj, pull(test_200proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm20_400proj <- confusionMatrix(log20pred_400proj, pull(test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lravg_acc[i,1] <- lravg_cm50_50proj$overall["Accuracy"]
+  lravg_acc[i,2] <- lravg_cm50_100proj$overall["Accuracy"]
+  lravg_acc[i,3] <- lravg_cm50_200proj$overall["Accuracy"]
+  lravg_acc[i,4] <- lravg_cm50_400proj$overall["Accuracy"]
+  
+  lravg_prec[i,1] <- lravg_cm20_50proj$byClass["Precision"]
+  lravg_prec[i,2] <- lravg_cm20_100proj$byClass["Precision"]
+  lravg_prec[i,3] <- lravg_cm20_200proj$byClass["Precision"]
+  lravg_prec[i,4] <- lravg_cm20_400proj$byClass["Precision"]
+  
+  lravg_rec[i,1] <- lravg_cm20_50proj$byClass["Recall"]
+  lravg_rec[i,2] <- lravg_cm20_100proj$byClass["Recall"]
+  lravg_rec[i,3] <- lravg_cm20_200proj$byClass["Recall"]
+  lravg_rec[i,4] <- lravg_cm20_400proj$byClass["Recall"]
+  
+  lravg_f1[i,1] <- lravg_cm20_50proj$byClass["F1"]
+  lravg_f1[i,2] <- lravg_cm20_100proj$byClass["F1"]
+  lravg_f1[i,3] <- lravg_cm20_200proj$byClass["F1"]
+  lravg_f1[i,4] <- lravg_cm20_400proj$byClass["F1"]
+  
+  lrlwr_acc[i,1] <- lrlwr_cm50_50proj$overall["Accuracy"]
+  lrlwr_acc[i,2] <- lrlwr_cm50_100proj$overall["Accuracy"]
+  lrlwr_acc[i,3] <- lrlwr_cm50_200proj$overall["Accuracy"]
+  lrlwr_acc[i,4] <- lrlwr_cm50_400proj$overall["Accuracy"]
+  
+  lrlwr_prec[i,1] <- lrlwr_cm20_50proj$byClass["Precision"]
+  lrlwr_prec[i,2] <- lrlwr_cm20_100proj$byClass["Precision"]
+  lrlwr_prec[i,3] <- lrlwr_cm20_200proj$byClass["Precision"]
+  lrlwr_prec[i,4] <- lrlwr_cm20_400proj$byClass["Precision"]
+  
+  lrlwr_rec[i,1] <- lrlwr_cm20_50proj$byClass["Recall"]
+  lrlwr_rec[i,2] <- lrlwr_cm20_100proj$byClass["Recall"]
+  lrlwr_rec[i,3] <- lrlwr_cm20_200proj$byClass["Recall"]
+  lrlwr_rec[i,4] <- lrlwr_cm20_400proj$byClass["Recall"]
+  
+  lrlwr_f1[i,1] <- lrlwr_cm20_50proj$byClass["F1"]
+  lrlwr_f1[i,2] <- lrlwr_cm20_100proj$byClass["F1"]
+  lrlwr_f1[i,3] <- lrlwr_cm20_200proj$byClass["F1"]
+  lrlwr_f1[i,4] <- lrlwr_cm20_400proj$byClass["F1"]
+  
+  bdt_acc[i,1] <- bdt_cm50_50proj$overall["Accuracy"]
+  bdt_acc[i,2] <- bdt_cm50_100proj$overall["Accuracy"]
+  bdt_acc[i,3] <- bdt_cm50_200proj$overall["Accuracy"]
+  bdt_acc[i,4] <- bdt_cm50_400proj$overall["Accuracy"]
+  
+  bdt_prec[i,1] <- bdt_cm20_50proj$byClass["Precision"]
+  bdt_prec[i,2] <- bdt_cm20_100proj$byClass["Precision"]
+  bdt_prec[i,3] <- bdt_cm20_200proj$byClass["Precision"]
+  bdt_prec[i,4] <- bdt_cm20_400proj$byClass["Precision"]
+  
+  bdt_rec[i,1] <- bdt_cm20_50proj$byClass["Recall"]
+  bdt_rec[i,2] <- bdt_cm20_100proj$byClass["Recall"]
+  bdt_rec[i,3] <- bdt_cm20_200proj$byClass["Recall"]
+  bdt_rec[i,4] <- bdt_cm20_400proj$byClass["Recall"]
+  
+  bdt_f1[i,1] <- bdt_cm20_50proj$byClass["F1"]
+  bdt_f1[i,2] <- bdt_cm20_100proj$byClass["F1"]
+  bdt_f1[i,3] <- bdt_cm20_200proj$byClass["F1"]
+  bdt_f1[i,4] <- bdt_cm20_400proj$byClass["F1"]
+  
+  log_acc[i,1] <- log_cm50_50proj$overall["Accuracy"]
+  log_acc[i,2] <- log_cm50_100proj$overall["Accuracy"]
+  log_acc[i,3] <- log_cm50_200proj$overall["Accuracy"]
+  log_acc[i,4] <- log_cm50_400proj$overall["Accuracy"]
+  
+  log_prec[i,1] <- log_cm20_50proj$byClass["Precision"]
+  log_prec[i,2] <- log_cm20_100proj$byClass["Precision"]
+  log_prec[i,3] <- log_cm20_200proj$byClass["Precision"]
+  log_prec[i,4] <- log_cm20_400proj$byClass["Precision"]
+  
+  log_rec[i,1] <- log_cm20_50proj$byClass["Recall"]
+  log_rec[i,2] <- log_cm20_100proj$byClass["Recall"]
+  log_rec[i,3] <- log_cm20_200proj$byClass["Recall"]
+  log_rec[i,4] <- log_cm20_400proj$byClass["Recall"]
+  
+  log_f1[i,1] <- log_cm20_50proj$byClass["F1"]
+  log_f1[i,2] <- log_cm20_100proj$byClass["F1"]
+  log_f1[i,3] <- log_cm20_200proj$byClass["F1"]
+  log_f1[i,4] <- log_cm20_400proj$byClass["F1"]
+}
+```
+
+```{r DCXFullScaleResultsOverallAcc}
+plot(lravg_acc[,4], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) with 400 Projects", sub="Red=Lin Reg (Mean), Blue=Lin Reg (Lower), Green=XGBoost, Orange=Log Reg")
+lines(lrlwr_acc[,4], col="blue")
+lines(bdt_acc[,4], col="green")
+lines(log_acc[,4], col="orange")
+abline(h=.5)
+abline(h=.8, lty=2)
+```
+
+With a 400 project sample and a 50% "Late" threshold, we surpass 80% accuracy by Milestone 5 (Beneficial Use).
+
+```{r DCXFullScaleResultsOverallF1}
+plot(lravg_f1[,4], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) with 400 Projects", sub="Red=Lin Reg (Mean), Blue=Lin Reg (Lower), Green=XGBoost, Orange=Log Reg")
+lines(lrlwr_f1[,4], col="blue")
+lines(bdt_f1[,4], col="green")
+lines(log_f1[,4], col="orange")
+abline(h=.5)
+abline(h=.7, lty=2)
+```
+
+With a 400 project sample and an 80% "Late" threshold, we surpass .8 F1 by Milestone 5 as well.
+
+```{r DCXFullScaleResults}
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Linear Regression Plot", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(r_sq[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="R-Squared"
+     ,main="Predicting Total Completion Time via Linear Regression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(r_sq[,2], col="blue")
+lines(r_sq[,3], col="green")
+lines(r_sq[,4], col="orange")
+abline(h=.8)
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Linear Regression Mean Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(lravg_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lravg_acc[,2], col="blue")
+lines(lravg_acc[,3], col="green")
+lines(lravg_acc[,4], col="orange")
+abline(h=.5)
+
+prec_base <- sum(pull(dcx400proj, "LateNum20"))/sum(1-pull(dcx400proj, "LateNum20"))
+
+plot(lravg_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lravg_prec[,2], col="blue")
+lines(lravg_prec[,3], col="green")
+lines(lravg_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(lravg_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lravg_rec[,2], col="blue")
+lines(lravg_rec[,3], col="green")
+lines(lravg_rec[,4], col="orange")
+abline(h=.5)
+
+plot(lravg_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lravg_f1[,2], col="blue")
+lines(lravg_f1[,3], col="green")
+lines(lravg_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Linear Regression Lower Bound Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(lrlwr_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lrlwr_acc[,2], col="blue")
+lines(lrlwr_acc[,3], col="green")
+lines(lrlwr_acc[,4], col="orange")
+abline(h=.5)
+
+plot(lrlwr_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lrlwr_prec[,2], col="blue")
+lines(lrlwr_prec[,3], col="green")
+lines(lrlwr_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(lrlwr_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lrlwr_rec[,2], col="blue")
+lines(lrlwr_rec[,3], col="green")
+lines(lrlwr_rec[,4], col="orange")
+abline(h=.5)
+
+plot(lrlwr_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lrlwr_f1[,2], col="blue")
+lines(lrlwr_f1[,3], col="green")
+lines(lrlwr_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Boosted Decision Tree Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(bdt_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Boosted Decision \n", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(bdt_acc[,2], col="blue")
+lines(bdt_acc[,3], col="green")
+lines(bdt_acc[,4], col="orange")
+abline(h=.5)
+
+plot(bdt_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Boosted Decision \nTree", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(bdt_prec[,2], col="blue")
+lines(bdt_prec[,3], col="green")
+lines(bdt_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(bdt_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Boosted Decision \nTree", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(bdt_rec[,2], col="blue")
+lines(bdt_rec[,3], col="green")
+lines(bdt_rec[,4], col="orange")
+abline(h=.5)
+
+plot(bdt_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Boosted Decision \nTree", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(bdt_f1[,2], col="blue")
+lines(bdt_f1[,3], col="green")
+lines(bdt_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Logistic Regression Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(log_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(log_acc[,2], col="blue")
+lines(log_acc[,3], col="green")
+lines(log_acc[,4], col="orange")
+abline(h=.5)
+
+plot(log_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(log_prec[,2], col="blue")
+lines(log_prec[,3], col="green")
+lines(log_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(log_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(log_rec[,2], col="blue")
+lines(log_rec[,3], col="green")
+lines(log_rec[,4], col="orange")
+abline(h=.5)
+
+plot(log_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(log_f1[,2], col="blue")
+lines(log_f1[,3], col="green")
+lines(log_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+```
+
+All of these plots tells pretty much the same story.  Once we surpass Milestone 5 (Beneficial.Use), we have a very accurate model for predicting Total Project Completion Time.  Why is this?
+
+```{r DCXBeneficialUseExam}
+disp <- data.frame(dcx.mean.final, paste(round(dcx.mean.final/sum(dcx.mean.final)*100,0), "%", sep=""), dcx.sd[dcx.sd.new>0], dcx.sd.final, paste(round(dcx.sd.final/sum(dcx.sd.final)*100,0), "%", sep=""))
+names(disp) <- c("Mean", "Percent of Total Mean", "Original St Dev", "Final St Dev", "Percent of Total St Dev")
+disp
+```
+
+Milestone 5 is the most significant milestone because it makes up 38% of the average and 46% of all the variation in project completion times.  Unfortunately, this is also one of the milestones for which we only had one record.  Therefore, it's very risky to make any decisions with this information.  However, it's obvious that our framework works extremely well.  All we need are a few more data points.
+
+
+
+
+R CODE FOR LEASES
+
+```{r}
+options(warn=-1)
+install.packages("easypackages", repos = "http://cran.us.r-project.org")
+library("easypackages")
+packages("readr", "stringr", "reshape2", "xgboost", "caret", "tibble", "tidyverse", prompt=FALSE)
+
+dcx30proj_raw <- read_csv("C:/Users/bllewellyn/OneDrive - Valorem/DCX/DCX Lease Data 2018_02_22.csv")
+dcx30proj <- dcx30proj_raw[,-c(2,13)]
+dcx30proj["ProjectID"] <- paste(dcx30proj_raw$ProjectID, dcx30proj_raw$Tranche, sep="_")
+dcx30proj["Total"] <- apply(dcx30proj[,2:8],MARGIN=1,FUN=sum)
+dcx30proj <- dcx30proj[!is.na(dcx30proj["Total"]),]
+
+## Determine "On-Time" Threshold
+
+thresh_50 <- quantile(pull(dcx30proj, "Total"), .5)
+thresh_80 <- quantile(pull(dcx30proj, "Total"), .8)
+
+dcx30proj["LateNum50"] <- ifelse(pull(dcx30proj, "Total") > thresh_50, 1, 0)
+dcx30proj["LateNum20"] <- ifelse(pull(dcx30proj, "Total") > thresh_80, 1, 0)
+dcx30proj["Late50"] <- ifelse(pull(dcx30proj, "Total") > thresh_50, "Late", "On Time")
+dcx30proj["Late20"] <- ifelse(pull(dcx30proj, "Total") > thresh_80, "Late", "On Time")
+
+## Create Testing and Training Split
+
+splitperc <- .7
+set.seed(50)
+
+datasize_30proj <- dim(dcx30proj)[1]
+sampsize_30proj <- datasize_30proj * splitperc
+samp_30proj <- sample(1:datasize_30proj,sampsize_30proj)
+train_30proj <- dcx30proj[samp_30proj,]
+test_30proj <- dcx30proj[-samp_30proj,]
+
+## Fit Linear Regression and Boosted Decision Tree Models using Training Set
+
+lrs_30proj <- list()
+bdts50_30proj <- list()
+bdts20_30proj <- list()
+logs50_30proj <- list()
+logs20_30proj <- list()
+r_sq <- data.frame(NA, NA, NA, NA)
+names(r_sq) <- c("30proj", "100Proj", "200Proj", "400Proj")
+lravg_acc <- data.frame(NA, NA, NA, NA)
+names(lravg_acc) <- c("30proj", "100Proj", "200Proj", "400Proj")
+lravg_prec <- data.frame(NA, NA, NA, NA)
+names(lravg_prec) <- c("30proj", "100Proj", "200Proj", "400Proj")
+lravg_rec <- data.frame(NA, NA, NA, NA)
+names(lravg_rec) <- c("30proj", "100Proj", "200Proj", "400Proj")
+lravg_f1 <- data.frame(NA, NA, NA, NA)
+names(lravg_f1) <- c("30proj", "100Proj", "200Proj", "400Proj")
+lrlwr_acc <- data.frame(NA, NA, NA, NA)
+names(lrlwr_acc) <- c("30proj", "100Proj", "200Proj", "400Proj")
+lrlwr_prec <- data.frame(NA, NA, NA, NA)
+names(lrlwr_prec) <- c("30proj", "100Proj", "200Proj", "400Proj")
+lrlwr_rec <- data.frame(NA, NA, NA, NA)
+names(lrlwr_rec) <- c("30proj", "100Proj", "200Proj", "400Proj")
+lrlwr_f1 <- data.frame(NA, NA, NA, NA)
+names(lrlwr_f1) <- c("30proj", "100Proj", "200Proj", "400Proj")
+bdt_acc <- data.frame(NA, NA, NA, NA)
+names(bdt_acc) <- c("30proj", "100Proj", "200Proj", "400Proj")
+bdt_prec <- data.frame(NA, NA, NA, NA)
+names(bdt_prec) <- c("30proj", "100Proj", "200Proj", "400Proj")
+bdt_rec <- data.frame(NA, NA, NA, NA)
+names(bdt_rec) <- c("30proj", "100Proj", "200Proj", "400Proj")
+bdt_f1 <- data.frame(NA, NA, NA, NA)
+names(bdt_f1) <- c("30proj", "100Proj", "200Proj", "400Proj")
+log_acc <- data.frame(NA, NA, NA, NA)
+names(log_acc) <- c("30proj", "100Proj", "200Proj", "400Proj")
+log_prec <- data.frame(NA, NA, NA, NA)
+names(log_prec) <- c("30proj", "100Proj", "200Proj", "400Proj")
+log_rec <- data.frame(NA, NA, NA, NA)
+names(log_rec) <- c("30proj", "100Proj", "200Proj", "400Proj")
+log_f1 <- data.frame(NA, NA, NA, NA)
+names(log_f1) <- c("30proj", "100Proj", "200Proj", "400Proj")
+
+bdt_randopt <- 20
+nrounds <- seq(from=25, to=200, by=25)
+max_depth <- seq(from=1, to=10, by=1)
+eta <- seq(from=.1, to=1, by=.1)
+gamma <- seq(from=0, to=10, by=.2)
+colsample_bytree <- seq(from=.5, to=1, by=.05)
+min_child_weight <- 1
+subsample <- 1
+len <- length(nrounds)*length(max_depth)*length(eta)*length(gamma)*length(colsample_bytree)*length(min_child_weight)*length(subsample)
+rand <- ceiling(runif(bdt_randopt)*len)
+bdt_grid <- expand.grid(nrounds, max_depth, eta, gamma, colsample_bytree, min_child_weight, subsample)[rand,]
+bdt_grid[bdt_randopt+1,] <- c(1,1,1,0,1,1,1)
+names(bdt_grid) <- c("nrounds", "max_depth", "eta", "gamma", "colsample_bytree", "min_child_weight", "subsample")
+
+for(i in 1:7){
+  
+  temp_30proj <- data.frame(pull(train_30proj, "Total"), train_30proj[,2:(i+1)])
+  names(temp_30proj) <- c("Total", names(train_30proj[2:(i+1)]))
+
+## Fit Linear Regression Model
+  
+  lr_30proj <- lm(Total ~ ., data=temp_30proj)
+
+  lrs_30proj[[i]] <- lr_30proj
+
+## Fit Boosted Decision Tree Model
+  
+  temp_30proj <- data.frame(as.factor(pull(train_30proj, "LateNum50")), train_30proj[,2:(i+1)])
+  names(temp_30proj) <- c("LateNum50", names(train_30proj[2:(i+1)]))
+  
+  bdt50_30proj <- train(LateNum50 ~ ., data=temp_30proj, method="xgbTree", preProc=c("center", "scale")
+                            ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  
+  bdts50_30proj[[i]] <- bdt50_30proj
+  
+  temp_30proj <- data.frame(as.factor(pull(train_30proj, "LateNum20")), train_30proj[,2:(i+1)])
+  names(temp_30proj) <- c("LateNum20", names(train_30proj[2:(i+1)]))
+  
+  bdt20_30proj <- train(LateNum20 ~ ., data=temp_30proj, method="xgbTree", preProc=c("center", "scale")
+                            ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  
+  bdts20_30proj[[i]] <- bdt20_30proj
+  
+## Fit Logistic Regression Model
+  
+  temp_30proj <- data.frame(as.factor(pull(train_30proj, "LateNum50")), train_30proj[,2:(i+1)])
+  names(temp_30proj) <- c("LateNum50", names(train_30proj[2:(i+1)]))
+  
+  log50_30proj <- glm(LateNum50 ~ ., data=temp_30proj, family=binomial(link="logit"))
+  
+  logs50_30proj[[i]] <- log50_30proj
+  
+  temp_30proj <- data.frame(as.factor(pull(train_30proj, "LateNum20")), train_30proj[,2:(i+1)])
+  names(temp_30proj) <- c("LateNum20", names(train_30proj[2:(i+1)]))
+  
+  log20_30proj <- glm(LateNum20 ~ ., data=temp_30proj, family=binomial(link="logit"))
+  
+  logs20_30proj[[i]] <- log20_30proj
+  
+## Generate Predictions Using Testing Set
+  
+  temp_30proj <- data.frame(test_30proj[,2:(i+1)])
+  names(temp_30proj) <- names(test_30proj[2:(i+1)])
+  
+  lrpred_30proj <- predict(lr_30proj, temp_30proj)
+  
+  lravg50pred_30proj <- ifelse(predict(lr_30proj, temp_30proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  
+  lravg20pred_30proj <- ifelse(predict(lr_30proj, temp_30proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  
+  lrlwr50pred_30proj <- ifelse(predict(lr_30proj, temp_30proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  
+  lrlwr20pred_30proj <- ifelse(predict(lr_30proj, temp_30proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  
+  bdt50pred_30proj <- ifelse(predict(bdt50_30proj, temp_30proj)==1, "Late", "On Time")
+  
+  bdt20pred_30proj <- ifelse(predict(bdt20_30proj, temp_30proj)==1, "Late", "On Time")
+  
+  log50pred_30proj <- ifelse(predict(log50_30proj, temp_30proj, type="response")>.5, "Late", "On Time")
+  
+  log20pred_30proj <- ifelse(predict(log20_30proj, temp_30proj, type="response")>.5, "Late", "On Time")
+  
+  
+## Calculate Evaluation Metrics
+  
+  r_sq[i,1] <- cor(pull(test_30proj, "Total"), lrpred_30proj)^2
+  
+  lravg_cm50_30proj <- confusionMatrix(lravg50pred_30proj, pull(test_30proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lravg_cm20_30proj <- confusionMatrix(lravg20pred_30proj, pull(test_30proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lrlwr_cm50_30proj <- confusionMatrix(lrlwr50pred_30proj, pull(test_30proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lrlwr_cm20_30proj <- confusionMatrix(lrlwr20pred_30proj, pull(test_30proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  bdt_cm50_30proj <- confusionMatrix(bdt50pred_30proj, pull(test_30proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  bdt_cm20_30proj <- confusionMatrix(bdt20pred_30proj, pull(test_30proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  log_cm50_30proj <- confusionMatrix(log50pred_30proj, pull(test_30proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  log_cm20_30proj <- confusionMatrix(log20pred_30proj, pull(test_30proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lravg_acc[i,1] <- lravg_cm50_30proj$overall["Accuracy"]
+  
+  lravg_prec[i,1] <- lravg_cm20_30proj$byClass["Precision"]
+  
+  lravg_rec[i,1] <- lravg_cm20_30proj$byClass["Recall"]
+  
+  lravg_f1[i,1] <- lravg_cm20_30proj$byClass["F1"]
+  
+  lrlwr_acc[i,1] <- lrlwr_cm50_30proj$overall["Accuracy"]
+  
+  lrlwr_prec[i,1] <- lrlwr_cm20_30proj$byClass["Precision"]
+  
+  lrlwr_rec[i,1] <- lrlwr_cm20_30proj$byClass["Recall"]
+  
+  lrlwr_f1[i,1] <- lrlwr_cm20_30proj$byClass["F1"]
+  
+  bdt_acc[i,1] <- bdt_cm50_30proj$overall["Accuracy"]
+  
+  bdt_prec[i,1] <- bdt_cm20_30proj$byClass["Precision"]
+  
+  bdt_rec[i,1] <- bdt_cm20_30proj$byClass["Recall"]
+  
+  bdt_f1[i,1] <- bdt_cm20_30proj$byClass["F1"]
+  
+  log_acc[i,1] <- log_cm50_30proj$overall["Accuracy"]
+  
+  log_prec[i,1] <- log_cm20_30proj$byClass["Precision"]
+  
+  log_rec[i,1] <- log_cm20_30proj$byClass["Recall"]
+  
+  log_f1[i,1] <- log_cm20_30proj$byClass["F1"]
+}
+
+plot(lravg_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) with 30 Projects", sub="Red=Lin Reg (Mean), Blue=Lin Reg (Lower), Green=XGBoost, Orange=Log Reg")
+lines(lrlwr_acc[,1], col="blue")
+lines(bdt_acc[,1], col="green")
+lines(log_acc[,1], col="orange")
+abline(h=.5)
+abline(h=.8, lty=2)
+
+plot(lravg_f1[,4], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) with 400 Projects", sub="Red=Lin Reg (Mean), Blue=Lin Reg (Lower), Green=XGBoost, Orange=Log Reg")
+lines(lrlwr_f1[,4], col="blue")
+lines(bdt_f1[,4], col="green")
+lines(log_f1[,4], col="orange")
+abline(h=.5)
+abline(h=.7, lty=2)
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Linear Regression Plot", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(r_sq[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="R-Squared"
+     ,main="Predicting Total Completion Time via Linear Regression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(r_sq[,2], col="blue")
+lines(r_sq[,3], col="green")
+lines(r_sq[,4], col="orange")
+abline(h=.8)
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Linear Regression Mean Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(lravg_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lravg_acc[,2], col="blue")
+lines(lravg_acc[,3], col="green")
+lines(lravg_acc[,4], col="orange")
+abline(h=.5)
+
+prec_base <- sum(pull(dcx30proj, "LateNum20"))/sum(1-pull(dcx30proj, "LateNum20"))
+
+plot(lravg_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lravg_prec[,2], col="blue")
+lines(lravg_prec[,3], col="green")
+lines(lravg_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(lravg_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lravg_rec[,2], col="blue")
+lines(lravg_rec[,3], col="green")
+lines(lravg_rec[,4], col="orange")
+abline(h=.5)
+
+plot(lravg_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lravg_f1[,2], col="blue")
+lines(lravg_f1[,3], col="green")
+lines(lravg_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Linear Regression Lower Bound Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(lrlwr_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lrlwr_acc[,2], col="blue")
+lines(lrlwr_acc[,3], col="green")
+lines(lrlwr_acc[,4], col="orange")
+abline(h=.5)
+
+plot(lrlwr_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lrlwr_prec[,2], col="blue")
+lines(lrlwr_prec[,3], col="green")
+lines(lrlwr_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(lrlwr_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lrlwr_rec[,2], col="blue")
+lines(lrlwr_rec[,3], col="green")
+lines(lrlwr_rec[,4], col="orange")
+abline(h=.5)
+
+plot(lrlwr_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lrlwr_f1[,2], col="blue")
+lines(lrlwr_f1[,3], col="green")
+lines(lrlwr_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Boosted Decision Tree Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(bdt_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Boosted Decision \n", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(bdt_acc[,2], col="blue")
+lines(bdt_acc[,3], col="green")
+lines(bdt_acc[,4], col="orange")
+abline(h=.5)
+
+plot(bdt_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Boosted Decision \nTree", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(bdt_prec[,2], col="blue")
+lines(bdt_prec[,3], col="green")
+lines(bdt_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(bdt_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Boosted Decision \nTree", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(bdt_rec[,2], col="blue")
+lines(bdt_rec[,3], col="green")
+lines(bdt_rec[,4], col="orange")
+abline(h=.5)
+
+plot(bdt_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Boosted Decision \nTree", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(bdt_f1[,2], col="blue")
+lines(bdt_f1[,3], col="green")
+lines(bdt_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Logistic Regression Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(log_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(log_acc[,2], col="blue")
+lines(log_acc[,3], col="green")
+lines(log_acc[,4], col="orange")
+abline(h=.5)
+
+plot(log_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(log_prec[,2], col="blue")
+lines(log_prec[,3], col="green")
+lines(log_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(log_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(log_rec[,2], col="blue")
+lines(log_rec[,3], col="green")
+lines(log_rec[,4], col="orange")
+abline(h=.5)
+
+plot(log_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(log_f1[,2], col="blue")
+lines(log_f1[,3], col="green")
+lines(log_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+```
+
+
+
+
+R CODE FOR GENERATED LEASE DATA
+
+```{r}
+dcx30proj_raw <- read_csv("C:/Users/bllewellyn/OneDrive - Valorem/DCX/DCX Lease Data 2018_02_22.csv")
+dcx <- dcx30proj_raw[,-c(2,13)]
+dcx["ProjectID"] <- paste(dcx30proj_raw$ProjectID, dcx30proj_raw$Tranche, sep="_")
+
+#######################################
+
+
+dcx.df <- apply(data.frame(dcx)[,-1], 2, FUN=as.numeric)
+dcx.mean <- apply(dcx.df, 2, FUN=mean, na.rm=TRUE)
+dcx.sd <- apply(dcx.df, 2, FUN=sd, na.rm=TRUE)
+
+disp <- data.frame(dcx.mean, dcx.sd)
+names(disp) <- c("Mean", "Standard Deviation")
+row.names(disp) <- names(dcx.mean)
+disp
+
+#######################################
+
+
+dcx50proj_init <- t50proj_pvt[,1:(length(dcx.mean)+1)]
+dcx50proj <- data.frame(t50proj_pvt[,1])
+
+for(i in 2:dim(dcx50proj_init)[2]){
+  dcx50proj[,i] <- scale(dcx50proj_init[,i]) * dcx.sd[i-1] + dcx.mean[i-1]
+}
+
+names(dcx50proj) <- c(names(t50proj_pvt)[1], names(dcx.mean))
+
+dcx100proj_init <- t100proj_pvt[,1:(length(dcx.mean)+1)]
+dcx100proj <- data.frame(t100proj_pvt[,1])
+
+for(i in 2:dim(dcx100proj_init)[2]){
+  dcx100proj[,i] <- scale(dcx100proj_init[,i]) * dcx.sd[i-1] + dcx.mean[i-1]
+}
+
+names(dcx100proj) <- c(names(t100proj_pvt)[1], names(dcx.mean))
+
+dcx200proj_init <- t200proj_pvt[,1:(length(dcx.mean)+1)]
+dcx200proj <- data.frame(t200proj_pvt[,1])
+
+for(i in 2:dim(dcx200proj_init)[2]){
+  dcx200proj[,i] <- scale(dcx200proj_init[,i]) * dcx.sd[i-1] + dcx.mean[i-1]
+}
+
+names(dcx200proj) <- c(names(t200proj_pvt)[1], names(dcx.mean))
+
+dcx400proj_init <- t400proj_pvt[,1:(length(dcx.mean)+1)]
+dcx400proj <- data.frame(t400proj_pvt[,1])
+
+for(i in 2:dim(dcx400proj_init)[2]){
+  dcx400proj[,i] <- scale(dcx400proj_init[,i]) * dcx.sd[i-1] + dcx.mean[i-1]
+}
+
+names(dcx400proj) <- c(names(t400proj_pvt)[1], names(dcx.mean))
+
+head(dcx400proj)
+
+
+
+
+#################################################
+
+
+
+dcx50proj["Total"] <- apply(dcx50proj[,2:11],MARGIN=1,FUN=sum)
+dcx100proj["Total"] <- apply(dcx100proj[,2:11],MARGIN=1,FUN=sum)
+dcx200proj["Total"] <- apply(dcx200proj[,2:11],MARGIN=1,FUN=sum)
+dcx400proj["Total"] <- apply(dcx400proj[,2:11],MARGIN=1,FUN=sum)
+
+## Determine "On-Time" Threshold
+
+thresh_50 <- quantile(pull(dcx400proj, "Total"), .5)
+thresh_80 <- quantile(pull(dcx400proj, "Total"), .8)
+
+dcx50proj["LateNum50"] <- ifelse(pull(dcx50proj, "Total") > thresh_50, 1, 0)
+dcx50proj["LateNum20"] <- ifelse(pull(dcx50proj, "Total") > thresh_80, 1, 0)
+dcx50proj["Late50"] <- ifelse(pull(dcx50proj, "Total") > thresh_50, "Late", "On Time")
+dcx50proj["Late20"] <- ifelse(pull(dcx50proj, "Total") > thresh_80, "Late", "On Time")
+
+dcx100proj["LateNum50"] <- ifelse(pull(dcx100proj, "Total") > thresh_50, 1, 0)
+dcx100proj["LateNum20"] <- ifelse(pull(dcx100proj, "Total") > thresh_80, 1, 0)
+dcx100proj["Late50"] <- ifelse(pull(dcx100proj, "Total") > thresh_50, "Late", "On Time")
+dcx100proj["Late20"] <- ifelse(pull(dcx100proj, "Total") > thresh_80, "Late", "On Time")
+
+dcx200proj["LateNum50"] <- ifelse(pull(dcx200proj, "Total") > thresh_50, 1, 0)
+dcx200proj["LateNum20"] <- ifelse(pull(dcx200proj, "Total") > thresh_80, 1, 0)
+dcx200proj["Late50"] <- ifelse(pull(dcx200proj, "Total") > thresh_50, "Late", "On Time")
+dcx200proj["Late20"] <- ifelse(pull(dcx200proj, "Total") > thresh_80, "Late", "On Time")
+
+dcx400proj["LateNum50"] <- ifelse(pull(dcx400proj, "Total") > thresh_50, 1, 0)
+dcx400proj["LateNum20"] <- ifelse(pull(dcx400proj, "Total") > thresh_80, 1, 0)
+dcx400proj["Late50"] <- ifelse(pull(dcx400proj, "Total") > thresh_50, "Late", "On Time")
+dcx400proj["Late20"] <- ifelse(pull(dcx400proj, "Total") > thresh_80, "Late", "On Time")
+
+## Create Testing and Training Split
+
+splitperc <- .7
+set.seed(100)
+
+datasize_50proj <- dim(dcx50proj)[1]
+sampsize_50proj <- datasize_50proj * splitperc
+samp_50proj <- sample(1:datasize_50proj,sampsize_50proj)
+train_50proj <- dcx50proj[samp_50proj,]
+test_50proj <- dcx50proj[-samp_50proj,]
+
+datasize_100proj <- dim(dcx100proj)[1]
+sampsize_100proj <- datasize_100proj * splitperc
+samp_100proj <- sample(1:datasize_100proj,sampsize_100proj)
+train_100proj <- dcx100proj[samp_100proj,]
+test_100proj <- dcx100proj[-samp_100proj,]
+
+datasize_200proj <- dim(dcx200proj)[1]
+sampsize_200proj <- datasize_200proj * splitperc
+samp_200proj <- sample(1:datasize_200proj,sampsize_200proj)
+train_200proj <- dcx200proj[samp_200proj,]
+test_200proj <- dcx200proj[-samp_200proj,]
+
+datasize_400proj <- dim(dcx400proj)[1]
+sampsize_400proj <- datasize_400proj * splitperc
+samp_400proj <- sample(1:datasize_400proj,sampsize_400proj)
+train_400proj <- dcx400proj[samp_400proj,]
+test_400proj <- dcx400proj[-samp_400proj,]
+
+## Fit Linear Regression and Boosted Decision Tree Models using Training Set
+
+lrs_50proj <- list()
+lrs_100proj <- list()
+lrs_200proj <- list()
+lrs_400proj <- list()
+bdts50_50proj <- list()
+bdts50_100proj <- list()
+bdts50_200proj <- list()
+bdts50_400proj <- list()
+bdts20_50proj <- list()
+bdts20_100proj <- list()
+bdts20_200proj <- list()
+bdts20_400proj <- list()
+logs50_50proj <- list()
+logs50_100proj <- list()
+logs50_200proj <- list()
+logs50_400proj <- list()
+logs20_50proj <- list()
+logs20_100proj <- list()
+logs20_200proj <- list()
+logs20_400proj <- list()
+r_sq <- data.frame(NA, NA, NA, NA)
+names(r_sq) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lravg_acc <- data.frame(NA, NA, NA, NA)
+names(lravg_acc) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lravg_prec <- data.frame(NA, NA, NA, NA)
+names(lravg_prec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lravg_rec <- data.frame(NA, NA, NA, NA)
+names(lravg_rec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lravg_f1 <- data.frame(NA, NA, NA, NA)
+names(lravg_f1) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lrlwr_acc <- data.frame(NA, NA, NA, NA)
+names(lrlwr_acc) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lrlwr_prec <- data.frame(NA, NA, NA, NA)
+names(lrlwr_prec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lrlwr_rec <- data.frame(NA, NA, NA, NA)
+names(lrlwr_rec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+lrlwr_f1 <- data.frame(NA, NA, NA, NA)
+names(lrlwr_f1) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+bdt_acc <- data.frame(NA, NA, NA, NA)
+names(bdt_acc) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+bdt_prec <- data.frame(NA, NA, NA, NA)
+names(bdt_prec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+bdt_rec <- data.frame(NA, NA, NA, NA)
+names(bdt_rec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+bdt_f1 <- data.frame(NA, NA, NA, NA)
+names(bdt_f1) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+log_acc <- data.frame(NA, NA, NA, NA)
+names(log_acc) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+log_prec <- data.frame(NA, NA, NA, NA)
+names(log_prec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+log_rec <- data.frame(NA, NA, NA, NA)
+names(log_rec) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+log_f1 <- data.frame(NA, NA, NA, NA)
+names(log_f1) <- c("50Proj", "100Proj", "200Proj", "400Proj")
+
+bdt_randopt <- 20
+nrounds <- seq(from=25, to=200, by=25)
+max_depth <- seq(from=1, to=10, by=1)
+eta <- seq(from=.1, to=1, by=.1)
+gamma <- seq(from=0, to=10, by=.2)
+colsample_bytree <- seq(from=.5, to=1, by=.05)
+min_child_weight <- 1
+subsample <- 1
+len <- length(nrounds)*length(max_depth)*length(eta)*length(gamma)*length(colsample_bytree)*length(min_child_weight)*length(subsample)
+rand <- ceiling(runif(bdt_randopt)*len)
+bdt_grid <- expand.grid(nrounds, max_depth, eta, gamma, colsample_bytree, min_child_weight, subsample)[rand,]
+bdt_grid[bdt_randopt+1,] <- c(1,1,1,0,1,1,1)
+names(bdt_grid) <- c("nrounds", "max_depth", "eta", "gamma", "colsample_bytree", "min_child_weight", "subsample")
+
+for(i in 1:10){
+  
+  temp_50proj <- data.frame(pull(train_50proj, "Total"), train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("Total", names(train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(pull(train_100proj, "Total"), train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("Total", names(train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(pull(train_200proj, "Total"), train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("Total", names(train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(pull(train_400proj, "Total"), train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("Total", names(train_400proj[2:(i+1)]))
+
+## Fit Linear Regression Model
+  
+  lr_50proj <- lm(Total ~ ., data=temp_50proj)
+  lr_100proj <- lm(Total ~ ., data=temp_100proj)
+  lr_200proj <- lm(Total ~ ., data=temp_200proj)
+  lr_400proj <- lm(Total ~ ., data=temp_400proj)
+
+  lrs_50proj[[i]] <- lr_50proj
+  lrs_100proj[[i]] <- lr_100proj
+  lrs_200proj[[i]] <- lr_200proj
+  lrs_400proj[[i]] <- lr_400proj
+
+## Fit Boosted Decision Tree Model
+  
+  temp_50proj <- data.frame(as.factor(pull(train_50proj, "LateNum50")), train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("LateNum50", names(train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(as.factor(pull(train_100proj, "LateNum50")), train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("LateNum50", names(train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(as.factor(pull(train_200proj, "LateNum50")), train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("LateNum50", names(train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(as.factor(pull(train_400proj, "LateNum50")), train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("LateNum50", names(train_400proj[2:(i+1)]))
+  
+  bdt50_50proj <- train(LateNum50 ~ ., data=temp_50proj, method="xgbTree", preProc=c("center", "scale")
+                            ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt50_100proj <- train(LateNum50 ~ ., data=temp_100proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt50_200proj <- train(LateNum50 ~ ., data=temp_200proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt50_400proj <- train(LateNum50 ~ ., data=temp_400proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  
+  bdts50_50proj[[i]] <- bdt50_50proj
+  bdts50_100proj[[i]] <- bdt50_100proj
+  bdts50_200proj[[i]] <- bdt50_200proj
+  bdts50_400proj[[i]] <- bdt50_400proj
+  
+  temp_50proj <- data.frame(as.factor(pull(train_50proj, "LateNum20")), train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("LateNum20", names(train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(as.factor(pull(train_100proj, "LateNum20")), train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("LateNum20", names(train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(as.factor(pull(train_200proj, "LateNum20")), train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("LateNum20", names(train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(as.factor(pull(train_400proj, "LateNum20")), train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("LateNum20", names(train_400proj[2:(i+1)]))
+  
+  bdt20_50proj <- train(LateNum20 ~ ., data=temp_50proj, method="xgbTree", preProc=c("center", "scale")
+                            ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt20_100proj <- train(LateNum20 ~ ., data=temp_100proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt20_200proj <- train(LateNum20 ~ ., data=temp_200proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  bdt20_400proj <- train(LateNum20 ~ ., data=temp_400proj, method="xgbTree", preProc=c("center", "scale")
+                             ,trControl=trainControl(method="cv", number=5, returnResamp="all"), metric="Kappa", tuneGrid=bdt_grid)
+  
+  bdts20_50proj[[i]] <- bdt20_50proj
+  bdts20_100proj[[i]] <- bdt20_100proj
+  bdts20_200proj[[i]] <- bdt20_200proj
+  bdts20_400proj[[i]] <- bdt20_400proj
+  
+## Fit Logistic Regression Model
+  
+  temp_50proj <- data.frame(as.factor(pull(train_50proj, "LateNum50")), train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("LateNum50", names(train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(as.factor(pull(train_100proj, "LateNum50")), train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("LateNum50", names(train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(as.factor(pull(train_200proj, "LateNum50")), train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("LateNum50", names(train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(as.factor(pull(train_400proj, "LateNum50")), train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("LateNum50", names(train_400proj[2:(i+1)]))
+  
+  log50_50proj <- glm(LateNum50 ~ ., data=temp_50proj, family=binomial(link="logit"))
+  log50_100proj <- glm(LateNum50 ~ ., data=temp_100proj, family=binomial(link="logit"))
+  log50_200proj <- glm(LateNum50 ~ ., data=temp_200proj, family=binomial(link="logit"))
+  log50_400proj <- glm(LateNum50 ~ ., data=temp_400proj, family=binomial(link="logit"))
+  
+  logs50_50proj[[i]] <- log50_50proj
+  logs50_100proj[[i]] <- log50_100proj
+  logs50_200proj[[i]] <- log50_200proj
+  logs50_400proj[[i]] <- log50_400proj
+  
+  temp_50proj <- data.frame(as.factor(pull(train_50proj, "LateNum20")), train_50proj[,2:(i+1)])
+  names(temp_50proj) <- c("LateNum20", names(train_50proj[2:(i+1)]))
+  temp_100proj <- data.frame(as.factor(pull(train_100proj, "LateNum20")), train_100proj[,2:(i+1)])
+  names(temp_100proj) <- c("LateNum20", names(train_100proj[2:(i+1)]))
+  temp_200proj <- data.frame(as.factor(pull(train_200proj, "LateNum20")), train_200proj[,2:(i+1)])
+  names(temp_200proj) <- c("LateNum20", names(train_200proj[2:(i+1)]))
+  temp_400proj <- data.frame(as.factor(pull(train_400proj, "LateNum20")), train_400proj[,2:(i+1)])
+  names(temp_400proj) <- c("LateNum20", names(train_400proj[2:(i+1)]))
+  
+  log20_50proj <- glm(LateNum20 ~ ., data=temp_50proj, family=binomial(link="logit"))
+  log20_100proj <- glm(LateNum20 ~ ., data=temp_100proj, family=binomial(link="logit"))
+  log20_200proj <- glm(LateNum20 ~ ., data=temp_200proj, family=binomial(link="logit"))
+  log20_400proj <- glm(LateNum20 ~ ., data=temp_400proj, family=binomial(link="logit"))
+  
+  logs20_50proj[[i]] <- log20_50proj
+  logs20_100proj[[i]] <- log20_100proj
+  logs20_200proj[[i]] <- log20_200proj
+  logs20_400proj[[i]] <- log20_400proj
+  
+## Generate Predictions Using Testing Set
+  
+  temp_50proj <- data.frame(test_50proj[,2:(i+1)])
+  names(temp_50proj) <- names(test_50proj[2:(i+1)])
+  
+  temp_100proj <- data.frame(test_100proj[,2:(i+1)])
+  names(temp_100proj) <- names(test_100proj[2:(i+1)])
+  
+  temp_200proj <- data.frame(test_200proj[,2:(i+1)])
+  names(temp_200proj) <- names(test_200proj[2:(i+1)])
+  
+  temp_400proj <- data.frame(test_400proj[,2:(i+1)])
+  names(temp_400proj) <- names(test_400proj[2:(i+1)])
+  
+  lrpred_50proj <- predict(lr_50proj, temp_50proj)
+  lrpred_100proj <- predict(lr_100proj, temp_100proj)
+  lrpred_200proj <- predict(lr_200proj, temp_200proj)
+  lrpred_400proj <- predict(lr_400proj, temp_400proj)
+  
+  lravg50pred_50proj <- ifelse(predict(lr_50proj, temp_50proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  lravg50pred_100proj <- ifelse(predict(lr_100proj, temp_100proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  lravg50pred_200proj <- ifelse(predict(lr_200proj, temp_200proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  lravg50pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,1] > thresh_50, "Late", "On Time")
+  
+  lravg20pred_50proj <- ifelse(predict(lr_50proj, temp_50proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  lravg20pred_100proj <- ifelse(predict(lr_100proj, temp_100proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  lravg20pred_200proj <- ifelse(predict(lr_200proj, temp_200proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  lravg20pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,1] > thresh_80, "Late", "On Time")
+  
+  lrlwr50pred_50proj <- ifelse(predict(lr_50proj, temp_50proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  lrlwr50pred_100proj <- ifelse(predict(lr_100proj, temp_100proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  lrlwr50pred_200proj <- ifelse(predict(lr_200proj, temp_200proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  lrlwr50pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,2] > thresh_50, "Late", "On Time")
+  
+  lrlwr20pred_50proj <- ifelse(predict(lr_50proj, temp_50proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  lrlwr20pred_100proj <- ifelse(predict(lr_100proj, temp_100proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  lrlwr20pred_200proj <- ifelse(predict(lr_200proj, temp_200proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  lrlwr20pred_400proj <- ifelse(predict(lr_400proj, temp_400proj, interval="prediction")[,2] > thresh_80, "Late", "On Time")
+  
+  bdt50pred_50proj <- ifelse(predict(bdt50_50proj, temp_50proj)==1, "Late", "On Time")
+  bdt50pred_100proj <- ifelse(predict(bdt50_100proj, temp_100proj)==1, "Late", "On Time")
+  bdt50pred_200proj <- ifelse(predict(bdt50_200proj, temp_200proj)==1, "Late", "On Time")
+  bdt50pred_400proj <- ifelse(predict(bdt50_400proj, temp_400proj)==1, "Late", "On Time")
+  
+  bdt20pred_50proj <- ifelse(predict(bdt20_50proj, temp_50proj)==1, "Late", "On Time")
+  bdt20pred_100proj <- ifelse(predict(bdt20_100proj, temp_100proj)==1, "Late", "On Time")
+  bdt20pred_200proj <- ifelse(predict(bdt20_200proj, temp_200proj)==1, "Late", "On Time")
+  bdt20pred_400proj <- ifelse(predict(bdt20_400proj, temp_400proj)==1, "Late", "On Time")
+  
+  log50pred_50proj <- ifelse(predict(log50_50proj, temp_50proj, type="response")>.5, "Late", "On Time")
+  log50pred_100proj <- ifelse(predict(log50_100proj, temp_100proj, type="response")>.5, "Late", "On Time")
+  log50pred_200proj <- ifelse(predict(log50_200proj, temp_200proj, type="response")>.5, "Late", "On Time")
+  log50pred_400proj <- ifelse(predict(log50_400proj, temp_400proj, type="response")>.5, "Late", "On Time")
+  
+  log20pred_50proj <- ifelse(predict(log20_50proj, temp_50proj, type="response")>.5, "Late", "On Time")
+  log20pred_100proj <- ifelse(predict(log20_100proj, temp_100proj, type="response")>.5, "Late", "On Time")
+  log20pred_200proj <- ifelse(predict(log20_200proj, temp_200proj, type="response")>.5, "Late", "On Time")
+  log20pred_400proj <- ifelse(predict(log20_400proj, temp_400proj, type="response")>.5, "Late", "On Time")
+  
+  
+## Calculate Evaluation Metrics
+  
+  r_sq[i,1] <- cor(pull(test_50proj, "Total"), lrpred_50proj)^2
+  r_sq[i,2] <- cor(pull(test_100proj, "Total"), lrpred_100proj)^2
+  r_sq[i,3] <- cor(pull(test_200proj, "Total"), lrpred_200proj)^2
+  r_sq[i,4] <- cor(pull(test_400proj, "Total"), lrpred_400proj)^2
+  
+  lravg_cm50_50proj <- confusionMatrix(lravg50pred_50proj, pull(test_50proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm50_100proj <- confusionMatrix(lravg50pred_100proj, pull(test_100proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm50_200proj <- confusionMatrix(lravg50pred_200proj, pull(test_200proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm50_400proj <- confusionMatrix(lravg50pred_400proj, pull(test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lravg_cm20_50proj <- confusionMatrix(lravg20pred_50proj, pull(test_50proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm20_100proj <- confusionMatrix(lravg20pred_100proj, pull(test_100proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm20_200proj <- confusionMatrix(lravg20pred_200proj, pull(test_200proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lravg_cm20_400proj <- confusionMatrix(lravg20pred_400proj, pull(test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lrlwr_cm50_50proj <- confusionMatrix(lrlwr50pred_50proj, pull(test_50proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm50_100proj <- confusionMatrix(lrlwr50pred_100proj, pull(test_100proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm50_200proj <- confusionMatrix(lrlwr50pred_200proj, pull(test_200proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm50_400proj <- confusionMatrix(lrlwr50pred_400proj, pull(test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lrlwr_cm20_50proj <- confusionMatrix(lrlwr20pred_50proj, pull(test_50proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm20_100proj <- confusionMatrix(lrlwr20pred_100proj, pull(test_100proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm20_200proj <- confusionMatrix(lrlwr20pred_200proj, pull(test_200proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  lrlwr_cm20_400proj <- confusionMatrix(lrlwr20pred_400proj, pull(test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  bdt_cm50_50proj <- confusionMatrix(bdt50pred_50proj, pull(test_50proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm50_100proj <- confusionMatrix(bdt50pred_100proj, pull(test_100proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm50_200proj <- confusionMatrix(bdt50pred_200proj, pull(test_200proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm50_400proj <- confusionMatrix(bdt50pred_400proj, pull(test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  bdt_cm20_50proj <- confusionMatrix(bdt20pred_50proj, pull(test_50proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm20_100proj <- confusionMatrix(bdt20pred_100proj, pull(test_100proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm20_200proj <- confusionMatrix(bdt20pred_200proj, pull(test_200proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  bdt_cm20_400proj <- confusionMatrix(bdt20pred_400proj, pull(test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  log_cm50_50proj <- confusionMatrix(log50pred_50proj, pull(test_50proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm50_100proj <- confusionMatrix(log50pred_100proj, pull(test_100proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm50_200proj <- confusionMatrix(log50pred_200proj, pull(test_200proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm50_400proj <- confusionMatrix(log50pred_400proj, pull(test_400proj, "Late50"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  log_cm20_50proj <- confusionMatrix(log20pred_50proj, pull(test_50proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm20_100proj <- confusionMatrix(log20pred_100proj, pull(test_100proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm20_200proj <- confusionMatrix(log20pred_200proj, pull(test_200proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  log_cm20_400proj <- confusionMatrix(log20pred_400proj, pull(test_400proj, "Late20"), positive="Late", dnn=c("Predicted", "Actual"))
+  
+  lravg_acc[i,1] <- lravg_cm50_50proj$overall["Accuracy"]
+  lravg_acc[i,2] <- lravg_cm50_100proj$overall["Accuracy"]
+  lravg_acc[i,3] <- lravg_cm50_200proj$overall["Accuracy"]
+  lravg_acc[i,4] <- lravg_cm50_400proj$overall["Accuracy"]
+  
+  lravg_prec[i,1] <- lravg_cm20_50proj$byClass["Precision"]
+  lravg_prec[i,2] <- lravg_cm20_100proj$byClass["Precision"]
+  lravg_prec[i,3] <- lravg_cm20_200proj$byClass["Precision"]
+  lravg_prec[i,4] <- lravg_cm20_400proj$byClass["Precision"]
+  
+  lravg_rec[i,1] <- lravg_cm20_50proj$byClass["Recall"]
+  lravg_rec[i,2] <- lravg_cm20_100proj$byClass["Recall"]
+  lravg_rec[i,3] <- lravg_cm20_200proj$byClass["Recall"]
+  lravg_rec[i,4] <- lravg_cm20_400proj$byClass["Recall"]
+  
+  lravg_f1[i,1] <- lravg_cm20_50proj$byClass["F1"]
+  lravg_f1[i,2] <- lravg_cm20_100proj$byClass["F1"]
+  lravg_f1[i,3] <- lravg_cm20_200proj$byClass["F1"]
+  lravg_f1[i,4] <- lravg_cm20_400proj$byClass["F1"]
+  
+  lrlwr_acc[i,1] <- lrlwr_cm50_50proj$overall["Accuracy"]
+  lrlwr_acc[i,2] <- lrlwr_cm50_100proj$overall["Accuracy"]
+  lrlwr_acc[i,3] <- lrlwr_cm50_200proj$overall["Accuracy"]
+  lrlwr_acc[i,4] <- lrlwr_cm50_400proj$overall["Accuracy"]
+  
+  lrlwr_prec[i,1] <- lrlwr_cm20_50proj$byClass["Precision"]
+  lrlwr_prec[i,2] <- lrlwr_cm20_100proj$byClass["Precision"]
+  lrlwr_prec[i,3] <- lrlwr_cm20_200proj$byClass["Precision"]
+  lrlwr_prec[i,4] <- lrlwr_cm20_400proj$byClass["Precision"]
+  
+  lrlwr_rec[i,1] <- lrlwr_cm20_50proj$byClass["Recall"]
+  lrlwr_rec[i,2] <- lrlwr_cm20_100proj$byClass["Recall"]
+  lrlwr_rec[i,3] <- lrlwr_cm20_200proj$byClass["Recall"]
+  lrlwr_rec[i,4] <- lrlwr_cm20_400proj$byClass["Recall"]
+  
+  lrlwr_f1[i,1] <- lrlwr_cm20_50proj$byClass["F1"]
+  lrlwr_f1[i,2] <- lrlwr_cm20_100proj$byClass["F1"]
+  lrlwr_f1[i,3] <- lrlwr_cm20_200proj$byClass["F1"]
+  lrlwr_f1[i,4] <- lrlwr_cm20_400proj$byClass["F1"]
+  
+  bdt_acc[i,1] <- bdt_cm50_50proj$overall["Accuracy"]
+  bdt_acc[i,2] <- bdt_cm50_100proj$overall["Accuracy"]
+  bdt_acc[i,3] <- bdt_cm50_200proj$overall["Accuracy"]
+  bdt_acc[i,4] <- bdt_cm50_400proj$overall["Accuracy"]
+  
+  bdt_prec[i,1] <- bdt_cm20_50proj$byClass["Precision"]
+  bdt_prec[i,2] <- bdt_cm20_100proj$byClass["Precision"]
+  bdt_prec[i,3] <- bdt_cm20_200proj$byClass["Precision"]
+  bdt_prec[i,4] <- bdt_cm20_400proj$byClass["Precision"]
+  
+  bdt_rec[i,1] <- bdt_cm20_50proj$byClass["Recall"]
+  bdt_rec[i,2] <- bdt_cm20_100proj$byClass["Recall"]
+  bdt_rec[i,3] <- bdt_cm20_200proj$byClass["Recall"]
+  bdt_rec[i,4] <- bdt_cm20_400proj$byClass["Recall"]
+  
+  bdt_f1[i,1] <- bdt_cm20_50proj$byClass["F1"]
+  bdt_f1[i,2] <- bdt_cm20_100proj$byClass["F1"]
+  bdt_f1[i,3] <- bdt_cm20_200proj$byClass["F1"]
+  bdt_f1[i,4] <- bdt_cm20_400proj$byClass["F1"]
+  
+  log_acc[i,1] <- log_cm50_50proj$overall["Accuracy"]
+  log_acc[i,2] <- log_cm50_100proj$overall["Accuracy"]
+  log_acc[i,3] <- log_cm50_200proj$overall["Accuracy"]
+  log_acc[i,4] <- log_cm50_400proj$overall["Accuracy"]
+  
+  log_prec[i,1] <- log_cm20_50proj$byClass["Precision"]
+  log_prec[i,2] <- log_cm20_100proj$byClass["Precision"]
+  log_prec[i,3] <- log_cm20_200proj$byClass["Precision"]
+  log_prec[i,4] <- log_cm20_400proj$byClass["Precision"]
+  
+  log_rec[i,1] <- log_cm20_50proj$byClass["Recall"]
+  log_rec[i,2] <- log_cm20_100proj$byClass["Recall"]
+  log_rec[i,3] <- log_cm20_200proj$byClass["Recall"]
+  log_rec[i,4] <- log_cm20_400proj$byClass["Recall"]
+  
+  log_f1[i,1] <- log_cm20_50proj$byClass["F1"]
+  log_f1[i,2] <- log_cm20_100proj$byClass["F1"]
+  log_f1[i,3] <- log_cm20_200proj$byClass["F1"]
+  log_f1[i,4] <- log_cm20_400proj$byClass["F1"]
+}
+
+
+
+
+
+###############################################
+
+plot(lravg_acc[,4], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) with 400 Projects", sub="Red=Lin Reg (Mean), Blue=Lin Reg (Lower), Green=XGBoost, Orange=Log Reg")
+lines(lrlwr_acc[,4], col="blue")
+lines(bdt_acc[,4], col="green")
+lines(log_acc[,4], col="orange")
+abline(h=.5)
+abline(h=.8, lty=2)
+
+
+################################################
+
+
+
+plot(lravg_f1[,4], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) with 400 Projects", sub="Red=Lin Reg (Mean), Blue=Lin Reg (Lower), Green=XGBoost, Orange=Log Reg")
+lines(lrlwr_f1[,4], col="blue")
+lines(bdt_f1[,4], col="green")
+lines(log_f1[,4], col="orange")
+abline(h=.5)
+abline(h=.7, lty=2)
+
+
+
+###############################################
+
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Linear Regression Plot", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(r_sq[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="R-Squared"
+     ,main="Predicting Total Completion Time via Linear Regression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(r_sq[,2], col="blue")
+lines(r_sq[,3], col="green")
+lines(r_sq[,4], col="orange")
+abline(h=.8)
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Linear Regression Mean Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(lravg_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lravg_acc[,2], col="blue")
+lines(lravg_acc[,3], col="green")
+lines(lravg_acc[,4], col="orange")
+abline(h=.5)
+
+prec_base <- sum(pull(dcx400proj, "LateNum20"))/sum(1-pull(dcx400proj, "LateNum20"))
+
+plot(lravg_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lravg_prec[,2], col="blue")
+lines(lravg_prec[,3], col="green")
+lines(lravg_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(lravg_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lravg_rec[,2], col="blue")
+lines(lravg_rec[,3], col="green")
+lines(lravg_rec[,4], col="orange")
+abline(h=.5)
+
+plot(lravg_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nMean", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lravg_f1[,2], col="blue")
+lines(lravg_f1[,3], col="green")
+lines(lravg_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Linear Regression Lower Bound Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(lrlwr_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lrlwr_acc[,2], col="blue")
+lines(lrlwr_acc[,3], col="green")
+lines(lrlwr_acc[,4], col="orange")
+abline(h=.5)
+
+plot(lrlwr_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lrlwr_prec[,2], col="blue")
+lines(lrlwr_prec[,3], col="green")
+lines(lrlwr_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(lrlwr_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lrlwr_rec[,2], col="blue")
+lines(lrlwr_rec[,3], col="green")
+lines(lrlwr_rec[,4], col="orange")
+abline(h=.5)
+
+plot(lrlwr_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Linear Regression \nLower Bound", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(lrlwr_f1[,2], col="blue")
+lines(lrlwr_f1[,3], col="green")
+lines(lrlwr_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Boosted Decision Tree Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(bdt_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Boosted Decision \n", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(bdt_acc[,2], col="blue")
+lines(bdt_acc[,3], col="green")
+lines(bdt_acc[,4], col="orange")
+abline(h=.5)
+
+plot(bdt_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Boosted Decision \nTree", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(bdt_prec[,2], col="blue")
+lines(bdt_prec[,3], col="green")
+lines(bdt_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(bdt_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Boosted Decision \nTree", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(bdt_rec[,2], col="blue")
+lines(bdt_rec[,3], col="green")
+lines(bdt_rec[,4], col="orange")
+abline(h=.5)
+
+plot(bdt_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Boosted Decision \nTree", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(bdt_f1[,2], col="blue")
+lines(bdt_f1[,3], col="green")
+lines(bdt_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+
+par(mar = c(0,0,0,0))
+plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+text(x = 0.5, y = 0.5, "Begin Logistic Regression Plots", cex = 1.6, col = "black")
+par(mar = c(5, 4, 4, 2) + 0.1)
+
+plot(log_acc[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Accuracy"
+     ,main="Predicting Late Completion (50% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(log_acc[,2], col="blue")
+lines(log_acc[,3], col="green")
+lines(log_acc[,4], col="orange")
+abline(h=.5)
+
+plot(log_prec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Precision"
+     ,main="Predicting Late Completion (20% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(log_prec[,2], col="blue")
+lines(log_prec[,3], col="green")
+lines(log_prec[,4], col="orange")
+abline(h=prec_base)
+
+plot(log_rec[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="Recall"
+     ,main="Predicting Late Completion (20% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(log_rec[,2], col="blue")
+lines(log_rec[,3], col="green")
+lines(log_rec[,4], col="orange")
+abline(h=.5)
+
+plot(log_f1[,1], type="l", col="red", ylim=c(0,1), xlab="Milestones Completed", ylab="F1"
+     ,main="Predicting Late Completion (20% Late) via Logistic \nRegression", sub="Number of Projects: Red=50, Blue=100, Green=200, Orange=400")
+lines(log_f1[,2], col="blue")
+lines(log_f1[,3], col="green")
+lines(log_f1[,4], col="orange")
+abline(h=prec_base/(prec_base+.5))
+```
+

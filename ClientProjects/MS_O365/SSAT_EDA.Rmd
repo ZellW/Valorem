@@ -1,0 +1,1404 @@
+---
+title: 'O365 SSAT EDA'
+output:
+    rmdformats::readthedown:
+      highlight: pygments
+      code_folding: hide
+---
+
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 14px;
+   line-height: 18px;
+}
+body{ /* Normal  */
+   font-size: 14px;
+}
+td {  /* Table  */
+   font-size: 12px;
+}
+h1 { /* Header 1 */
+font-size: 26px;
+color: #4294ce;
+}
+h2 { /* Header 2 */
+font-size: 22px;
+}
+h3 { /* Header 3 */
+font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 12px;
+}
+pre { /* Code block */
+  font-size: 12px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+```{r loadLibs1, warning=FALSE, message=FALSE}
+#if(!require(bayesian_first_aid)){devtools::install_github("rasmusab/bayesian_first_aid")}
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("plyr","dplyr","ggplot2", "readr", "tidyr", "gridExtra", "readxl", "stringr", "lubridate", 
+         "xda", "magrittr","funModeling",   prompt = TRUE)
+setwd("~/Github/Valorem/ClientProjects/MS_O365")
+options(scipen = 999)#Do not display exponents
+```
+
+```{r loadDataFile, echo=FALSE, eval=T}
+rm(list= ls())
+# load("SSATData1.RData")
+# load("SSATData2.RData")
+# load("SSATData3.RData")
+```
+
+# Abstract
+
+Business question:  Why is SSAT dropping Nov 2017 - Jan 2018?
+
+# Introduction
+
+January 26, 2018, Valorem was asked to evaluate SSAT data to understand if there were trends in the data to explain why SSAT scores have fallen.
+
+| MonthYear |	NSATAveraged |
+| -- | -- |
+| 7/1/2017 0:00	| 154.5181 |
+| 8/1/2017 0:00	| 154.4314 |
+| 9/1/2017 0:00	| 154.6326 |
+| 10/1/2017 0:00 | 154.6831 |
+| 11/1/2017 0:00 |	152.6882 |
+| 12/1/2017 0:00 |	151.4207 |
+| 1/1/2018 0:00	| 150.4597 |
+
+```{r echo=FALSE}
+tmpDF <- data.frame(MonthYear = mdy(c('7/1/2017', '8/1/2017', '9/1/2017', '10/1/2017', 
+                                      '11/1/2017', '12/1/2017', '1/1/2018')), 
+                    NSAT_Average = c(154.5181, 154.4314, 154.6326, 154.6831, 152.6882, 
+                                     151.4207, 150.4597))
+ggplot(tmpDF, aes(x=MonthYear, y=NSAT_Average)) + geom_line()
+rm(tmpDF)
+```
+
+Microsoft identified the following business issues that may have impacted the SSAT Scores:
+
+	1. Data corruption - is it an issue?
+	2. Rave 2.0 - deployed around the same time as the SSAT drop
+	3. DAO and PWRv2 - routing technologies also launched around the same time
+		a. How to route to partners and agents
+		b. MS now decides who gets what ticket
+	4. Migration - which buckets a customer/tenant falls into - bigger stacks than CI/NCI
+		a. Customers that are inside or outside Concierge entirely (Partner queue is one of the stacks)
+			i. Think support areas, customers, < 150 seats, >150 classic (Modern), Partners, Premier
+			ii. Who moved when - was that an impact
+
+What follows is an Exploratory Data Anlysis that seeks to find answers to the issues above.
+
+A thoughtful EDA preprocess includes
+
+1.	Data ingestion
+2.	Data exploration:  Understand the data – types of data, range of values, variances, outliers, etc.
+3.	Data munging/manipulation: Transform data to make analysis more impactful
+4.	Data analysis: Defining what the data tells us in light of the project goal
+5.	Conclusions & Recommendations
+
+# Data Ingestion {.tabset .tabset-fade}
+
+January 25-27, 2018, Microsoft provided SSAT data:
+
+1.	Survey data (survey provided by the customer – `TicketListJuly01_Jan27.xlsx`)
+    - Saved CSV as `SSATData.csv`
+2.	Ticket data (meta data about the ticket which was the subject of the SSAT Survey - `TicketListJuly01_Jan27.xlsx`) 
+    - Saved CSV as `TicketData.csv`
+3.	Customer data (metadata about the customer who filed the ticket - `TenantListJan24.csv`)
+
+The data may be updated with more variables per email dated 1/27/18:
+
+*Uploaded the tenant data to secured Share so Cliff now has access. However, the data fields provided are minimal. Per discussion with Erfan yesterday, there is a standard list of data fields available from Odin Tenant view in Cosmos that are commonly used for analysis by his team. @Erfan Najmi – can you please share out the common data fields, and then we’ll ask Yun to provide a one time query against cosmos. We’ll then get that data to Cliff.* 
+
+
+```{r warning=FALSE, message=FALSE, eval=T}
+SSATData <- read_csv("~/Github/Valorem/ClientProjects/MS_O365/data/SSAT/SSATData.csv")
+colnames(SSATData)[12] <- "TenantId"
+
+TicketData <- read_csv("~/Github/Valorem/ClientProjects/MS_O365/data/SSAT/TicketData.csv")
+TenantList <- read_csv("~/Github/Valorem/ClientProjects/MS_O365/data/SSAT/TenantListJan24.csv", col_names = FALSE)
+colnames(TenantList) <- c("TenantId", "TenantProgram", "SupportSegment", "TenantRegisteredCountry", "TenantPreferredLang", "TBD1", "TBD2", "UTCSnapshotDate")
+#save.image("SSATData1.RData")
+```
+
+- Rename variables
+
+> Variable name changes were at the author's discretion - no variable values affected.
+
+```{r}
+SSATData <- plyr::rename(SSATData, c("SR.Rating" = "CSAT", "Rating" = "SSAT"))#from - to
+
+SSATData <- plyr::rename(SSATData, c("Feedback Date" = "FeedbackDate_Orig"))#from - to
+                         
+SSATData <- plyr::rename(SSATData, c("SR.Ticket Number" = "SRTicketNumber", 
+                         "SR.ML Workload" = "SRMLWorkload", "SR.IsResolved" = "SRIsResolved",
+                         "SR.Support Area" = "SRSupportArea", "Signup Country" = "SignupCountry",
+                         "Seat Bucket" = "SeatBucket", "OCV Areas" = "OCVAreas"))
+```
+
+## Check for Duplicates
+
+```{r eval=F}
+table(duplicated(TenantList$TenantId))
+myDupeTenantIds <- TenantList[duplicated(TenantList$TenantId),]
+write.csv(myDupeTenantIds, "DupeTenantIds.csv")
+
+table(duplicated(TicketData$RequestId))
+table(duplicated(SSATData$SRTicketNumber))
+```
+
+Remove duplicate `TenantId` records from `TenantList`.
+
+```{r eval=T}
+TenantList <- TenantList[!duplicated(TenantList$TenantId),]#from 6437493 to 6346005 - diff of 1488
+```
+
+## Quick Data Peek
+
+> Met with Dean 2/9/18 for a data review.  Dean provided guidance or approval for the data manipulation below.
+
+The detailed notes appear in the appendix.  The notes per file include only open action items or imporatant notes.
+
+### SSATData
+```{r}
+df_SSATData <- df_status(SSATData)
+```
+
+Data Review Action Items
+
+- SSATData (5,918 records) (SR is simple a Support Request table name)
+    - What is `OCV Area`?  Note high percentage of `NA`.  Dean to investigate.  Values derived from SSAT Verbatims and put in buckets - by Dean! (5 star data not categorized)
+
+Make approved changes to `SSATData`.
+
+- Remove variables
+
+```{r}
+SSATData$`SSAT Feedback Text` <- NULL
+SSATData$SR.Comment <- NULL
+```
+
+- Cast `Feedback Date` to `date`.  Parse day, week, month
+
+```{r}
+SSATData <- SSATData %>% mutate(FeedbackDoW = str_split(SSATData$FeedbackDate_Orig, ",",2, simplify = TRUE)[,1])
+SSATData <- SSATData %>% mutate(FeedbackDate = str_split(SSATData$FeedbackDate_Orig, ",",2, simplify = TRUE)[,2])
+SSATData <- SSATData %>% mutate(FeedbackDate = str_trim(FeedbackDate))
+SSATData$FeedbackDate <- mdy(SSATData$FeedbackDate)
+
+#SSATData <- SSATData %>% mutate(Month = format(as.Date(FeedbackDate), "%Y-%b"))
+SSATData <- SSATData %>%  mutate(FeedbackMonth = floor_date(FeedbackDate, "month"))
+SSATData <- SSATData %>% mutate(FeedbackWeek = paste0(year(FeedbackDate), "-", week(FeedbackDate)))
+#week returns the number of complete seven day periods that have occurred between the date and January 1st, plus one.
+
+SSATData <- SSATData %>% select(FeedbackDate_Orig, FeedbackDate, FeedbackDoW, FeedbackMonth, FeedbackWeek, everything())
+```
+
+- Remove NAs (A R task, not required from Data Review Meeting)
+
+> `IsResolved NAs` simply infer a *no response* from the client.  There are `r sum(is.na(SSATData$SRIsResolved))` `NA` values.
+
+```{r}
+SSATData$SRIsResolved <- as.integer(SSATData$SRIsResolved)
+SSATData <- SSATData %>% mutate(SRIsResolved = ifelse(is.na(SRIsResolved), -1, SRIsResolved))
+
+SSATData <- SSATData %>% mutate(CSAT = ifelse(is.na(CSAT), -1, CSAT))
+SSATData$CSAT <- as.integer(SSATData$CSAT)
+
+SSATData <- SSATData %>% mutate(SRMLWorkload = ifelse(is.na(SRMLWorkload), "Unknown", SRMLWorkload))#before this Unknown = 40, after 627
+
+SSATData <- SSATData %>% mutate(OCVAreas = ifelse(is.na(OCVAreas), "Unknown", OCVAreas))
+```
+
+- Cast `character` to `factor`
+
+```{r}
+SSATData <- SSATData %>% mutate_at(c("Partner", "SRMLWorkload", "SignupCountry", "SRSupportArea", "OCVAreas"), as.factor)
+
+SSATData$SeatBucket <- factor(SSATData$SeatBucket, levels = c("2-9", "10-24", "25-50", "50+"), ordered = T)
+#levels(SSATData$SeatBucket)
+#`factor` is used to encode an object as a factor. `as.factor` does not allow a levels parameter, whereas factor does.
+#`as.factor` does the coercion by using the unique levels of the object as its levels. `factor` does this if the levels= parameter is not specified but allows the input of levels.
+
+SSATData$FeedbackDoW <- ordered(SSATData$FeedbackDoW, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+#levels(SSATData$DoW)
+
+SSATData$SRIsResolved <- as.integer(SSATData$SRIsResolved)
+
+rm(df_SSATData)
+```
+
+### TicketData
+
+```{r TicketDataStart}
+df_TicketData <- df_status(TicketData)
+```
+
+Data Review Action Items
+
+- TicketData (866,744 records)
+    - Many date fields must be cast from `character` to `date`
+        5. Service Date - automated entry - **on hold**
+    - What do the values in `RoleIds` represent?  Cast as factor? - Postpone for now.
+    - Is `RouteReason` useful?  Does not appear so. -Postpone for now.
+    - Need mapping for `ProgramId` since it looks like it might be cast to a factor.  Dean may provide full set of data without Concierge filter.  C07 = Concierge, FA = FastTrack, C55 = Modern CSS, NULL is NULL, A7C - Dean to find out
+    - Is `ParentRequestId` useful?  Keep - CLiff decided to skip 96810 unique values
+    - `SkillIds` useful given the 0s?  If yes, need to map to meaningful values and parse into separate fields. - Postpone for now.  Similar to RoleId
+    - `ReopenReason` has `r table(TicketData$ReopenReason)[[16]]` NULL values.  If useful, need mapping from number to description and then cast to factor. - Skip for now
+    - `SecondaryTicketType` has `r table(TicketData$SecondaryTicketType)[[2]]` NULLs.  Plan to remove.  Same logic applies to `SecondaryTicketNumber` and `TransferLocation`. - Need to understand why so sparse.  Postpone for now (data issue?)
+    - Define the values 1 - 4 under `ContactOutcome`.  How to interpret ~47k NULL values.  Same logic applies to:  Need mapping
+        - `Resolution`: Values are 1, 2, 3, 5 with ~47k NULL values.  Need mapping
+        - `Verified`: Values are 1-2, 12-15, 17-19 with ~47k NULL values. Need mapping
+    - Many value combinations in `ScenarioTypes`.  Need mapping.  Likely need to parse into separate fields.  Dean to verify & mapping (Agent identifies the type of ticket) - HOLD.  (See code below)
+
+Make approve data changes to `TicketData`.
+
+- Remove selected variables
+
+```{r}
+TicketData$MSSupportTicket <- NULL
+TicketData$Comment <- NULL
+TicketData$ParatureTicketNumber_1 <- NULL
+TicketData$CompletedWorkflowActions <- NULL
+#TicketData$RoleIds <- NULL #Decision reversed week of 2/19/2018
+TicketData$RouteReason <- NULL
+#TicketData$SkillIds <- NULL #Decision reversed week of 2/19/2018
+TicketData$ReopenReason <- NULL
+TicketData$SecondaryTicketType <- NULL
+TicketData$SecondaryTicketNumber <- NULL
+TicketData$TransferLocation <- NULL
+TicketData$LastUpdatedByApp_1 <- NULL
+```
+
+> May want to revisit `RoleIds` and `SkillIds` removal
+
+- Cast Date variables and create new date related fields.  (Note - new fields describing intervals between date fields is expressed in seconds.)
+
+```{r message=FALSE}
+TicketData <- as.data.frame(TicketData)
+TicketData$CreateDateTime <- ymd_hms(TicketData$CreateDateTime)
+TicketData <- TicketData %>% mutate(CreateDoW = wday(CreateDateTime, label=TRUE))
+TicketData <- TicketData %>% mutate(CreateHour = hour(CreateDateTime))
+TicketData <- TicketData %>% mutate(CreateMonth = floor_date(CreateDateTime, "month"))
+TicketData <- TicketData %>% mutate(CreateWeek = paste0(year(CreateDateTime), "-", week(CreateDateTime)))
+
+TicketData$RouteDateTime <- ymd_hms(TicketData$RouteDateTime)
+TicketData <- TicketData %>% mutate(CreateRouteTime = int_length(interval(CreateDateTime, RouteDateTime)))
+
+TicketData$AcknowledgeDateTime <- ymd_hms(TicketData$AcknowledgeDateTime)
+TicketData <- TicketData %>% mutate(CreateAckTime = int_length(interval(CreateDateTime, AcknowledgeDateTime)))
+TicketData <- TicketData %>% mutate(AckDoW = wday(AcknowledgeDateTime, label=TRUE))
+TicketData <- TicketData %>% mutate(AckHour = hour(AcknowledgeDateTime))
+TicketData <- TicketData %>% mutate(AckWeek = paste0(year(AcknowledgeDateTime), "-", week(AcknowledgeDateTime)))
+
+TicketData$ClosedDateTime <- ymd_hms(TicketData$ClosedDateTime)
+TicketData <- TicketData %>% mutate(CreateClosedTime = int_length(interval(CreateDateTime, ClosedDateTime)))
+TicketData <- TicketData %>% mutate(ClosedDoW = wday(ClosedDateTime, label=TRUE))
+TicketData <- TicketData %>% mutate(ClosedHour = hour(ClosedDateTime))
+TicketData <- TicketData %>%  mutate(ClosedMonth = floor_date(ClosedDateTime, "month"))
+TicketData <- TicketData %>% mutate(ClosedWeek = paste0(year(ClosedDateTime), "-", week(ClosedDateTime)))
+TicketData$ClosedWeek <- na_if(TicketData$ClosedWeek, "NA-NA")
+
+TicketData$CustomerFeedbackDateTime <- ymd_hms(TicketData$CustomerFeedbackDateTime)
+TicketData <- TicketData %>% mutate(CreateCFBTime = int_length(interval(CreateDateTime, CustomerFeedbackDateTime)))
+TicketData <- TicketData %>% mutate(CFBDoW = wday(CustomerFeedbackDateTime, label=TRUE))
+TicketData <- TicketData %>% mutate(CFBHour = hour(CustomerFeedbackDateTime))
+TicketData <- TicketData %>%  mutate(CFBMonth = floor_date(CustomerFeedbackDateTime, "month"))
+TicketData <- TicketData %>% mutate(CFBWeek = paste0(year(CustomerFeedbackDateTime), "-", week(CustomerFeedbackDateTime)))
+TicketData$CFBWeek <- na_if(TicketData$CFBWeek, "NA-NA")
+
+TicketData$CompletedDateTime <- ymd_hms(TicketData$CompletedDateTime)
+TicketData <- TicketData %>% mutate(CreateCompletedTime = int_length(interval(CreateDateTime, CompletedDateTime)))
+TicketData <- TicketData %>% mutate(CompletedDoW = wday(CompletedDateTime, label=TRUE))
+TicketData <- TicketData %>% mutate(CompletedHour = hour(CompletedDateTime))
+TicketData <- TicketData %>%  mutate(CompletedMonth = floor_date(CompletedDateTime, "month"))
+TicketData <- TicketData %>% mutate(CompletedWeek = paste0(year(CompletedDateTime), "-", week(CompletedDateTime)))
+
+# ON HOLD
+#TicketData$ServiceClosedDateTime <- ymd_hms(TicketData$ServiceClosedDateTime)
+#TicketData <- TicketData %>% mutate(CreateServiceClosedTime = int_length(interval(CreateDateTime, ServiceClosedDateTime)))
+TicketData$ServiceClosedDateTime <- NULL
+
+TicketData <- TicketData %>% select(Id, RequestId, CreateDateTime, CreateMonth, CreateDoW, CreateHour, CreateWeek, 
+                                  RouteDateTime, CreateRouteTime, AcknowledgeDateTime, AckDoW, AckHour, AckWeek, 
+                                  CreateAckTime, ClosedDateTime, ClosedMonth, ClosedDoW, ClosedHour, ClosedWeek, 
+                                  CreateClosedTime, CustomerFeedbackDateTime, CFBMonth, CFBDoW, 
+                                  CFBHour, CFBWeek, CreateCFBTime, CompletedDateTime, CompletedMonth, CompletedDoW, 
+                                  CompletedHour,CompletedWeek,  CreateCompletedTime, everything())
+```
+
+> This is a author requirement, not one required by Data Review.  No content is changed - missing values are transformed to identifiable value.
+
+- Miscellaneous Data Munging
+
+```{r message=FALSE}
+TicketData$IsFeedbackClosed <- as.logical(TicketData$IsFeedbackClosed)
+TicketData$SupportAreaName <- as.factor(TicketData$SupportAreaName)
+
+TicketData$IsResolved <- as.integer(TicketData$IsResolved)
+TicketData <- TicketData %>% mutate(IsResolved = ifelse(is.na(IsResolved), -1, IsResolved))
+
+##UserLcId
+library(rvest)
+theURL <- "https://msdn.microsoft.com/en-us/library/ms912047"
+urlFile <- read_html(theURL)
+urlTables <- html_nodes(urlFile, "table")
+UserLcidTable <- html_table(urlTables[1], header = NA, trim = TRUE, fill = TRUE)
+UserLcidTable <- as.data.frame(UserLcidTable)
+colnames(UserLcidTable) <- UserLcidTable[1,]
+UserLcidTable <- UserLcidTable[-1,]
+names(UserLcidTable) <- c("Language", "Country", "UserLcid")
+
+TicketData$UserLcid <- as.factor(TicketData$UserLcid)
+
+TicketData <- left_join(TicketData, UserLcidTable, by = "UserLcid")
+#Cast Language and Country to factor
+#Parse Language
+TicketData$Language <- word(TicketData$Language, 1, sep = "\\\n")
+TicketData$Language <- word(TicketData$Language, 1, sep = "-")
+TicketData <- TicketData %>% mutate(Language = ifelse(is.na(Language), "Unknown", Language))
+TicketData$Language <- as.factor(TicketData$Language)
+
+TicketData <- TicketData %>% mutate(Country = ifelse(is.na(Country), "Unknown", Country))
+TicketData$Country <- as.factor(TicketData$Country)
+
+#Modality  Cast to factor from Int 1 = Web; 2 = Email; 3=IVR 4=Chat
+#Need to add Chat when it exists in the data
+TicketData$Modality <- as.character(TicketData$Modality)
+TicketData <- TicketData %>% mutate(Modality = plyr::mapvalues(Modality, c("1", "2", "3", "4"), 
+                                                               c("Web", "Email", "IVR", "Chat")))
+TicketData$Modality <- as.factor(TicketData$Modality)
+
+#ReScenario
+TicketData$ReScenario <- as.factor(TicketData$ReScenario)
+
+#ParentRequestId - 96810 unique values - Cliff decided to SKIP
+#length(unique(TicketData$ParentRequestId))
+TicketData$ParentRequestId <- NULL
+```
+
+>Consider `Modality - Chat`.  Introduces many `NAs`.  Perhaps remove from analysis.
+
+- NULL to NA or -1
+
+```{r}
+#Rating
+TicketData$Rating  <-  TicketData$Rating %>% replace(.=="NULL", NA) # replace with NA
+TicketData$Rating <- as.factor(TicketData$Rating)
+TicketData <- TicketData %>% mutate(Rating = ifelse(is.na(Rating), "No_Response", Rating))
+
+#ProgramId
+# C07 = Concierge, FA = FastTrack, C55 = Modern CSS, NULL is NULL, A7C - Dean to find out
+TicketData$ProgramId  <-  TicketData$ProgramId %>% replace(.=="NULL", NA) 
+TicketData <- TicketData %>% mutate(ProgramId = ifelse(is.na(ProgramId), "Unknown", ProgramId))
+
+TicketData$ProgramId <- str_replace_all(TicketData$ProgramId, "-", "")
+
+TicketData$ProgramId <- plyr::mapvalues(TicketData$ProgramId, 
+    c("C07C1E49EDDA4E1FA01C9CF613C17041", "A7C4E37000004237B98B933BC2471B60", 
+      "FA5774AC45BF436781C94A09972F574C", "C5530DE4377B4B2C8C784887F4149769", "Unknown"), 
+    c("Concierge", "DeanTBD", "FastTrack", "ModernCSS",  "Unknown"))
+
+#Resolution`: Values are character 1, 2, 3, 5 with ~47k NULL values.  Need mapping
+TicketData$Resolution  <-  TicketData$Resolution %>% replace(.=="NULL", NA) 
+TicketData <- TicketData %>% mutate(Resolution = ifelse(is.na(Resolution), "Unknown", Resolution))
+TicketData$Resolution <- as.factor(TicketData$Resolution)
+
+#Verified`: Values are 1-2, 12-15, 17-19 with ~47k NULL values. Need mapping
+TicketData$Verified  <-  TicketData$Verified %>% replace(.=="NULL", NA) 
+TicketData <- TicketData %>% mutate(Verified = ifelse(is.na(Verified), "Unknown", Verified))
+TicketData$Verified <- as.factor(TicketData$Verified)
+
+#Many value combinations in `ScenarioTypes`.  Need mapping.  Likely need to parse into separate fields.  Dean to verify & mapping (Agent identifies the type of ticket)
+TicketData$ScenarioTypes  <-  TicketData$ScenarioTypes %>% replace(.=="NULL", NA)
+TicketData <- TicketData %>% mutate(ScenarioTypes = ifelse(is.na(ScenarioTypes), "Unknown", ScenarioTypes))
+head(TicketData$ScenarioTypes, 20)
+tmpDF <- data.frame(Scenarios=TicketData$ScenarioTypes, chr_count=apply(TicketData,2, nchar)[,42])#col 42 = ScenarioTypes - KEEP CODE
+tmpDF <- arrange(tmpDF, desc(chr_count))
+head(tmpDF)
+TicketData$ScenarioTypes <- NULL
+#Need to re-evaluate if this is useful.  Many mappings
+
+#ContactOutcome 46915 NULL
+TicketData$ContactOutcome  <-  TicketData$ContactOutcome %>% replace(.=="NULL", NA)
+TicketData <- TicketData %>% mutate(ContactOutcome = ifelse(is.na(ContactOutcome), "-1", ContactOutcome))
+
+class(TicketData$ContactOutcome)
+sum(is.na(TicketData$ContactOutcome))
+table(TicketData$ContactOutcome)
+```
+
+- `TicketData` `TenenatId` are in upper case.  In the other data files, the variable is lower case.  Force to lower case.
+
+```{r}
+TicketData$TenantId <- tolower(TicketData$TenantId)
+```
+
+- MS provided mappings for `LastUpdatedByApp` variable 2/21/18:
+
+    - 24C04D19-4A39-4E55-A9F7-672C973DE4A4   ---   MOP
+    - 7FD22FBC-A77B-4325-82AA-BBFC41B3E93A   ---  Genesys
+    - 93A2EF9B-7C8D-4855-BC4F-F079C52D71DB   ---  Rave 1.0
+    - B075FBE5-2C8E-4B62-BB18-44D91728D697   ---  Rave 2.0
+    - B8C02862-BD38-47EB-A6D1-6A8582F5FF35   ---  CWS Processor
+
+```{r}
+TicketData$LastUpdatedByApp <- plyr::mapvalues(TicketData$LastUpdatedByApp, 
+    c("24C04D19-4A39-4E55-A9F7-672C973DE4A4", "7FD22FBC-A77B-4325-82AA-BBFC41B3E93A", 
+      "93A2EF9B-7C8D-4855-BC4F-F079C52D71DB", "B075FBE5-2C8E-4B62-BB18-44D91728D697", "B8C02862-BD38-47EB-A6D1-6A8582F5FF35"), 
+    c("MOP", "Genesys", "Rave_1.0", "Rave_2.0",  "CWS_Processor"))
+#table(TicketData$LastUpdatedByApp)
+```
+
+### TenantList
+
+```{r}
+rm(list= ls()[!(ls() %in% c('SSATData','TicketData', 'TenantList'))])
+df_TenantList <- df_status(TenantList)
+```
+
+Items to consider:
+
+- TenantList (6,346,005 records)
+    - Cast `TenantRegisteredCountry` as factor even though 243 unique values?  Evaluate
+    - Define variable name for `TBD1`.  The values are ASfp (689), BC (6315729) and PSfp (29587).  Given the predominance of BC, does it matter?  
+    - Define variable `TBD2`.  The values are Company (6293026), Reseller (5152), Support (47816), Syndicate (11).
+
+Make approved changes to `TenantList`.
+
+```{r TenantListChanges}
+# class(TenantList$TBD2)
+# sum(is.na(TenantList$TBD2))
+# table(TenantList$TBD2)
+
+TenantList$TenantProgram <- as.factor(TenantList$TenantProgram)
+TenantList$SupportSegment <- as.factor(TenantList$SupportSegment)
+TenantList$TenantPreferredLang <- as.factor(TenantList$TenantPreferredLang)
+TenantList$TBD1 <- as.factor(TenantList$TBD1)
+TenantList$TBD2 <- as.factor(TenantList$TBD2)
+
+TenantList <- TenantList %>% mutate(TenantRegisteredCountry = ifelse(is.na(TenantRegisteredCountry), "Unknown", TenantRegisteredCountry))
+TenantList$TenantRegisteredCountry <- as.factor(TenantList$TenantRegisteredCountry)
+
+TenantList$UTCSnapshotDate <- NULL #Author decision - check with Dean
+
+#save.image("SSATData2.RData")
+```
+
+## Join the Data
+
+```{r loadData3, echo=FALSE, eval=FALSE}
+#optional for testing
+load("SSATData2.RData")
+```
+
+Before joining, it is helpful to add a prefix/suffix to the table variable names so it is easy to identify which variable originated in while file.  Append `_ssat` to SSATData variable names, `_tick` to Ticket variable names and `_ten` to Tenanat variable names.
+
+### Set Column Names
+
+```{r}
+colnames(SSATData) <- paste0(colnames(SSATData), "_ssat")
+colnames(TicketData) <- paste0(colnames(TicketData), "_tick")
+colnames(TenantList) <- paste0(colnames(TenantList), "_ten")
+```
+
+### Join Data Files
+
+Recognizing the SSAT data is key, join `TicketData` and `TenantList` to `SSATData`.
+
+First join SSAT and TenantList.
+
+```{r}
+SSATData2 <- left_join(SSATData, TenantList, by = c("TenantId_ssat" = "TenantId_ten"))#start with 5918 by 13
+rm(TenantList)
+```
+
+Logic for joining TicketData
+
+Note:  Recall SSAT is completed only when the client logs back in 3 - 10 days after ticket close.
+
+1. For each records in SSATData, create new date columns where ticketDateBegin = SSATData FeedbackDate - 10 and 
+ticketDateEnd = SSATData FeedbackDate - 3
+2. Filter TicketData by TenantId
+3. Subset TicketData by the new ticketDateBegin and ticketDateEnd dates
+4. Find the oldest **Closed** and append SSATData with the selected TicketData record
+
+```{r instrumentation}
+#create DF for loop to collect data that might be interesting
+collectMatchInfo <- data.frame(matrix(ncol = 6, nrow = 0))
+x <- c("SSAT_TicketNo", "TenantId", "TenantRecordCnt", "RecordCntNoNA",  "RecordCntBTDate", "SelectedRequestID")
+colnames(collectMatchInfo) <- x
+
+#create new date columns where ticketDateBegin = SSATData FeedbackDate - 10 and ticketDateEnd = SSATData FeedbackDate - 3
+#to capture all times within these dates, use -11 and -2 offsets
+SSATData2 <- SSATData2 %>% mutate(minus3Date = FeedbackDate_ssat - 2, minus10Date = FeedbackDate_ssat - 11)
+```
+
+Prepare SSAT for the additional data when TicketData is matched
+
+```{r addTickToSSAT}
+tickNames <- names(TicketData)
+SSATData2[,tickNames] <- NA
+
+#integer fields
+SSATData2 <- transform(SSATData2, Id_tick=as.integer(Id_tick), CreateHour_tick=as.integer(CreateHour_tick),
+                       AckHour_tick=as.integer(AckHour_tick), ClosedHour_tick=as.integer(ClosedHour_tick),
+                       CFBHour_tick=as.integer(CFBHour_tick), CompletedHour_tick=as.integer(CompletedHour_tick),
+                       IsResolved_tick=as.integer(IsResolved_tick),
+                       ParatureTicketNumber_tick=as.integer(ParatureTicketNumber_tick))
+
+#character fields
+SSATData2 <- transform(SSATData2, RequestId_tick=as.character(RequestId_tick), CreateWeek_tick=as.character(CreateWeek_tick),
+                       AckWeek_tick=as.character(AckWeek_tick), ClosedWeek_tick=as.character(ClosedWeek_tick),
+                       CFBWeek_tick=as.character(CFBWeek_tick), CompletedWeek_tick=as.character(CompletedWeek_tick),
+                       PartnerId_tick=as.character(PartnerId_tick), TenantId_tick=as.character(TenantId_tick),
+                       Rating_tick=as.character(Rating_tick), UserLcid_tick=as.character(UserLcid_tick),
+                       LastUpdatedByApp_tick=as.character(LastUpdatedByApp_tick), ProgramId_tick=as.character(ProgramId_tick),
+                       SkillIds_tick=as.character(SkillIds_tick),
+                       IvrOutboundCallTime_tick=as.character(IvrOutboundCallTime_tick),
+                       ContactOutcome_tick=as.character(ContactOutcome_tick))
+
+#TicketData ordered & factors to character too - will fix after the fact
+SSATData2 <- transform(SSATData2, CreateDoW_tick <- as.character(CreateDoW_tick), AckDoW_tick=as.character(AckDoW_tick),
+                       ClosedDoW_tick=as.character(ClosedDoW_tick), CFBDoW_tick=as.character(CFBDoW_tick),
+                       CompletedDoW_tick=as.character(CompletedDoW_tick))
+
+SSATData2 <- transform(SSATData2, SupportAreaName_tick=as.character(SupportAreaName_tick), 
+                       Modality_tick=as.character(Modality_tick), ReScenario_tick=as.character(ReScenario_tick), 
+                       Resolution_tick=as.character(Resolution_tick), Verified_tick=as.character(Verified_tick), 
+                       Language_tick=as.character(Language_tick), Country_tick=as.character(Country_tick))
+
+#POSCIXct Fields
+SSATData2 <- transform(SSATData2, CreateDateTime_tick=as.POSIXct(CreateDateTime_tick),
+                       CreateMonth_tick=as.POSIXct(CreateMonth_tick), RouteDateTime_tick=as.POSIXct(RouteDateTime_tick),
+                       AcknowledgeDateTime_tick=as.POSIXct(AcknowledgeDateTime_tick),
+                       ClosedDateTime_tick=as.POSIXct(ClosedDateTime_tick), ClosedMonth_tick=as.POSIXct(ClosedMonth_tick),
+                       CustomerFeedbackDateTime_tick=as.POSIXct(CustomerFeedbackDateTime_tick),
+                       CFBMonth_tick=as.POSIXct(CFBMonth_tick), CompletedDateTime_tick=as.POSIXct(CompletedDateTime_tick),
+                       CompletedMonth_tick=as.POSIXct(CompletedMonth_tick))
+
+#Numeric
+SSATData2 <- transform(SSATData2, CreateRouteTime_tick=as.double(CreateRouteTime_tick),
+                       CreateAckTime_tick=as.double(CreateAckTime_tick),
+                       CreateClosedTime_tick=as.double(CreateClosedTime_tick),
+                       CreateCFBTime_tick=as.double(CreateCFBTime_tick),
+                       CreateCompletedTime_tick=as.double(CreateCompletedTime_tick), RoleIds_tick=as.double(RoleIds_tick))
+```
+
+```{r}
+SSATData2 <- SSATData2[, -77]
+#tmpChangeClass <- TicketData %>% select_if(is.ordered %>% names()
+
+#rm(SSATData)
+```
+
+```{r TicketData_Join}
+#Start loop
+for(i in 1:nrow(SSATData2)){
+#Filter TicketData by TenantId
+#Use 1st record as example (create loop later)
+tmpTenantId <- SSATData2$TenantId_ssat[i]
+tmpMinus3Date <- SSATData2$minus3Date[i]
+tmpMinus10Date <- SSATData2$minus10Date[i]
+tmpTicketData <- TicketData %>% filter(TenantId_tick == tmpTenantId)
+
+#collect data before entering into ifs below
+tmpTicketCnt1 <- nrow(tmpTicketData)
+tmpTicketCnt2 <- tmpTicketData %>% filter(!is.na(ClosedDateTime_tick)) %>% nrow()
+tmpTicketCnt3 <- tmpTicketData %>% filter(ClosedDateTime_tick > as.Date(tmpMinus10Date) & ClosedDateTime_tick < as.Date(tmpMinus3Date)) %>% nrow()
+
+tmpTicketData <- tmpTicketData %>% filter(!is.na(ClosedDateTime_tick))
+tmpTicketData <- tmpTicketData %>% filter(ClosedDateTime_tick > as.Date(tmpMinus10Date) & ClosedDateTime_tick < as.Date(tmpMinus3Date))
+
+if(tmpTicketCnt3 > 0){
+    #find oldest
+    tmpTicketData <- tmpTicketData %>% filter(ClosedDateTime_tick == min(ClosedDateTime_tick))
+    #collect data
+    tmpDFrow <- c(SSATData2$SRTicketNumber_ssat[i], tmpTenantId, tmpTicketCnt1, tmpTicketCnt2, tmpTicketCnt3, tmpTicketData$RequestId_tick)
+    #update SSATData
+    #first change factors to char so the most useful value is saved to SSAT
+    #tmpTicketData <- tmpTicketData %>% mutate_if(is.factor, as.character)
+    SSATData2[i, 25:76] <- tmpTicketData[1,1:52]###NEED TO WATCH THIS WHEN MAKING CHANGES#################
+}else if((tmpTicketCnt2 > 0)){
+  tmpDFrow <- c(SSATData2$SRTicketNumber_ssat[i], tmpTenantId, tmpTicketCnt1, tmpTicketCnt2, tmpTicketCnt3, "NA")
+}else if(tmpTicketCnt1 > 0){
+  tmpDFrow <- c(SSATData2$SRTicketNumber_ssat[i], tmpTenantId, 0, 0, 0, "NA")
+}else{
+  tmpDFrow <- c(SSATData2$SRTicketNumber_ssat[i], "Tenant Not Found", "NA", "NA", "NA", "NA")
+}
+
+#collectMatchInfo <- rbind(collectMatchInfo, tmpDFrow)#rbind requires matching colnames
+collectMatchInfo[nrow(collectMatchInfo)+1,] <- tmpDFrow
+}
+```
+
+#Need to reapply Lubridate functions for date fields
+
+```{r}
+SSATData2 <- SSATData2 %>%  mutate(CreateMonth_tick = floor_date(CreateDateTime_tick, "month"))
+SSATData2 <- SSATData2 %>%  mutate(CFBMonth_tick = floor_date(CustomerFeedbackDateTime_tick, "month"))
+SSATData2 <- SSATData2 %>%  mutate(CompletedMonth_tick = floor_date(CompletedDateTime_tick, "month"))
+SSATData2 <- SSATData2 %>%  mutate(ClosedMonth_tick = floor_date(ClosedDateTime_tick, "month"))
+
+SSATData2 <- SSATData2 %>% mutate(CreateDoW_tick = wday(CreateDateTime_tick, label=TRUE))
+SSATData2 <- SSATData2 %>% mutate(AckDoW_tick = wday(AcknowledgeDateTime_tick, label=TRUE))
+SSATData2 <- SSATData2 %>% mutate(CFBDoW_tick = wday(CustomerFeedbackDateTime_tick, label=TRUE))
+SSATData2 <- SSATData2 %>% mutate(ClosedDoW_tick = wday(ClosedDateTime_tick, label=TRUE))
+SSATData2 <- SSATData2 %>% mutate(CompletedDoW_tick = wday(CompletedDateTime_tick, label=TRUE))
+```
+
+#New request
+Can we attribute the decline to DAO rollout (based on DAO skill ID)? Direct Agent Offer – DAO – add SkillsId
+
+- where Skills like '%196608%' - provided 2/26/18
+- 196608 = DAO
+
+```{r}
+SSATData2 <- SSATData2 %>% mutate(isDAO = ifelse(grepl("196608", SSATData2$SkillIds_tick), 1, 0))
+```
+
+```{r saveSSATData3}
+rm(list= ls()[!(ls() %in% c('SSATData2','collectMatchInfo'))])
+save.image("SSATData3.RData")
+```
+
+### Calculate New SSAT Score Variable
+
+SSAT score is based on a 5-star survey. The formula is: 
+
+$$100 + (Count of 5 Stars – Count of 1 Stars – Count of 2 Stars) / Total Survey Count * 100$$
+
+> Evaluate the new score by month and by week - Must use SSATData!
+
+SSAT by Month
+
+```{r SSATbyMonth_calc}
+#Basing calculation on Completed Date Month - verify with Dean
+tmpDF_month <- select(SSATData2, FeedbackMonth_ssat, SSAT_ssat)
+tmpDF_month$FeedbackMonth_ssat <- as.character(tmpDF_month$FeedbackMonth_ssat)
+
+tmpDF_month <- tmpDF_month %>% group_by(FeedbackMonth_ssat, SSAT_ssat) %>% tally()
+tmpDF_month <- as.data.frame(tmpDF_month)
+
+#get list of each month for loop
+myMonths <-  unique(tmpDF_month$FeedbackMonth_ssat)
+#loop thru each month to 5-1-2 stars
+#loop also calcs total survey count
+#create DF to hold Month and calc output
+#add col to DF to +100/Total*100
+#return df output
+
+#create DF for loop
+myMonthTotal <- as.integer(rep(0, length(myMonths)))
+myMonthTotal5 <- as.integer(rep(0, length(myMonths)))
+myMonthTotal2 <- as.integer(rep(0, length(myMonths)))
+myMonthTotal1 <- as.integer(rep(0, length(myMonths)))
+myMonthCalc <- as.integer(rep(0, length(myMonths)))
+SSATbyMonth_FBD <- data.frame(myMonths, myMonthTotal, myMonthTotal5, myMonthTotal2, myMonthTotal1, myMonthCalc)
+rm(myMonthTotal, myMonthTotal5, myMonthTotal2, myMonthTotal1, myMonthCalc)
+
+for(i in 1:length(myMonths)){
+  tmpMonthDF <- filter(tmpDF_month, FeedbackMonth_ssat == myMonths[i])
+    SSATbyMonth_FBD[i,2] <- sum(tmpMonthDF$n)
+    #check for ssat=5
+    if(nrow(filter(tmpMonthDF, SSAT_ssat == 5)) > 0){
+      SSATbyMonth_FBD[i,3] <- tmpMonthDF[tmpMonthDF$SSAT_ssat == 5,3]
+    }
+    if(nrow(filter(tmpMonthDF, SSAT_ssat == 2)) > 0){
+      SSATbyMonth_FBD[i,4] <- tmpMonthDF[tmpMonthDF$SSAT_ssat == 2,3]
+    }
+    if(nrow(filter(tmpMonthDF, SSAT_ssat == 1)) > 0){
+      SSATbyMonth_FBD[i,5] <- tmpMonthDF[tmpMonthDF$SSAT_ssat == 1,3]
+    }
+    SSATbyMonth_FBD[i,6] <- 100 + (SSATbyMonth_FBD[i,3] - SSATbyMonth_FBD[i,4] - SSATbyMonth_FBD[i,5])/SSATbyMonth_FBD[i,2] * 100
+}
+```
+
+SSAT by Week
+
+```{r SSATbyWeek_calc}
+tmpDF_week <- select(SSATData2, FeedbackWeek_ssat, SSAT_ssat)
+
+tmpDF_week <- tmpDF_week %>% group_by(FeedbackWeek_ssat, SSAT_ssat) %>% tally()
+tmpDF_week <- as.data.frame(tmpDF_week)
+
+myWeeks <-  unique(tmpDF_week$FeedbackWeek_ssat)
+
+#create DF for loop
+myWeekTotal <- as.integer(rep(0, length(myWeeks)))
+myWeekTotal5 <- as.integer(rep(0, length(myWeeks)))
+myWeekTotal2 <- as.integer(rep(0, length(myWeeks)))
+myWeekTotal1 <- as.integer(rep(0, length(myWeeks)))
+myWeekCalc <- as.integer(rep(0, length(myWeeks)))
+SSATbyWeek_FBD <- data.frame(myWeeks, myWeekTotal, myWeekTotal5, myWeekTotal2, myWeekTotal1, myWeekCalc)
+rm(myWeekTotal, myWeekTotal5, myWeekTotal2, myWeekTotal1, myWeekCalc)
+
+for(i in 1:length(myWeeks)){
+  tmpWeekDF <- filter(tmpDF_week, FeedbackWeek_ssat == myWeeks[i])
+    SSATbyWeek_FBD[i,2] <- sum(tmpWeekDF$n)
+    #check for ssat=5
+    if(nrow(filter(tmpWeekDF, SSAT_ssat == 5)) > 0){
+      SSATbyWeek_FBD[i,3] <- tmpWeekDF[tmpWeekDF$SSAT_ssat == 5,3]
+    }
+    if(nrow(filter(tmpWeekDF, SSAT_ssat == 2)) > 0){
+      SSATbyWeek_FBD[i,4] <- tmpWeekDF[tmpWeekDF$SSAT_ssat == 2,3]
+    }
+    if(nrow(filter(tmpWeekDF, SSAT_ssat == 1)) > 0){
+      SSATbyWeek_FBD[i,5] <- tmpWeekDF[tmpWeekDF$SSAT_ssat == 1,3]
+    }
+    SSATbyWeek_FBD[i,6] <- 100 + (SSATbyWeek_FBD[i,3] - SSATbyWeek_FBD[i,4] - SSATbyWeek_FBD[i,5])/SSATbyWeek_FBD[i,2] * 100
+}
+```
+
+SSAT by Day of Week
+
+```{r}
+tmpDF_DoW <- select(SSATData2, FeedbackDoW_ssat, SSAT_ssat)
+tmpDF_DoW$FeedbackDoW_ssat <- as.character(tmpDF_DoW$FeedbackDoW_ssat)
+
+tmpDF_DoW <- tmpDF_DoW %>% group_by(FeedbackDoW_ssat, SSAT_ssat) %>% tally()
+tmpDF_DoW <- as.data.frame(tmpDF_DoW)
+
+myDoWs <-  unique(tmpDF_DoW$FeedbackDoW_ssat)
+
+#create DF for loop
+myDoWTotal <- as.integer(rep(0, length(myDoWs)))
+myDoWTotal5 <- as.integer(rep(0, length(myDoWs)))
+myDoWTotal2 <- as.integer(rep(0, length(myDoWs)))
+myDoWTotal1 <- as.integer(rep(0, length(myDoWs)))
+myDoWCalc <- as.integer(rep(0, length(myDoWs)))
+SSATbyDoW_FBD <- data.frame(myDoWs, myDoWTotal, myDoWTotal5, myDoWTotal2, myDoWTotal1, myDoWCalc)
+rm(myDoWTotal, myDoWTotal5, myDoWTotal2, myDoWTotal1, myDoWCalc)
+
+for(i in 1:length(myDoWs)){
+  tmpDoWDF <- filter(tmpDF_DoW, FeedbackDoW_ssat == myDoWs[i])
+    SSATbyDoW_FBD[i,2] <- sum(tmpDoWDF$n)
+    #check for ssat=5
+    if(nrow(filter(tmpDoWDF, SSAT_ssat == 5)) > 0){
+      SSATbyDoW_FBD[i,3] <- tmpDoWDF[tmpDoWDF$SSAT_ssat == 5,3]
+    }
+    if(nrow(filter(tmpDoWDF, SSAT_ssat == 2)) > 0){
+      SSATbyDoW_FBD[i,4] <- tmpDoWDF[tmpDoWDF$SSAT_ssat == 2,3]
+    }
+    if(nrow(filter(tmpDoWDF, SSAT_ssat == 1)) > 0){
+      SSATbyDoW_FBD[i,5] <- tmpDoWDF[tmpDoWDF$SSAT_ssat == 1,3]
+    }
+    SSATbyDoW_FBD[i,6] <- 100 + (SSATbyDoW_FBD[i,3] - SSATbyDoW_FBD[i,4] - SSATbyDoW_FBD[i,5])/SSATbyDoW_FBD[i,2] * 100
+}
+```
+
+#Repeat the SSAT tables abouve except use TicketData - ClosedDate
+
+```{r SSAT_ClosedDate_tick}
+#Basing calculation on TicketData - CLosed Date
+tmpDF_month <- select(SSATData2, ClosedMonth_tick, SSAT_ssat)
+tmpDF_month <- tmpDF_month %>% drop_na()
+
+tmpDF_month$ClosedMonth_tick <- as.character(tmpDF_month$ClosedMonth_tick)
+
+tmpDF_month <- tmpDF_month %>% group_by(ClosedMonth_tick, SSAT_ssat) %>% tally()
+tmpDF_month <- as.data.frame(tmpDF_month)
+
+myMonths <-  unique(tmpDF_month$ClosedMonth_tick)
+
+#create DF for loop
+myMonthTotal <- as.integer(rep(0, length(myMonths)))
+myMonthTotal5 <- as.integer(rep(0, length(myMonths)))
+myMonthTotal2 <- as.integer(rep(0, length(myMonths)))
+myMonthTotal1 <- as.integer(rep(0, length(myMonths)))
+myMonthCalc <- as.integer(rep(0, length(myMonths)))
+SSATbyMonth_Closed <- data.frame(myMonths, myMonthTotal, myMonthTotal5, myMonthTotal2, myMonthTotal1, myMonthCalc)
+rm(myMonthTotal, myMonthTotal5, myMonthTotal2, myMonthTotal1, myMonthCalc)
+
+for(i in 1:length(myMonths)){
+  tmpMonthDF <- filter(tmpDF_month, ClosedMonth_tick == myMonths[i])
+    SSATbyMonth_Closed[i,2] <- sum(tmpMonthDF$n)
+    #check for ssat=5
+    if(nrow(filter(tmpMonthDF, SSAT_ssat == 5)) > 0){
+      SSATbyMonth_Closed[i,3] <- tmpMonthDF[tmpMonthDF$SSAT_ssat == 5,3]
+    }
+    if(nrow(filter(tmpMonthDF, SSAT_ssat == 2)) > 0){
+      SSATbyMonth_Closed[i,4] <- tmpMonthDF[tmpMonthDF$SSAT_ssat == 2,3]
+    }
+    if(nrow(filter(tmpMonthDF, SSAT_ssat == 1)) > 0){
+      SSATbyMonth_Closed[i,5] <- tmpMonthDF[tmpMonthDF$SSAT_ssat == 1,3]
+    }
+    SSATbyMonth_Closed[i,6] <- 100 + (SSATbyMonth_Closed[i,3] - SSATbyMonth_Closed[i,4] - SSATbyMonth_Closed[i,5])/SSATbyMonth_Closed[i,2] * 100
+}
+
+#Closed Date by Week
+tmpDF_week <- select(SSATData2, ClosedWeek_tick, SSAT_ssat)
+tmpDF_week <- tmpDF_week %>% drop_na()
+
+tmpDF_week <- tmpDF_week %>% group_by(ClosedWeek_tick, SSAT_ssat) %>% tally()
+tmpDF_week <- as.data.frame(tmpDF_week)
+
+myWeeks <-  unique(tmpDF_week$ClosedWeek_tick)
+
+#create DF for loop
+myWeekTotal <- as.integer(rep(0, length(myWeeks)))
+myWeekTotal5 <- as.integer(rep(0, length(myWeeks)))
+myWeekTotal2 <- as.integer(rep(0, length(myWeeks)))
+myWeekTotal1 <- as.integer(rep(0, length(myWeeks)))
+myWeekCalc <- as.integer(rep(0, length(myWeeks)))
+SSATbyWeek_Closed <- data.frame(myWeeks, myWeekTotal, myWeekTotal5, myWeekTotal2, myWeekTotal1, myWeekCalc)
+rm(myWeekTotal, myWeekTotal5, myWeekTotal2, myWeekTotal1, myWeekCalc)
+
+for(i in 1:length(myWeeks)){
+  tmpWeekDF <- filter(tmpDF_week, ClosedWeek_tick == myWeeks[i])
+    SSATbyWeek_Closed[i,2] <- sum(tmpWeekDF$n)
+    #check for ssat=5
+    if(nrow(filter(tmpWeekDF, SSAT_ssat == 5)) > 0){
+      SSATbyWeek_Closed[i,3] <- tmpWeekDF[tmpWeekDF$SSAT_ssat == 5,3]
+    }
+    if(nrow(filter(tmpWeekDF, SSAT_ssat == 2)) > 0){
+      SSATbyWeek_Closed[i,4] <- tmpWeekDF[tmpWeekDF$SSAT_ssat == 2,3]
+    }
+    if(nrow(filter(tmpWeekDF, SSAT_ssat == 1)) > 0){
+      SSATbyWeek_Closed[i,5] <- tmpWeekDF[tmpWeekDF$SSAT_ssat == 1,3]
+    }
+    SSATbyWeek_Closed[i,6] <- 100 + (SSATbyWeek_Closed[i,3] - SSATbyWeek_Closed[i,4] - SSATbyWeek_Closed[i,5])/SSATbyWeek_Closed[i,2] * 100
+}
+
+###DoW Closed Date
+tmpDF_DoW <- select(SSATData2, ClosedDoW_tick, SSAT_ssat)
+tmpDF_DoW <- tmpDF_DoW %>% drop_na()
+
+#tmpDF_DoW$ClosedDoW_tick <- as.character(tmpDF_DoW$ClosedDoW_tick)
+
+tmpDF_DoW <- tmpDF_DoW %>% group_by(ClosedDoW_tick, SSAT_ssat) %>% tally()
+tmpDF_DoW <- as.data.frame(tmpDF_DoW)
+
+myDoWs <-  unique(tmpDF_DoW$ClosedDoW_tick)
+#myDoWs <- c(myDoWs[[2]], myDoWs[[6]], myDoWs[[7]], myDoWs[[5]], myDoWs[[1]], myDoWs[[3]], myDoWs[[4]])
+
+#create DF for loop
+myDoWTotal <- as.integer(rep(0, length(myDoWs)))
+myDoWTotal5 <- as.integer(rep(0, length(myDoWs)))
+myDoWTotal2 <- as.integer(rep(0, length(myDoWs)))
+myDoWTotal1 <- as.integer(rep(0, length(myDoWs)))
+myDoWCalc <- as.integer(rep(0, length(myDoWs)))
+SSATbyDoW_Closed <- data.frame(myDoWs, myDoWTotal, myDoWTotal5, myDoWTotal2, myDoWTotal1, myDoWCalc)
+rm(myDoWTotal, myDoWTotal5, myDoWTotal2, myDoWTotal1, myDoWCalc)
+
+for(i in 1:length(myDoWs)){
+  tmpDoWDF <- filter(tmpDF_DoW, ClosedDoW_tick == myDoWs[i])
+    SSATbyDoW_Closed[i,2] <- sum(tmpDoWDF$n)
+    #check for ssat=5
+    if(nrow(filter(tmpDoWDF, SSAT_ssat == 5)) > 0){
+      SSATbyDoW_Closed[i,3] <- tmpDoWDF[tmpDoWDF$SSAT_ssat == 5,3]
+    }
+    if(nrow(filter(tmpDoWDF, SSAT_ssat == 2)) > 0){
+      SSATbyDoW_Closed[i,4] <- tmpDoWDF[tmpDoWDF$SSAT_ssat == 2,3]
+    }
+    if(nrow(filter(tmpDoWDF, SSAT_ssat == 1)) > 0){
+      SSATbyDoW_Closed[i,5] <- tmpDoWDF[tmpDoWDF$SSAT_ssat == 1,3]
+    }
+    SSATbyDoW_Closed[i,6] <- 100 + (SSATbyDoW_Closed[i,3] - SSATbyDoW_Closed[i,4] - SSATbyDoW_Closed[i,5])/SSATbyDoW_Closed[i,2] * 100
+}
+
+
+```
+
+#New Data
+
+```{r}
+findOutliers <- function(dt, var) {
+  var_name <- eval(substitute(var),eval(dt))
+  tot <- sum(!is.na(var_name))
+  na1 <- sum(is.na(var_name))
+  m1 <- mean(var_name, na.rm = T)
+  par(mfrow=c(2, 2), oma=c(0,0,3,0))
+  boxplot(var_name, main="With outliers")
+  hist(var_name, main="With outliers", xlab=NA, ylab=NA)
+  outlier <- boxplot.stats(var_name)$out
+  mo <- mean(outlier)
+  var_name <- ifelse(var_name %in% outlier, NA, var_name)
+  boxplot(var_name, main="Without outliers")
+  hist(var_name, main="Without outliers", xlab=NA, ylab=NA)
+  title("Outlier Check", outer=TRUE)
+  na2 <- sum(is.na(var_name))
+  message("Outliers identified: ", na2 - na1, " from ", tot, " observations")
+  message("Proportion (%) of outliers: ", (na2 - na1) / tot*100)
+  message("Mean of the outliers: ", mo)
+  m2 <- mean(var_name, na.rm = T)
+  message("Mean without removing outliers: ", m1)
+  message("Mean if we remove outliers: ", m2)
+  # response <- readline(prompt="Do you want to remove outliers and to replace with NA? [yes/no]: ")
+  # if(response == "y" | response == "yes"){
+  #   dt[as.character(substitute(var))] <- invisible(var_name)
+  #   assign(as.character(as.list(match.call())$dt), dt, envir = .GlobalEnv)
+  #   message("Outliers successfully removed", "\n")
+  #   return(invisible(dt))
+  # } else{
+  #   message("Nothing changed", "\n")
+  #   return(invisible(var_name))
+  # }
+}
+# https://datascienceplus.com/identify-describe-plot-and-removing-the-outliers-from-the-dataset/
+```
+
+- Provided data for Rave1/Rave2 info
+
+```{r getRave, eval=FALSE}
+RaveUsageFeb28 <- read_excel("C:/Users/cweaver/OneDrive - Valorem LLC/Projects/MS-O365/sharedData/RaveUsageFeb28.xlsx")
+RaveUsageFeb28$ToolUsage <- as.factor(RaveUsageFeb28$ToolUsage)
+
+#join on RequestID to SSAT2Data
+SSATData2 <- left_join(SSATData2, RaveUsageFeb28, by=c("RequestId_tick" = "RequestID"))
+table(SSATData2$ToolUsage, SSATData2$CompletedMonth_tick)
+
+```
+
+- Customer Wait Time = CreateDateTime - IVROutboundCallTime (use TicketData variables)
+
+```{r}
+# Customer Wait Time
+#IvrOutboundCallTime_tick is a character, cast to date time
+SSATData2$IvrOutboundCallTime_tick <- ymd_hms(SSATData2$IvrOutboundCallTime_tick)
+SSATData2 <- SSATData2 %>% mutate(CustomerWaitTime = int_length(interval(CreateDateTime_tick, IvrOutboundCallTime_tick)))
+```
+
+```{r saveSSATData4}
+rm(list= ls()[!(ls() %in% c('SSATData2','collectMatchInfo', 'SSATbyMonth_FBD', 'SSATbyWeek_FBD',
+                            'SSATbyDoW_FBD', 'SSATbyMonth_Closed', 'SSATbyWeek_Closed',
+                            'SSATbyDoW_Closed'))])
+save.image("SSATData4.RData")
+```
+
+```{r}
+#outlier problem:
+summary(SSATData2$CustomerWaitTime)
+tmpDF <-as.data.frame(SSATData2$CustomerWaitTime)
+tmpDF <- tmpDF %>% drop_na() %>% as.data.frame()
+names(tmpDF) <- "CustomerWaitTime"
+ggplot(tmpDF, aes(x="", y=CustomerWaitTime)) + 
+  geom_boxplot(outlier.color="red", outlier.shape=8, outlier.size=4)
+
+findOutliers(SSATData2, CustomerWaitTime)
+```
+
+Here are some of the outliers in `CusotmerWaitTime`
+```{r}
+theOutlier <- boxplot(SSATData2$CustomerWaitTime)
+head(theOutlier$out, 25)
+```
+
+#Review count of outlier by week/month
+
+Use the boxplot stats to define the upper and lower limits
+
+```{r}
+myOutlier_low <-round(theOutlier$stats[1],0)
+myOutlier_hi <-round(theOutlier$stats[5], 0)
+
+SSATData2 <- SSATData2 %>% mutate(WaitIsOutlier = ifelse(CustomerWaitTime > myOutlier_hi | CustomerWaitTime < myOutlier_low, 1, 0))
+```
+
+```{r}
+outlier_plot <- SSATData2 %>% select(CreateMonth_tick, CustomerWaitTime, WaitIsOutlier) %>% filter(WaitIsOutlier ==1)
+outlier_plot$CreateMonth_tick <- as.character(outlier_plot$CreateMonth_tick)
+myGrp <- group_by(SSATData2, as.character(CreateMonth_tick))
+outlier_plot <- summarise(myGrp, Wait_mean = mean(CustomerWaitTime, na.rm = T), Wait_sd = sd(CustomerWaitTime, na.rm=T), WaitOutlierCnt = sum(WaitIsOutlier, na.rm = T))
+outlier_plot <- outlier_plot[-8,]
+names(outlier_plot)[1] <- "CreateMonth"
+
+ggplot(outlier_plot, aes(x=CreateMonth, WaitOutlierCnt)) + geom_bar(stat = "identity") +
+  annotate("text", x = 1:7, y = 14:14, size =3, color="white", 
+           label = c("mean = 4061", "mean = 1931", "mean = 9196", "mean = 7471", "mean = 13268", "mean = 18632", "mean = 9932")) +
+  ggtitle("Count of Customer Wait Time Outliers by Month")
+
+ggplot(outlier_plot, aes(x=CreateMonth, y=Wait_mean)) + geom_bar(stat = "identity") + 
+  labs(title="Mean Customer Wait Time by Month", y = "Mean Wait Time (secs)")
+
+```
+
+#weekly view
+```{r}
+outlier_plot2 <- SSATData2 %>% select(CreateWeek_tick, CustomerWaitTime, WaitIsOutlier) %>% filter(WaitIsOutlier ==1)
+
+myGrp2 <- group_by(SSATData2, as.character(CreateWeek_tick))
+outlier_plot2 <- summarise(myGrp2, Wait_mean = mean(CustomerWaitTime, na.rm = T), Wait_sd = sd(CustomerWaitTime, na.rm=T), 
+                           WaitOutlierCnt = sum(WaitIsOutlier, na.rm = T))
+outlier_plot2 <- outlier_plot2[-(nrow(outlier_plot2)),]
+names(outlier_plot2)[1] <- "CreateWeek"
+
+ggplot(outlier_plot2, aes(x=CreateWeek, WaitOutlierCnt)) + geom_bar(stat = "identity") +
+  labs(title="Count of Customer Wait Time Outliers by Week", y="Customer Wait Time (secs)") +
+  theme(axis.text.x  = element_text(angle=45, vjust=0.5, size=8)) +
+  geom_vline(xintercept = 20, linetype="dotted", color = "grey", size=1) +
+  annotate("text", x = 20, y = 35, angle = 90, label = "Nov 2017", color = "darkgrey")
+
+ggplot(outlier_plot2, aes(x=CreateWeek, y=Wait_mean)) + geom_bar(stat = "identity") + 
+  labs(title="Mean Customer Wait Time by Week", y = "Mean Wait Time (secs)") +
+  theme(axis.text.x  = element_text(angle=45, vjust=0.5, size=8)) +
+  geom_vline(xintercept = 20, linetype="dotted", color = "grey", size=1) +
+  annotate("text", x = 20, y = 25100, angle = 90, label = "Nov 2017", color = "darkgrey") 
+```
+
+#Outlier detection and review for Route Time
+
+```{r}
+summary(SSATData2$CreateRouteTime_tick)
+tmpDF <-as.data.frame(SSATData2$CreateRouteTime_tick)
+tmpDF <- tmpDF %>% drop_na() %>% as.data.frame()
+names(tmpDF) <- "CreateRouteDuration"
+ggplot(tmpDF, aes(x="", y=CreateRouteDuration)) + 
+  geom_boxplot(outlier.color="red", outlier.shape=8, outlier.size=4)
+
+findOutliers(SSATData2, CreateRouteTime_tick)
+```
+
+```{r}
+theOutlier <- boxplot(SSATData2$CreateRouteTime_tick)
+head(theOutlier$out, 25)
+```
+
+```{r}
+myOutlier_low <-round(theOutlier$stats[1],0)
+myOutlier_hi <-round(theOutlier$stats[5], 0)
+
+SSATData2 <- SSATData2 %>% 
+  mutate(RouteDurationIsOutlier = ifelse(CreateRouteTime_tick > myOutlier_hi | CreateRouteTime_tick < myOutlier_low, 1, 0))
+```
+
+```{r routeDurMonth}
+outlier_plot <- SSATData2 %>% select(CreateMonth_tick, CreateRouteTime_tick, 
+                                     RouteDurationIsOutlier) %>% filter(RouteDurationIsOutlier ==1)
+outlier_plot$CreateMonth_tick <- as.character(outlier_plot$CreateMonth_tick)
+myGrp <- group_by(SSATData2, as.character(CreateMonth_tick))
+outlier_plot <- summarise(myGrp, Route_mean = mean(CreateRouteTime_tick, na.rm = T), 
+                          Route_sd = sd(CreateRouteTime_tick, na.rm=T), RouteOutlierCnt = sum(RouteDurationIsOutlier, na.rm = T))
+outlier_plot <- outlier_plot[-nrow(outlier_plot),]
+names(outlier_plot)[1] <- "CreateMonth"
+
+ggplot(outlier_plot, aes(x=CreateMonth, RouteOutlierCnt)) + geom_bar(stat = "identity") +
+  annotate("text", x = 1:7, y = 14:14, size =3, color="white", 
+           label = c("mean = 12265", "mean = 5263", "mean = 7334", "mean = 8715", "mean = 9039", "mean = 9346", "mean = 7602")) +
+  ggtitle("Count of Route Duration Outliers by Month")
+
+ggplot(outlier_plot, aes(x=CreateMonth, y=Route_mean)) + geom_bar(stat = "identity") + 
+  labs(title="Mean Route Durations by Month", y = "Mean Wait Time (secs)")
+```
+
+```{r routeDurWeek}
+#outlier_plot <- SSATData2 %>% select(CreateWeek_tick, CreateRouteTime_tick, 
+#                                     RouteDurationIsOutlier) %>% filter(RouteDurationIsOutlier ==1)
+myGrp <- group_by(SSATData2, as.character(CreateWeek_tick))
+outlier_plot <- summarise(myGrp, Route_mean = mean(CreateRouteTime_tick, na.rm = T), 
+                          Route_sd = sd(CreateRouteTime_tick, na.rm=T), RouteOutlierCnt = sum(RouteDurationIsOutlier, na.rm = T))
+outlier_plot <- outlier_plot[-nrow(outlier_plot),]
+names(outlier_plot)[1] <- "CreateWeek"
+#add col to indicate which bar to highlight for effective plot design
+outlier_plot <- outlier_plot %>% mutate(toHiLiteMean=ifelse(Route_mean==max(Route_mean), "Yes", "No"), 
+                                        toHiLiteCnt=ifelse(RouteOutlierCnt==max(RouteOutlierCnt), "Yes", "No"))
+
+ggplot(outlier_plot, aes(x=CreateWeek, RouteOutlierCnt, fill = toHiLiteCnt)) + geom_bar(stat = "identity") + 
+  ggtitle("Count of Route Duration Outliers by Week") +
+  theme(axis.text.x  = element_text(angle=45, vjust=0.5, size=8)) +
+  geom_vline(xintercept = 20, linetype="dotted", color = "grey", size=1) +
+  annotate("text", x = 20, y = 60, angle = 90, label = "Nov 2017", color = "darkgrey") +
+  scale_fill_manual(values = c("Yes"="lightblue", "No" = "grey"), guide = FALSE )
+
+ggplot(outlier_plot, aes(x=CreateWeek, y=Route_mean, fill=toHiLiteMean)) + geom_bar(stat = "identity") + 
+  labs(title="Mean Route Durations by Week", y = "Mean Wait Time (secs)") +
+  theme(axis.text.x  = element_text(angle=45, vjust=0.5, size=8)) +
+  geom_vline(xintercept = 20, linetype="dotted", color = "grey", size=1) +
+  annotate("text", x = 20, y = 75000, angle = 90, label = "Nov 2017", color = "darkgrey") +
+  scale_fill_manual(values = c("Yes"="lightblue", "No" = "grey"), guide = FALSE )
+
+```
+
+#Need to save Month and Week SSAT to SSSATData2?
+
+```{r plotSSATcnt1}
+tmpDF_week <- SSATData2 %>% group_by(FeedbackWeek_ssat) %>% count(SSAT_ssat)
+tmpDF_week <- tmpDF_week %>% filter(SSAT_ssat ==1 | SSAT_ssat ==2 | SSAT_ssat ==5)
+tmpDF_week <- as.data.frame(tmpDF_week)
+#plot SSAT by week
+# ggplot(tmpDF_week, aes(Week_ssat, n)) + geom_point(aes(color=factor(SSAT_ssat), shape = factor(SSAT_ssat))) + 
+#   labs(y = "SSAT Count", x = "Week", color = "SSAT Score", shape = "SSAT Score") +
+#   theme(axis.text.x = element_text(angle = 90, hjust = 1)) + geom_vline(xintercept=18, color = "grey") +
+#   annotate("text", x = 18, y = 175, angle = 90, label = "Nov 2017", color = "grey") +
+#   theme(legend.title = element_text(colour="blue", size=10, face="bold"))
+
+ssat_week <- ggplot(tmpDF_week, aes(Week_ssat, n, fill=factor(SSAT_ssat))) + geom_bar(stat="identity") + 
+  labs(y = "SSAT Count", x = "Week") + geom_vline(xintercept=18, color = "grey") +
+  annotate("text", x = 18, y = 175, angle = 90, label = "Nov 2017", color = "grey") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  theme(legend.title = element_text(colour="blue", size=10, face="bold")) +
+  ggtitle("SSAT Count by Week\n Based on SSAT Feedback Date")
+
+
+tmpDF_month <- SSATData2 %>% filter(SSAT_ssat ==1 | SSAT_ssat ==2 | SSAT_ssat ==5)
+tmpDF_month <- tmpDF_month %>% group_by(Month_ssat) %>% count(SSAT_ssat)
+tmpDF_month <- as.data.frame(tmpDF_month)
+#plot SSAT by month
+# ggplot(tmpDF_month, aes(factor(Month_ssat), n)) + geom_point(aes(color=factor(SSAT_ssat), shape = factor(SSAT_ssat))) + 
+#   labs(y = "SSAT Count", x = "Month", color = "SSAT Score", shape = "SSAT Score") +
+#   theme(axis.text.x = element_text(angle = 90, hjust = 1)) + geom_vline(xintercept=5, color = "grey") +
+#   annotate("text", x = 5.1, y = 400, angle = 90, label = "Nov 2017", color = "grey") +
+#   theme(legend.title = element_text(colour="blue", size=10, face="bold")) +
+#   ggtitle("SSAT Count by Month")
+
+ssat_month <- ggplot(tmpDF_month, aes(as.character(Month_ssat), n, fill=factor(SSAT_ssat))) + geom_bar(stat="identity") + 
+  labs(y = "SSAT Count", x = "Month") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  theme(legend.title = element_text(colour="blue", size=10, face="bold")) + 
+  ggtitle("SSAT Count by Month\n Based on SSAT Feedback Date")
+
+grid.arrange(ssat_week, ssat_month)
+```
+
+```{r plotSSATcnt2}
+#Used ClosedDate from TicketData
+tmpDF_week <- SSATData2 %>% group_by(FeedbackWeek_ssat) %>% count(SSAT_ssat)
+tmpDF_week <- tmpDF_week %>% filter(SSAT_ssat ==1 | SSAT_ssat ==2 | SSAT_ssat ==5)
+tmpDF_week <- as.data.frame(tmpDF_week)
+#plot SSAT by week
+# ggplot(tmpDF_week, aes(Week_ssat, n)) + geom_point(aes(color=factor(SSAT_ssat), shape = factor(SSAT_ssat))) + 
+#   labs(y = "SSAT Count", x = "Week", color = "SSAT Score", shape = "SSAT Score") +
+#   theme(axis.text.x = element_text(angle = 90, hjust = 1)) + geom_vline(xintercept=18, color = "grey") +
+#   annotate("text", x = 18, y = 175, angle = 90, label = "Nov 2017", color = "grey") +
+#   theme(legend.title = element_text(colour="blue", size=10, face="bold"))
+
+ssat_week <- ggplot(tmpDF_week, aes(FeedbackWeek_ssat, n, fill=factor(SSAT_ssat))) + geom_bar(stat="identity") + 
+  labs(y = "SSAT Count", x = "Week") + geom_vline(xintercept=18, color = "grey") +
+  annotate("text", x = 18, y = 175, angle = 90, label = "Nov 2017", color = "grey") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  theme(legend.title = element_text(colour="blue", size=10, face="bold")) +
+  ggtitle("SSAT Count by Week\n Based on SSAT Feedback Date")
+
+
+tmpDF_month <- SSATData2 %>% filter(SSAT_ssat ==1 | SSAT_ssat ==2 | SSAT_ssat ==5)
+tmpDF_month <- tmpDF_month %>% group_by(FeedbackMonth_ssat) %>% count(SSAT_ssat)
+tmpDF_month <- as.data.frame(tmpDF_month)
+#plot SSAT by month
+# ggplot(tmpDF_month, aes(factor(Month_ssat), n)) + geom_point(aes(color=factor(SSAT_ssat), shape = factor(SSAT_ssat))) + 
+#   labs(y = "SSAT Count", x = "Month", color = "SSAT Score", shape = "SSAT Score") +
+#   theme(axis.text.x = element_text(angle = 90, hjust = 1)) + geom_vline(xintercept=5, color = "grey") +
+#   annotate("text", x = 5.1, y = 400, angle = 90, label = "Nov 2017", color = "grey") +
+#   theme(legend.title = element_text(colour="blue", size=10, face="bold")) +
+#   ggtitle("SSAT Count by Month")
+
+ssat_month <- ggplot(tmpDF_month, aes(as.character(FeedbackMonth_ssat), n, fill=factor(SSAT_ssat))) + geom_bar(stat="identity") + 
+  labs(y = "SSAT Count", x = "Month") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  theme(legend.title = element_text(colour="blue", size=10, face="bold")) + 
+  ggtitle("SSAT Count by Month\n Based on TicketData - Closed Date")
+
+grid.arrange(ssat_week, ssat_month)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+#SSAT by Partner
+tmpDF_partner <- SSATData2 %>% group_by(FeedbackMonth_ssat) %>% count(Partner_ssat)
+tmpDF_partner <- as.data.frame(tmpDF_partner)
+ggplot(drop_na(tmpDF_partner), aes(factor(FeedbackMonth_ssat), n, fill=Partner_ssat)) + geom_bar(stat="identity")
+
+# Remove partners with little volume; split into 2 groups - below and above 500
+partnerCounts <- tmpDF_partner %>% drop_na(Partner_ssat) %>% group_by(Partner_ssat) %>% tally() %>% arrange(nn)
+
+partner_low <- partnerCounts %>% filter(nn < 500) %>% select(Partner_ssat)
+partner_low <- as.character(partner_low$Partner_ssat)
+partner_low <- tmpDF_partner %>% filter(Partner_ssat %in% partner_low)
+ggplot(partner_low, aes(factor(FeedbackMonth_ssat), n, fill=Partner_ssat)) + geom_bar(stat="identity") +
+   theme(axis.text.x = element_text(angle = 25, hjust = 1)) + 
+  labs(title = "Smaller Partner Count by Month", y = "Ticket Count", x = "Month")
+
+partner_high <- partnerCounts %>% filter(nn > 499) %>% select(Partner_ssat)
+partner_high <- as.character(partner_high$Partner_ssat)
+partner_high <- tmpDF_partner %>% filter(Partner_ssat %in% partner_high)
+ggplot(partner_high, aes(factor(FeedbackMonth_ssat), n, fill=Partner_ssat)) + geom_bar(stat="identity") +
+   theme(axis.text.x = element_text(angle = 25, hjust = 1)) +
+  labs(title = "Larger Partner Count by Month", y = "Ticket Count", x = "Month")
+```
+
+```{r}
+#By SignupCountry - too many to chart
+tmpDF_SignupCountry <- SSATData2 %>% group_by(SignupCountry_ssat) %>% count(SignupCountry_ssat) %>% arrange(n)
+tmpDF_SignupCountry <- as.data.frame(tmpDF_SignupCountry)
+tmpDF_SignupCountry$SignupCountry_ssat <- as.character(tmpDF_SignupCountry$SignupCountry_ssat)
+tmpDF_SignupCountry$SignupCountry_ssat[is.na(tmpDF_SignupCountry$SignupCountry_ssat)] <- "Unknown"
+head(tmpDF_SignupCountry, 10)
+tail(tmpDF_SignupCountry, 10)
+
+#stacked bar plots top 10-15 countries by month
+SignupCountry_big <- tail(tmpDF_SignupCountry, 10)[1]
+
+#Useless below?
+SignupCountry_big <- tail(tmpDF_SignupCountry, 10)[1]
+SignupCountry_big <- SignupCountry_big$SignupCountry_ssat
+tmpDF_SignupCountry2 <- SSATData2 %>% group_by(FeedbackMonth_ssat) %>% count(SignupCountry_ssat) 
+tmpDF_SignupCountry2 <- as.data.frame(tmpDF_SignupCountry2)
+tmpDF_SignupCountry2$SignupCountry_ssat <- as.character(tmpDF_SignupCountry2$SignupCountry_ssat)
+tmpDF_SignupCountry2$SignupCountry_ssat[is.na(tmpDF_SignupCountry2$SignupCountry_ssat)] <- "Unknown"
+
+tmpDF_SignupCountry2 %>% group_by(SignupCountry_ssat, FeedbackMonth_ssat) %>% summarise(AveTickets = mean(n))
+```
+
+#Correlation Analysis
+
+Reduce the data to only interesting varaibles for correlation - there are too many date fields that make using the dataset easy to work.
+
+- Limit to US, UK, Canada; 
+- Tenant Program = Concierge or Modern CSS
+- RolesId = 2, 16, 32, 116
+- Verified_tick = 1, 2, 9
+- Ignore week 2017-27 - there is only one record
+
+```{r reduceDimensionality}
+SSAT_Week_FBDcorr <- SSATData2 %>% filter(SignupCountry_ssat == "United States" | SignupCountry_ssat == "United Kingdom" | 
+                                     SignupCountry_ssat == "Canada", 
+                                     TenantProgram_ten == "Concierge" | TenantProgram_ten == "ModernCSS", 
+                                     RoleIds_tick == 2 | RoleIds_tick == 16 | RoleIds_tick== 32 | RoleIds_tick == 161, 
+                                     Verified_tick == 1 | Verified_tick == 2 | Verified_tick == 9) %>% 
+  select(FeedbackWeek_ssat, Partner_ssat, SSAT_ssat, SRMLWorkload_ssat, SRIsResolved_ssat, 
+         SeatBucket_ssat, SRSupportArea_ssat, SupportSegment_ten, IsResolved_tick, isDAO, ToolUsage, CustomerWaitTime, 
+         WaitIsOutlier, RouteDurationIsOutlier)
+
+SSAT_Week_FBDcorr <- SSAT_Week_FBDcorr %>% filter(FeedbackWeek_ssat != "2017-27")
+
+SSAT_Week_FBDcorr$IsResolved_tick <- as.integer(SSAT_Week_FBDcorr$IsResolved_tick)
+SSAT_Week_FBDcorr$isDAO <- as.integer(SSAT_Week_FBDcorr$isDAO)
+SSAT_Week_FBDcorr$WaitIsOutlier <- as.integer(SSAT_Week_FBDcorr$WaitIsOutlier)
+SSAT_Week_FBDcorr$RouteDurationIsOutlier <- as.integer(SSAT_Week_FBDcorr$RouteDurationIsOutlier)
+SSAT_Week_FBDcorr$FeedbackWeek_ssat <- as.character(SSAT_Week_FBDcorr$FeedbackWeek_ssat)
+
+SSAT_Week_FBDcorr$SSATCalcScore <- 0
+```
+
+Add the calculated SSAT score by week from `SSATbyWeek_FBD`
+```{r}
+ssat_weeks <- sort(unique(SSAT_Week_FBDcorr$FeedbackWeek_ssat))
+
+for(i in 1:length(ssat_weeks)){
+  tmpWeekCalcScore <- SSATbyWeek_FBD[SSATbyWeek_FBD$myWeeks == ssat_weeks[i], "myWeekCalc"][1]
+  SSAT_Week_FBDcorr <- SSAT_Week_FBDcorr %>% mutate(SSATCalcScore = ifelse(FeedbackWeek_ssat == ssat_weeks[i], 
+                                                                           tmpWeekCalcScore, SSATCalcScore))
+}
+```
+
+```{r agentCapacity}
+agentCapacity_month <- SSATData2 %>% group_by(FeedbackMonth_ssat) %>% summarise(cntAgents = n_distinct(TenantId_ssat))
+agentCapacity_week <- SSATData2 %>% group_by(FeedbackWeek_ssat) %>% summarise(cntAgents = n_distinct(TenantId_ssat))
+```
+
+
+---------------------------------
+## Replace NAs
+
+```{r}
+#https://sebastiansauer.github.io/sum-isna/
+myNA <- SurveyData %>% summarise_all(funs(sum(is.na(.))))
+myNA <- gather(myNA, key="Variable", value = "NA_Count", FeedbackIdInSource:CALastUpdatedTime__1, factor_key = FALSE)
+arrange(myNA, desc(NA_Count)) %>% filter(NA_Count >0)
+```
+
+From: Dean Avila 
+Sent: Monday, January 29, 2018 12:22 PM
+To: Erfan Najmi <ernajmi@microsoft.com>; Nikhil Verma <nikhilv@microsoft.com>; Cliff Weaver <cweaver@valorem.com>; Ankit Choudhari <ankit.choudhari@microsoft.com>; Yun Wang <Yun.Wang@microsoft.com>; Cheng Wu <wucheng@microsoft.com>
+Subject: RE: SSAT Drop - New Priority
+
+Per discussion with Cheng and Yun, let’s reduce this list to tenant data:
+
+[SignupCountry] (can be used as regions)
+[TotalUsers] (currently we use this for seat count)
+[NumberOfTicketsToDate] 
+[DirSyncEnabled]
+[LastTicketTime] (days to last ticket, theme of last ticket, status of the last ticket and other derived features can also be used)
+[IsActive]
+[IsCharity]
+[IsConcierge]
+[IsDedicatedOnMultiTenant]
+[IsEducation]
+[IsExpressRoute]
+[IsGovernment]
+[IsPartnerTenant]
+[IsPremier]
+
+Ideas to investigate
+	• Response rate for surveys is low and the MOE is high - wonder if the drop is with a confidence interval?
+	• Look a rate of incoming surveys by date, are the surveys coming from the same type of customer?  Did a segment of customers drop off or did someone new joining (like big vs small customers) - eval all variables
+	• Sept was a high mark - make sure that was not an aberration
+	• Consider identifying the most influential factors
+		○ Random forest
+XGBoost
+
+# Appendix
+
+## Raw Data Meeting Notes
+
+- SSATData (5,918 records) (SR is simple a Support Request table name)
+    - `Feedback Date` is currently `character`
+    - `Partner` should cast to factor
+    - `SSAT Feedback Text` candidate to be removed
+    - What is `SR.Rating` and how does it differ from `Rating`? Note percentage of `NA`.
+        - rename SR.Rating to CSAT (atempt to get feedback for all tickets - the popup)
+        - SSAT is the 3-10 later when client logs back in.  Rating = SSAT Rating
+    - What is the different between `SSAT Feedback Text` and `SR.Comment`?  Note high percentage of `NA`. OK to remove.
+    - Change `SR.ML Workload` to factor
+    - Verify how to treat `NA` in `SR.IsResolved`.  (Interesting this value is 101 - recall Case Search analysis - tenant related?)
+    - Change `Signup Country` to factor.  Determine what to do with `NA` values.
+    - Change `Seat Bucket` to factor
+    - Change `SR.Support Area` to factor
+    - What is `OCV Area`?  Note high percentage of `NA`.  Dean to investigate.  Values derived from SSAT Verbatims and put in buckets - by Dean! (5 star data not categorized)
+    
+- TicketData (866,744 records)
+    - Many date fields must be cast from `character` to `date`
+        1. Create Date - cusotmer initiated
+        2. Route Date - automated.  Look for possible system issues.  Diff Create and Route should be small
+        3. Customer Feedback - instant data collection (CSAT)
+        4. Completed Date - agent finishes paperwork
+        5. Service Date - automated entry - **on hold**
+    - Cast `IsFeedbackClosed` to `logical`.  Need definition and meaning of this variable.  To be defined.
+    - Cast `SupportAreaName` to factor
+    - Remove `MSSupportTicket` - all NULL
+    - `IsResolved` has `r table(TicketData$IsResolved)[3]` NULL values.  recode to -1?
+    - `Rating` has over 500k NULL.  How to interpret these?  Set as no response
+    - `Comment` mostly empty.  Remove.  Perhaps save the text for later examination.
+    - What is `UserLcId`?  Cast to factor? 
+https://msdn.microsoft.com/en-us/library/ms912047
+
+    - What is `Modality`?  Cast to factor? 1 = Web; 2 = Email; 3=IVR 4=Chat
+    - Remove duplicate filed `ParatureTicketNumber_1`.
+    - Cast `ReScenario` as factor.
+    - Is `CompletedWorkflowActions` useful?  Perhaps parse the text into separate fields. - Remove
+    - What do the values in `RoleIds` represent?  Cast as factor? - Postpone for now.
+    - Is `RouteReason` useful?  Does not appear so. -Postpone for now.
+    - Need mapping for `ProgramId` since it looks like it might be cast to a factor.  Dean may provide full set of data without Concierge filter.  C07 = Concierge, FA = FastTrack, C55 = Modern CSS, NULL is NULL, A7C - Dean to find out
+    - Is `ParentRequestId` useful?  Keep - CLiff decided to skip 96810 unique values
+    - `SkillIds` useful given the 0s?  If yes, need to map to meaningful values and parse into separate fields. - Postpone for now.  Similar to RoleId **Decision reversed week of 2/19/2018**
+    - `ReopenReason` has `r table(TicketData$ReopenReason)[[16]]` NULL values.  If useful, need mapping from number to description and then cast to factor. - Skip for now
+    - `SecondaryTicketType` has `r table(TicketData$SecondaryTicketType)[[2]]` NULLs.  Plan to remove.  Same logic applies to `SecondaryTicketNumber` and `TransferLocation`. - Need to understand why so sparse.  Postpone for now (data issue?)
+    - Define the values 1 - 4 under `ContactOutcome`.  How to interpret ~47k NULL values.  Same logic applies to:  Need mapping
+        - `Resolution`: Values are 1, 2, 3, 5 with ~47k NULL values.  Need mapping
+        - `Verified`: Values are 1-2, 12-15, 17-19 with ~47k NULL values. Need mapping
+    - Many value combinations in `ScenarioTypes`.  Need mapping.  Likely need to parse into separate fields.  Dean to verify & mapping (Agent identifies the type of ticket) - HOLD.  (See code below)
+    - Remove duplicated field - `LastUpdatedByApp_1`.
+
+- TenantList (6,346,005 records)
+    - Cast `TenantProgram` to factor.  
+    - Cast `SupportSegment` as factor.
+    - Cast `TenantRegisteredCountry` as factor even though 243 unique values?  Investigate.  What to do with NA?
+    - Cast `TenantPreferredLang` as factor.
+    - Define variable name for `TBD1`.  The values are ASfp (689), BC (6315729) and PSfp (29587).  Given the predominance of BC, does it matter?  Investigate
+    - Define variable `TBD2`.  The values are Company (6293026), Reseller (5152), Support (47816), Syndicate (11).  (Wonder if the number of Support is related to other variables - ~47k appears in other variables.  Investigate.)
+    - Cast `UTCSnapshotDate` as date.

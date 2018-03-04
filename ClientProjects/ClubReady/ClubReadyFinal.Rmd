@@ -1406,6 +1406,8 @@ names(saeval) <- c("Actual", "Predicted")
 head(saeval)
 ```
 
+## Conclusion
+
 The survival analysis for User Churn did not provide adequate performance to proceed.  Valorem submits this is further evidence the data for User Churn does not support and algorithmic solution.  More user-centric data is needed.
 
 # NEW Data Analysis
@@ -1415,8 +1417,6 @@ This information below was not originally intended in the project SOW.  It was c
 ## Introduction
 
 In the User Data Modeling phase, it was discovered the `User Churn` data does not contain patterns or signals strong enough to create a useful algorithmic model.    This leads to the question, *What data should we have so we can develop a user churn predictive model?*
-
-## Conclusion
 
 Valorem created a Power BI demonstration to help ClubReady answer this question. The demonstration solution is available for review in the *Users Prototype Analysis.pbix* file. This was created to introduce ClubReady to the opportunities for data exploration using the simplicity - and power - of Power BI. 
 

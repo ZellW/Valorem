@@ -482,12 +482,8 @@ Recall the initial distribution:
 ```{r message=FALSE}
 p2
 p2Data <- ggplot_build(p2)
-#o get values actually plotted you can use function ggplot_build() where argument is your plot.
+#Get values actually plotted you can use function ggplot_build() where argument is your plot.
 
-p <- ggplot(mtcars,aes(mpg))+geom_histogram()+
-      facet_wrap(~cyl)+geom_vline(data=data.frame(x=c(20,30)),aes(xintercept=x))
-
-pg <- ggplot_build(p)
 # This will make list and one of sublists is named data. This sublist contains dataframe with values used in plot, for example, for histrogramm it contains y values (the same as count). If you use facets then column PANEL shows in which facet values are used. If there are more than one geom_ in your plot then data will contains dataframes for each
 #If you need just data it seems layer_data is designed precisely for this: layer_data(p2,1)
 layer_data(p2,1)

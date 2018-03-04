@@ -1,0 +1,111 @@
+---
+title: TTR Analysis - An Alternative
+author: Brad Llewellyn, Cliff Weaver
+date: Feb 16, 2018
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r loadLibs1, warning=FALSE, message=FALSE, echo=FALSE}
+if(!require(kableExtra)){devtools::install_github("haozhu233/kableExtra")}
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("plyr", "dplyr", "ggplot2", "readr", "gridExtra", "readxl", "tidyr","stringr", "lubridate","knitr", "kableExtra",  prompt = FALSE)
+
+setwd("~/Github/Valorem/ClientProjects/MS_O365")
+
+load("CaseNotesTTR.RData")
+```
+
+# Introduction
+
+In an attempt to minimize the effects of confounding feathers that are likely to occur in the data under investigation, derived solutions are presented to determine if there is sufficient evidence to reject the null hypothesis that the populations from two samples of TTR data before and after the introduction of a new software feature are from the same population.  (Stated in a more business friendly manner, does the data suggest the new feature materially impact TTR?)
+
+1. Collect Data
+
+    1. Average TTR for CI (Control)
+```{r}
+CI_Control_df <- TTR_No_0 %>% filter(InsiderRole == 'CI', dateLive =="Control") %>% select(TTR) 
+CI_Control_nrow <- nrow(CI_Control_df)
+CI_Control_sd <- sd(CI_Control_df$TTR)
+CI_Control_mean <- mean(CI_Control_df$TTR)
+```
+
+| Record Count | Std Dev | Mean |
+| --- | --- | --- |
+| `r CI_Control_nrow` | `r round(CI_Control_sd,3)` | `r round(CI_Control_mean, 3)` |
+
+    2. Average TTR for NCI (Control)
+```{r}
+NCI_Control_df <- TTR_No_0 %>% filter(InsiderRole == 'NCI', dateLive =="Control") %>% select(TTR)
+NCI_Control_nrow <- nrow(NCI_Control_df)
+NCI_Control_sd <- sd(NCI_Control_df$TTR)
+NCI_Control_mean <- mean(NCI_Control_df$TTR)
+```
+
+| Record Count | Std Dev | Mean |
+| --- | --- | --- |
+| `r NCI_Control_nrow` | `r round(NCI_Control_sd, 3)` | `r round(NCI_Control_mean, 3)` |
+
+    3. Average TTR for  CI (Treatment)
+```{r}
+CI_Treatment_df <- TTR_No_0 %>% filter(InsiderRole == 'CI', dateLive == "Treatment") %>% select(TTR)
+CI_Treatment_nrow <- nrow(CI_Treatment_df)
+CI_Treatment_sd <- sd(CI_Treatment_df$TTR)
+CI_Treatment_mean <- mean(CI_Treatment_df$TTR)
+```
+
+| Record Count | Std Dev | Mean |
+| --- | --- | --- |
+| `r CI_Treatment_nrow` | `r round(CI_Treatment_sd, 3)` | `r round(CI_Treatment_mean, 3)` |
+
+    4. Average TTR for NCI (Treatment)
+```{r}
+NCI_Treatment_df <- TTR_No_0 %>% filter(InsiderRole == 'NCI', dateLive == "Treatment") %>% select(TTR)
+NCI_Treatment_nrow <- nrow(NCI_Treatment_df)
+NCI_Treatment_sd <- sd(NCI_Treatment_df$TTR)
+NCI_Treatment_mean <- mean(NCI_Treatment_df$TTR)
+```
+
+| Record Count | Std Dev | Mean |
+| --- | --- | --- |
+| `r NCI_Treatment_nrow` | `r round(NCI_Treatment_sd, 3)` | `r round(NCI_Treatment_mean, 3)` |
+
+Start by assuming that the Control distributions are the "true" populations.  Then, examine whether the Treatment distributions are statistically significantly different.  Assume the true population mean of the TTR for the CI group is the average TTR for the Control CI group and the true population standard deviation of the TTR for the CI Group is the standard deviation of the TTR for the Control CI group.  Use the  same logic for the NCI Group.
+
+The Central Limit Theorem (https://en.wikipedia.org/wiki/Central_limit_theorem) dictates the average TTR should be approximately normally distributed with a mean equal to the population mean and a standard deviation equal to the population standard deviation divided by the square root of the number of records.  Therefore, create two standard normal values (aka Z-scores) by standardizing the CI and NCI Treatment TTR averages.
+
+```{r}
+z_CI<- (CI_Treatment_mean - CI_Control_mean)/(CI_Control_sd/sqrt(CI_Control_nrow)); z_CI
+z_NCI<- (NCI_Treatment_mean - NCI_Control_mean)/(NCI_Control_sd/sqrt(NCI_Control_nrow)); z_NCI
+```
+
+These Z-scores do not account for the confounding factors in the Treatment.  However, if it is assumed the confounding factors affect these Z-scores in an identical manner, then squaring these values should have no effect on the confounding factors.  Also, the effect of these factors should be cancelled by taking their quotient.
+
+It is known the square of a standard normal distribution is a chi-square distribution with one degree of freedom (https://en.wikipedia.org/wiki/Chi-squared_distribution).  It is also known the quotient of two chi-square random values with 1 degree of freedom follows an F distributions with degrees of freedom one and one (https://en.wikipedia.org/wiki/F-distribution#Properties_and_related_distributions).  Therefore, calculate an f value by dividing the squares of our Z-scores.
+```{r}
+f <- z_CI^2/z_NCI^2
+f
+```
+
+Now find the p-value to determine how significant the difference is between the distributions.
+
+```{r}
+1-pf(f, 1, 1)
+```
+
+Given p-value > 0.05, the data fails to reject the null hypothesis.  (The new software features did not statistically significantly change the TTR values.)
+
+To increase our confidence in the approach, reverse the question;  assume the Treatment distributions are the "true" populations.  Does this provide enough evidence to determine the Control group is different?  (The answer is NO - consistent with the first iteration p-value > 0.05 again.)
+
+```{r}
+z_CI<- (CI_Control_mean - CI_Treatment_mean)/(CI_Treatment_sd/sqrt(CI_Treatment_nrow));
+z_NCI<- (NCI_Control_mean - NCI_Treatment_mean)/(NCI_Treatment_sd/sqrt(NCI_Treatment_nrow)); 
+
+f <- z_CI^2/z_NCI^2
+1-pf(f, 1, 1)
+```
+
+
