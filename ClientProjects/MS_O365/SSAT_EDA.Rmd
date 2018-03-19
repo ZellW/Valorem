@@ -1299,6 +1299,9 @@ for(i in 1:length(ssat_weeks)){
 ```{r agentCapacity}
 agentCapacity_month <- SSATData2 %>% group_by(FeedbackMonth_ssat) %>% summarise(cntAgents = n_distinct(TenantId_ssat))
 agentCapacity_week <- SSATData2 %>% group_by(FeedbackWeek_ssat) %>% summarise(cntAgents = n_distinct(TenantId_ssat))
+
+ggplot(agentCapacity_week, aes(FeedbackWeek_ssat, cntAgents)) + geom_bar(stat="identity")
+ggplot(agentCapacity_month, aes(FeedbackMonth_ssat, cntAgents)) + geom_bar(stat="identity")
 ```
 
 

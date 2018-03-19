@@ -1,0 +1,168 @@
+---
+title: "Predicting Project Completion Time"
+output:
+    rmdformats::readthedown:
+      highlight: pygments
+      code_folding: show
+      df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 14px;
+   line-height: 18px;
+}
+body{ /* Normal  */
+   font-size: 14px;
+}
+td {  /* Table  */
+   font-size: 12px;
+}
+h1 { /* Header 1 */
+font-size: 26px;
+color: #4294ce;
+}
+h2 { /* Header 2 */
+font-size: 22px;
+}
+h3 { /* Header 3 */
+font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 12px;
+}
+pre { /* Code block */
+  font-size: 12px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+# Logistic Regression Model
+
+# Data Import
+
+Load required R packages.
+
+```{r, message=FALSE, warning=FALSE}
+options(warn=-1)
+setwd("~/Github/Valorem/ClientProjects/MS_DCX")
+
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("readr", "stringr", "reshape2", "xgboost", "caret", "tibble", "tidyverse", "dplyr",
+         "AzureML", prompt = FALSE)
+```
+
+The raw data is imported and formatted.
+```{r, message=FALSE, warning=FALSE}
+set.seed(123)
+
+#Change location of source data file here
+dcx30proj_raw <- read.csv("~/Github/Valorem/ClientProjects/MS_DCX/TestC_data.csv")
+dcx30proj <- dcx30proj_raw
+dcx30proj["ProjectID"] <- paste(dcx30proj_raw$ProjectID)
+glimpse(dcx30proj)
+```
+
+The total duration of the project is calculated based on the individual duration of each milestone. An on-time threshold is determined and each project classified accordingly. 
+
+```{r}
+dcx30proj["Total"] <- apply(dcx30proj[, 2:8], MARGIN=1, FUN=sum)
+dcx30proj <- dcx30proj[!is.na(dcx30proj["Total"]),]
+
+#Set the threshold to determine if it's late or not
+thresh_80 <- quantile(pull(dcx30proj, "Total"), .8)
+
+#classify each project as Late or On Time
+dcx30proj["LateNum20"] <- ifelse(pull(dcx30proj, "Total") > thresh_80, 1, 0)
+dcx30proj["Late20"] <- ifelse(pull(dcx30proj, "Total") > thresh_80, "Late", "On Time")
+glimpse(dcx30proj)
+```
+
+##Model Training
+
+Split data into Test and Train datasets.
+
+```{r}
+## Create Testing and Training Split
+set.seed(123)
+
+trainIndex <- createDataPartition(dcx30proj$LateNum20, p=0.7, list = FALSE)
+train_30proj <- dcx30proj[trainIndex,]
+test_30proj <- dcx30proj[-trainIndex,]
+```
+
+The training set is used to train the logistic regression model. A function is created that takes new data and predicts outcomes based on the trained model. 
+
+```{r, message=FALSE, warning=FALSE}
+temp_30proj <- data.frame(as.factor(pull(train_30proj, "LateNum20")), train_30proj[,2:8])
+names(temp_30proj) <- c("LateNum20", names(train_30proj[2:8]))
+  
+log20_30proj <- glm(LateNum20 ~ ., data=temp_30proj, family=binomial(link="logit"))
+
+logpredict <- function(newdata){ifelse(predict(log20_30proj, newdata, type="response")>.5, "Late", "On Time")}
+```
+
+##Azure Deployment
+
+The prediction function is uploaded to [AzureML as a web service](https://cran.r-project.org/web/packages/AzureML/vignettes/getting_started.html). This service can consume new milestone data and predict outcomes. 
+
+> Change id and auth tokens for you AzureML workspace
+
+```{r, message=FALSE, warning=FALSE}
+workspaceID <- "1c509c4d6a4e45eeb8476b5523963c36"
+authKey <- "o24tO+1QiadaAbfAkQB9RFaKT0L12HUnF7bIuBXUWTQPdHRWMj1dLyKTjqRA8tGYm9Q+8BuVCxP9J2vGA/f0Rw=="
+```
+
+```{r pubAPI}
+ws <- workspace(id = workspaceID, auth = authKey)
+
+# Publish the service
+ep <- publishWebService(ws = ws, fun = logpredict, name = "LogReg",
+                        inputSchema = temp_30proj[,2:8])
+```
+
+#Appendix
+
+##Testing Tools
+
+A test data set can be created here.
+```{r}
+test <- dcx30proj_raw[1:5,2:8]
+```
+
+This will run the function locally based on test data.
+```{r}
+# Example use of the prediction function
+print(logpredict(test))
+```
+
+This runs the function through the web service after publishing.
+```{r}
+# Consume test data, comparing with result above
+print(consume(ep, test))
+```
+
+A way to call the web service after the initial publish.
+```{r}
+s <- services(ws, name = "LogReg")
+s <- tail(s, 1) # use the last published function, in case of duplicate function names
+ep <- endpoints(ws, s)
+consume(ep, test)
+```
