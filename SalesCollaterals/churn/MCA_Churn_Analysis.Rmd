@@ -1,0 +1,277 @@
+---
+title: "MCA in Churn Analysis"
+output:
+  rmdformats::readthedown:
+    highlight: pygments
+---
+
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 12px;
+}
+body{ /* Normal  */
+   font-size: 12px;
+}
+td {  /* Table  */
+   font-size: 10px;
+}
+h1 { /* Header 1 */
+ font-size: 26px;
+ color: #4294ce;
+}
+h2 { /* Header 2 */
+ font-size: 22px;
+}
+h3 { /* Header 3 */
+ font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 10px;
+}
+pre { /* Code block */
+  font-size: 10px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("caret", "plyr", "car", "dplyr", "reshape2", "FactoMineR", "factoextra", "ClustOfVar", prompt = FALSE)
+```
+
+# Introduction
+
+Analytical challenges in multivariate data analysis and predictive modeling include identifying redundant and irrelevant variables. A recommended analytics approach is to first address the redundancy; which can be achieved by identifying groups of variables that are as correlated as possible among themselves and as uncorrelated as possible with other variable groups in the same data set. On the other hand, relevancy is about potential predictor variables and involves understanding the relationship between the target variable and input variables. 
+
+Multiple Correspondence Analysis (MCA) is to qualitative data, as Principal Component Analysis (PCA) is to quantitative data. MCA is a multivariate data analysis and data mining tool for finding and constructing a low-dimensional visual representation of variable associations among groups of categorical variables. (Stated alternatively, MCA is a method for summarizing and visualizing a data table containing more than two categorical variables. It can also be seen as a generalization of principal component analysis when the variables to be analyzed are categorical instead of quantitative). 
+
+Variable clustering as a tool for identifying redundancy is often applied to get a first impression of variable associations and multivariate data structure.
+
+The goal of this document is to illustrate the applications of: 
+
+1. preparing input variables for analysis and predictive modeling
+2. MCA as a multivariate exploratory data analysis and categorical data mining tool for business insights of customer churn data
+3.variable clustering of categorical variables for the identification of redundant variables
+
+# The Data
+
+Customer attrition is a metrics businesses use to monitor and quantify the loss of customers and/or clients for various reasons. The data set includes customer-level demographic, account and services information including monthly charge amounts and length of service with the company. Customers who left the company for competitors (Yes) or staying with the company (No) have been identified in the last column labeled churn. 
+
+## Import and Pre-process Data 
+
+The data set used in this post was obtained from the [watson-analytics-blog site](https://www.ibm.com/communities/analytics/watson-analytics-blog/telco-customer-churn/). Click the hyperlink “Watson Analytics Sample Dataset – Telco Customer Churn” to download the file.  You may need to openin Excel and save as CSV.
+
+```{r}
+churn <- read.table("../data/WA_Fn-UseC_-Telco-Customer-Churn.csv", sep=",", header=TRUE)
+str(churn)
+``` 
+
+The raw data set contains 7043 records and 21 variables. Looking at the data structure, some data columns need recoding. For instance, changing values from “No phone service” and “No internet service” to “No”, for consistency. The following code statements are to recode those observations and more.
+
+## Data Munging
+
+### Recode Some Variables
+
+```{r}
+churn$MultipleLines <- as.factor(mapvalues(churn$MultipleLines, from=c("No phone service"), to=c("No")))
+#mapvalues from plyr - easier than dplyr - recode
+
+churn$InternetService <- as.factor(mapvalues(churn$InternetService, from=c("Fiber optic"), to=c("Fiberoptic")))
+
+churn$PaymentMethod <- as.factor(mapvalues(churn$PaymentMethod, from=c("Credit card (automatic)","Electronic check","Mailed check",
+                                 "Bank transfer (automatic)"), to=c("Creditcard","Electronicheck","Mailedcheck","Banktransfer")))
+
+churn$Contract <- as.factor(mapvalues(churn$Contract, from=c("Month-to-month", "Two year", "One year"), to=c("MtM","TwoYr", "OneYr")))
+
+#Love the code below - hard to figure out - keep this one!
+cols_recode1 <- c(10:15)
+for(i in 1:ncol(churn[, cols_recode1])){
+        churn[, cols_recode1][, i] <- as.factor(mapvalues(churn[, cols_recode1][, i], from = c("No internet service"), to =c("No")))
+}
+```
+
+Values in the SeniorCitizen column were entered as 0 and 1. Recode this variable as “No” and “Yes”, respectively, for consistency.
+```{r}
+churn$SeniorCitizen <- as.factor(mapvalues(churn$SeniorCitizen, from=c("0","1"), to=c("No", "Yes")))
+```
+
+Exclude the consumer id and total charges columns from data analysis.
+```{r}
+churn <- select(churn, -c(customerID, TotalCharges))
+```
+
+Summary statistics of the two numerical variables to see distribution of the data.
+```{r}
+summary(churn$MonthlyCharges)
+```
+
+```{r}
+summary(churn$tenure)
+```
+
+On the basis of the data distributions above, values in the tenure and monthly charges numerical columns could be coerced to a 3-level categorical value as follows. (**Great code** - does the function faster than having to use `cut`.)
+
+```{r}
+churn$tenure <- as.factor(car::recode(churn$tenure, "1:9 = 'ShortTenure'; 9:29 = 'MediumTenure'; else = 'LongTenure'"))
+
+churn$MonthlyCharges <- as.factor(car::recode(churn$MonthlyCharges, "1:35 = 'LowCharge';35:70 = 'MediumCharge'; else = 'HighCharge'"))
+```
+
+Check for missing values in the pre-processed data set.
+
+```{r}
+mean(is.na(churn)) 
+```
+
+There are no missing values. How about the category levels of each variable?
+
+```{r}
+## check for factor levels in each column
+nfactors <- apply(churn, 2, function(x) nlevels(as.factor(x))) 
+nfactors
+```
+
+The data set is ready for analysis.
+
+## Partitioning Training and Testing Data 
+
+```{r}
+inTrain <- createDataPartition(churn$Churn, p=0.7, list=FALSE)
+## set random seed to make reproducible results
+set.seed(324)
+training <- churn[inTrain,]
+testing <- churn[-inTrain,]
+```
+
+# Multiple Correspondence Analysis (MCA) 
+
+```{r}
+res.mca <- MCA(training, quali.sup=c(17,19), graph=FALSE)
+fviz_mca_var(res.mca, repel=TRUE)
+```
+
+A general guide to extrapolating from the figure above for business insights would be to observe and make a note as to how close input variables are to the target variable and to each other. For instance, customers with month to month contract, those with fiber optic internet service, senior citizens, customers with high monthly charges, single customers or customers with no dependents, those with paperless billing are being related to a short tenure with the company and a propensity of risk to churn. 
+
+On the other hand, customers with 1 – 2 years contract, those with DSL internet service, younger customers, those with low monthly charges, customers with multiple lines, online security and tech support services are being related to a long tenure with the company and a tendency to stay with company. 
+
+## Variable Clustering 
+
+`hclustvar` from  `ClustOfVar` produces a tree of variable groups.
+
+```{r}
+# run variable clustering excluding the target variable (churn) 
+variable_tree <- hclustvar(X.quali = training[,1:18])
+#plot the dendrogram of variable groups
+plot(variable_tree)
+```
+
+The dendrogram suggests that the 18 input variables can be combined into approximately 7 – 9 groups of variables. That is one way of going about it. The good news is that the ClusofVar package offers a function to cut the cluster into any number of desired groups (clusters) of variables. So, the syntax below will run 25 bootstrap samples of the trees to produce a plot of stability of variable cluster partitions.
+
+```{r}
+# requesting for 25 bootstrap samplings and a plot
+stability(variable_tree, B=25) 
+```
+
+The plot of stability of variable cluster partitions suggests approximately a 7 to 9-cluster solution. The syntax below will list a consensus list of 9-clusters along with the variables names included in each cluster.
+
+```{r}
+## cut the variable tree into 9(?) groups of variables 
+clus <- cutreevar(variable_tree,9)
+## print the list of variables in each cluster groups
+print(clus$var)
+```
+
+The 9-clusters and the variable names in each cluster are listed above. The practical guide to minimizing redundancy is to select a cluster representative. However, subject-matter considerations should have a say in the consideration and selection of other candidate representatives of each variable cluster group. 
+
+# Descriptive Statistics of Churn 
+
+what was the overall customer churn rate in the training data set?
+```{r}
+# overall customer churn rate
+round(prop.table(table(training$Churn))*100,1)
+```
+
+The overall customer attrition rate was approximately 26.5%.
+
+Customer churn rate by demography, account and service information:
+
+```{r}
+cols_aggr_demog <- c(1:4,6:7,9:14,16)
+variable <- rep(names(training[,cols_aggr_demog]),each=4)
+demog_counts=c()
+for(i in 1:ncol(training[,cols_aggr_demog])) {
+    demog_count <- ddply(training, .(training[,cols_aggr_demog][,i],training$Churn), "nrow")
+     names(demog_count) <- c("class","Churn","count")
+    demog_counts <- as.data.frame(rbind(demog_counts, demog_count))
+ }
+
+demog_churn_rate <- as.data.frame(cbind(variable, demog_counts))
+demog_churn_rate1 <- dcast(demog_churn_rate, variable + class ~ Churn, value.var="count")
+demog_churn_rate2 <- mutate(demog_churn_rate1, churn_rate=round((Yes/(No+Yes)*100)-26.5,1))
+demog <- as.data.frame(paste(demog_churn_rate2$variable,demog_churn_rate2$class))
+names(demog) <- c("Category")
+demog2 <- as.data.frame(cbind(demog,demog_churn_rate2))
+cols_aggr_nlev3 <- c(5,8,15,18)
+variable <- rep(names(training[,cols_aggr_nlev3]),each=6)
+nlev3_counts=c()
+for(i in 1:ncol(training[,cols_aggr_nlev3])) {
+    nlev3_count <- ddply(training, .(training[,cols_aggr_nlev3][,i],training$Churn), "nrow")
+     names(nlev3_count) <- c("class","Churn","count")
+    nlev3_counts <- as.data.frame(rbind(nlev3_counts, nlev3_count))
+ }
+
+nlev3_churn_rate <- as.data.frame(cbind(variable, nlev3_counts))
+nlev3_churn_rate1 <- dcast(nlev3_churn_rate, variable + class ~ Churn, value.var="count")
+nlev3_churn_rate2 <- mutate(nlev3_churn_rate1, churn_rate=round((Yes/(No+Yes)*100)-26.5,1))
+nlev3 <- as.data.frame(paste(nlev3_churn_rate2$variable,nlev3_churn_rate2$class))
+names(nlev3) <- c("Category")
+nlev3 <- as.data.frame(cbind(nlev3,nlev3_churn_rate2))
+variable <- rep("PaymentMethod",8)
+nlev4_count <- ddply(training, .(training[,17],training$Churn), "nrow")
+names(nlev4_count) <- c("class","Churn","count")
+nlev4_churn_rate <- as.data.frame(cbind(variable, nlev4_count))
+nlev4_churn_rate1 <- dcast(nlev4_churn_rate, variable + class ~ Churn, value.var="count")
+nlev4_churn_rate2 <- mutate(nlev4_churn_rate1, churn_rate=round((Yes/(No+Yes)*100)-26.5,1))
+nlev4 <- as.data.frame(paste(nlev4_churn_rate$variable4,nlev4_churn_rate2$class))
+names(nlev4) <- c("Category")
+nlev4 <- as.data.frame(cbind(nlev4,nlev4_churn_rate2))
+final_agg <- as.data.frame(rbind(demog2, nlev3, nlev4))
+
+ggplot(final_agg, aes(Category, churn_rate, color=churn_rate < 0)) +
+    geom_segment(aes(x=reorder(Category, -churn_rate), xend = Category,
+                     y = 0, yend = churn_rate), 
+                 size = 1.1, alpha = 0.7) +
+    geom_point(size = 2.5) +
+        theme(legend.position="none") +
+    xlab("Variable") +
+    ylab("Customer Churn (%)") +
+    ggtitle("Customer Attrition rate \n Difference from the overall average (%)") +
+    theme(axis.text.x=element_text(angle=45, hjust=1)) +
+    coord_flip()
+```
+
+Looking at the figure above, customers with higher than average attrition rates include those with an electronic check, with month to month contracts, with higher monthly charges and paperless billing. On a positive note, customers with low monthly charges, longer period contract, with online security services, with dependents or with partners, those paying with credit card or bank transfer showed a much lower than average rates of attrition. 
+
+# Conclusion 
+
+Variables such as contract length, bill payment method, internet service type and even customer demography appeared to play a role in customer attrition and retention. The next step for this company would be to deploy predictive and prescriptive models that would score prospective customers for the propensity of risk to churn.
+
+# Appendix
+
+## Alternative MCA Analysis
+
+1. http://gastonsanchez.com/visually-enforced/how-to/2012/10/13/MCA-in-R/

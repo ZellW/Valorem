@@ -1,0 +1,43 @@
+---
+title: "User Data"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("plyr", "dplyr", "ggplot2", "readr", "funModeling", prompt = FALSE)
+```
+
+# Introduction
+
+This document is provided in response to a request during a Valorem - ClubReady/Club Essentials Meeting March 20, 2018 2PM CT.
+
+Below is a brief introduction to the User data provided to Valorem to develop a User Churn Model.  Unfortunately, the data does not provide sufficient information value to devlop a reasonable algorithmic predictive model.
+
+# Get Data
+
+```{r loadData, message=FALSE, warning=FALSE, echo=FALSE}
+Users <- read_csv("C:/Users/cweaver/Downloads/Users.csv", progress = FALSE)
+dim(Users)
+print("There are 1.75 M records and 48 features in the User Data.")
+Users <- sample_n(Users, 5000)
+```
+
+# Review Data
+
+```{r}
+glimpse(Users)
+```
+
+```{r fig.height = 10, fig.width=9}
+plot_num(select(Users, -UserId))
+```
+
+```{r}
+freq(Users, input = c("Gender", "UserType"))
+```
+

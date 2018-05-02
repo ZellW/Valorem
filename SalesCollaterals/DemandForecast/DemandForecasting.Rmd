@@ -1,0 +1,663 @@
+---
+title: 'Demand Forecasting - Feature Engineering'
+output:
+    rmdformats::readthedown:
+      highlight: pygments
+      code_folding: show
+---
+<style type="text/css">
+p{ /* Normal  */
+   font-size: 14px;
+   line-height: 18px;
+}
+body{ /* Normal  */
+   font-size: 14px;
+}
+td {  /* Table  */
+   font-size: 12px;
+}
+h1 { /* Header 1 */
+font-size: 26px;
+color: #4294ce;
+}
+h2 { /* Header 2 */
+font-size: 22px;
+}
+h3 { /* Header 3 */
+font-size: 18px;
+}
+code.r{ /* Code block */
+  font-size: 12px;
+}
+pre { /* Code block */
+  font-size: 12px
+}
+#table-of-contents h2 {
+background-color: #4294ce;
+}
+#table-of-contents{
+background: #688FAD;
+}
+#nav-top span.glyphicon{
+color: #4294ce;
+}
+#postamble{
+background: #4294ce;
+border-top: ;
+}
+</style>
+
+```{r loadLibs1, warning=FALSE, message=FALSE}
+#if(!require(bayesian_first_aid)){devtools::install_github("rasmusab/bayesian_first_aid")}
+if(!require(easypackages)){install.packages("easypackages")}
+library(easypackages)
+packages("plyr","dplyr","ggplot2", "readr", "tidyr", "gridExtra", "stringr", "lubridate", 
+        "caret",  prompt = TRUE)
+
+options(scipen = 999)#Do not display exponents
+load("~/Github/LargeFiles/DemandForecast.RData")
+```
+
+# Introduction
+
+This experiment demonstrates demand estimation using regression with UCI bike rental data.
+
+This experiment demonstrates the **feature engineering** process for building a regression model using bike rental demand prediction as an example. We demonstrate that effective feature engineering will lead to a more accurate model.
+
+# Data
+
+The Bike Rental UCI dataset is used as the input raw data for this experiment. This dataset is based on real data from the Capital Bikeshare company, which operates a bike rental network in Washington DC in the United States.
+
+The dataset contains 17,379 rows and 17 columns, each row representing the number of bike rentals within a specific hour of a day in the years 2011 or 2012. Weather conditions (such as temperature, humidity, and wind speed) were included in this raw feature set, and the dates were categorized as holiday vs. weekday etc.
+
+The field to predict is "cnt", which contain a count value ranging from 1 to 977, representing the number of bike rentals within a specific hour.
+
+# Feature Engineering
+
+Because the goal is to construct effective features in the training data, four models are built using the same algorithm but with four different training datasets.
+
+The input data was split in such a way that the training data contained records for the year 2011 and and the testing data contained records for 2012.
+
+The four training datasets are based on the same raw input data but different additional features are added to each training set.
+
+**Bike** = weather + holiday + weekday + weekend features for the predicted day
+**Bike1** = number of bikes that were rented in each of the previous 12 hours
+**Bike2** = number of bikes that were rented in each of the previous 12 days at the same hour
+**Bike3** = number of bikes that were rented in each of the previous 12 weeks at the same hour and the same day
+
+Each of these feature sets capture different aspects of the problem:
+
+- Feature set B captures very recent demand for the bikes.
+- Feature set C captures the demand for bikes at a particular hour.
+- Feature set D captures demand for bikes at a particular hour and particular day of the week.
+
+The four training datasets are built by combining the feature set:
+
+- Training set 1: feature set A only
+- Training set 2: feature sets A+B
+- Training set 3: feature sets A+B+C
+- Training set 4: feature sets A+B+C+D
+
+# Model Selection
+
+A regression model is used because the label column (number of rentals) contains continuous real numbers.
+
+Given that the number of features is relatively small (less than 100) and these features are not sparse, the decision boundary is likely to be nonlinear. Based on these observations, a Boosted Decision Tree Regression algorithm will be used for the experiment.
+
+The experiment has five major steps:
+
+1. Get data
+2. Data pre-processing
+3. Feature engineering
+4. Train the model
+5. Test, evaluate, and compare the model
+
+# Step 1- Get Data
+
+The UCI Bike dataset is available from a variety of sources.  A copy of the data has been downloaded to the local machine.  A CSV has also been saved for reproducibility.
+
+```{r getData}
+Bike <- read.csv("C:/Users/cweaver/Downloads/Bike Rental UCI dataset.csv")
+```
+
+# Step 2: Data pre-processing
+
+Data pre-processing is an important step in most real-world analytical applications. The major tasks include data cleaning, data integration, data transformation, data reduction, and data discretization and quantization.
+
+In this experiment, we used Metadata Editor and Project Columns to convert the two numeric columns "weathersit" and "season" into categorical variables and to remove four less relevant columns ("instant", "dteday", "casual", "registered").
+
+```{r dataPreProcess}
+Bike$weathersit <- as.factor(Bike$weathersit)
+Bike$season <- as.factor(Bike$season)
+
+Bike$instant <- NULL
+Bike$dteday <- NULL
+Bike$casual <- NULL
+Bike$registered <- NULL
+
+Bike$yr <- NULL
+```
+
+# Step 3: Feature engineering
+
+Normally, when preparing training data you pay attention to two requirements:
+
+- First, find the right data, integrate all relevant features, and reduce the data size if necessary.
+- Second, identify the features that characterize the patterns in the data and if they don't exist, construct them.
+
+It can be tempting to includes many raw data fields in the feature set, but more often, you need to construct additional features from the raw data to provide better predictive power. This is called feature engineering.
+
+In this experiment, the original data is augmented with a number of new columns.  3 new datasets are created with new features following the concepts detailed above.
+
+```{r commonVars}
+previous_hrs <- 12
+orig_names <- names(Bike)
+n_rows <- dim(Bike)[1]
+orig_colCnt <- dim(Bike)[2] #number of col in original data after cleaning
+suffix <- -1:-previous_hrs #to create new colums
+```
+
+## Bike Demand for Last 12 Hours
+```{r Bike1, eval=FALSE}
+Bike1 <- Bike
+
+for (i in 1:previous_hrs) {
+  #create new column, start at 2nd row, copy from Col 13 (cnt) - fill in 12 new columns with data from cnt
+  Bike1[(i+1):n_rows, orig_colCnt+i] <- Bike1[1:(n_rows-i), orig_colCnt]
+  #Fill in remaining resulting NA with the first cnt record (16)
+  Bike1[1:i, orig_colCnt+i] <- Bike1[1:i, orig_colCnt+i-1]
+}
+
+new_names_hour <- paste("demand in hour", suffix)
+names(Bike1) <- c(orig_names, new_names_hour)
+```
+
+## Bike Demand Last 12 Hours at Same Hour
+
+```{r Bike2, eval=FALSE}
+Bike2 <- Bike1
+orig_colCnt2 <- orig_colCnt + previous_hrs
+for (i in 1:previous_hrs) {
+  Bike2[(i * 24 + 1):n_rows, orig_colCnt2 + i] <- Bike2[1:(n_rows - i * 24), orig_colCnt]
+  Bike2[1:(i * 24), orig_colCnt2 + i] <- Bike2[1:(i * 24), orig_colCnt2 + i - 1] 
+}
+
+new_names_day <- paste("demand in day", suffix)
+names(Bike2) <- c(orig_names, new_names_hour, new_names_day)
+```
+
+## Bike demand in the last 12 weeks: same day and same hour
+
+Add more columns
+```{r Bike3, eval=FALSE}
+Bike3 <- Bike2
+orig_colCnt2 <- orig_colCnt + previous_hrs * 2
+for (i in 1:previous_hrs) {
+  Bike3[(i * 24 * 7 + 1):n_rows, orig_colCnt2 + i] <- Bike3[1:(n_rows - i * 24 * 7), orig_colCnt]
+  Bike3[1:(i * 24 * 7), orig_colCnt2 + i] <- Bike3[1:(i * 24 * 7), orig_colCnt2 + i - 1] 
+}
+
+new_names_week <- paste("demand in week", suffix)
+names(Bike3) <- c(orig_names, new_names_hour, new_names_day, new_names_week)
+```
+
+# Step 4: Train the model
+
+Next, choose an algorithm to use in analyzing the data. There are many kinds of machine learning problems (classification, clustering, regression, recommendation, etc.) with different algorithms suited to each task, depending on their accuracy, intelligibility and efficiency.
+
+For this experiment, because the goal was to predict a number (the demand for the bikes, represented as the number of bike rentals) we chose a regression model. Moreover, because the number of features is relatively small (less than 100) and these features are not sparse, the decision boundary is very likely to be nonlinear.
+
+Based on these factors, a Boosted Decision Tree Regression would be recommended, a commonly used nonlinear algorithm.  However, since we are here to learn, several decision tree algorithms will be evaluated:
+
+- Simple decision tree
+- Random Forest
+- Gradient Boosted Trees
+- xgBoost
+
+Rather than splitting the data, cross validation will be used.
+
+If we were to use train/test splits, use the `yr` variable.  (In the dataset, see the column "yr" column in which 0 means 2011 and 1 means 2012. Remove `yr` since it provides no predictive power.)
+
+```{r dataSplit, eval=FALSE}
+trainData <- Bike %>% filter(yr == 0) %>% mutate(yr = NULL)
+testData <- Bike %>% filter(yr ==1) %>% mutate(yr = NULL)
+
+trainData1 <- Bike1 %>% filter(yr == 0) %>% mutate(yr = NULL)
+testData1 <- Bike1 %>% filter(yr ==1) %>% mutate(yr = NULL)
+
+trainData2 <- Bike2 %>% filter(yr == 0) %>% mutate(yr = NULL)
+testData2 <- Bike2 %>% filter(yr ==1) %>% mutate(yr = NULL)
+
+trainData3 <- Bike3 %>% filter(yr == 0) %>% mutate(yr = NULL)
+testData3 <- Bike3 %>% filter(yr ==1) %>% mutate(yr = NULL)
+```
+
+## Simple Decision Tree
+
+Let's start with the simplest - a decision tree:
+
+```{r simpleDecisionTree}
+simple_tree <- rpart::rpart(cnt~., data = Bike, method = "anova", cp = 0.03)
+rpart.plot::rpart.plot(simple_tree)
+```
+
+Simple decision tree are interesting to review, but poor when it comes to predictive power.
+
+## Random Forest
+
+Algorithms  based on decision trees are often very good for predictive analytics.  The first we will compare is the random forest algorithm (there are many variations, the one below is just one.  In a future update perhaps I'll add a `ranger` model too.)
+
+Random forests uses decision trees, which are very prone to overfitting. In order to achieve higher accuracy, RF decides to create a large number of them based on bagging. The basic idea is to resample the data over and over and for each sample train a new classifier. Different classifiers overfit the data in a different way, and through voting those differences are averaged out.
+
+```{r eval=FALSE}
+set.seed <- 12347
+trainctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3, verboseIter = TRUE)
+#Decision Tree
+#This version does not like the column names, so do not use the formula method
+#rpart_tree <- train(cnt~., data = Bike1, method = "rpart", trControl = trainctrl)
+
+rpart_tree <- train(x = Bike[, names(Bike) != "cnt"], y = Bike$cnt, 
+                    method = "rpart", trControl = trainctrl)
+
+#Random Forest
+rf_tree <- train(cnt~., data = Bike, method = "rf",  trControl = trainctrl)
+```
+
+Below the decision tree and random forest models are compared.  For simplicity, focus on the mean RMSE.  See the appendix for an introduction to performance metrics.
+
+```{r}
+resamps <- resamples(list(singleTree=rpart_tree, randomForest=rf_tree))
+summary(resamps)
+```
+
+The random forest RMSE is nearly half that of the decision tree.  Can we do better?
+
+## Gradient Boosted Tree
+
+Next, run a gradient boosted tree algorithm (GBM).  Think of it as a random forest of steroids (data scientists - forgive me!)
+
+Gradient Boosted Models (GBM) is a boosting method, which builds on weak classifiers. The idea is to add a classifier at a time, so that the next classifier is trained to improve the already trained ensemble. Notice that for random forest each iteration the classifier is trained independently from the rest.
+
+
+```{r GBM_model1, eval=FALSE}
+gbm_tree <- train(cnt~., data = Bike, method = "gbm", trControl = trainctrl, 
+                  distribution = "gaussian")
+gbm_tree
+```
+
+```{r}
+resamps <- resamples(list(singleTree=rpart_tree, randomForest=rf_tree, GBM = gbm_tree))
+summary(resamps)
+```
+
+Hmm, the GBM did not perform as well as the random forest.  Lets review what parameters we might change:
+```{r}
+getModelInfo()$gbm$parameters
+```
+
+Below, we will evaluate 400 combinations or parameter values.  Because we are using cross-validation to minimize overfitting, the code will run the 400 combinations over 10 folds 3 times!  You do the math - lot is a lot of model experiments!
+
+```{r GBM_model2, eval=FALSE}
+myGrid <- expand.grid(n.trees = c(150, 175, 200, 250),
+                      interaction.depth = c(5, 6, 7, 8, 9),
+                      shrinkage = c(0.075, 0.1, 0.125, 0.15, 0.2),
+                      n.minobsinnode = c(7, 10, 12, 15))
+
+gbm_tree2 <- train(cnt~., data = Bike, method = "gbm", trControl = trainctrl, 
+                  distribution = "gaussian", tuneGrid = myGrid)
+#By default, RMSE, R2, and the mean absolute error (MAE) are computed for regression 
+#while accuracy and Kappa are computed for classification.
+```
+```{r}
+ggplot(gbm_tree2)
+```
+
+There is much information above that suggests `expand.grid` parameters be reviewed /changed.  That is left to the reader to test and evaluate.
+
+Below, lets review the set of parameters that provide the highest performing model.
+
+```{r}
+gbm_tree2$bestTune
+```
+The resulting RMSE is: 
+```{r}
+gbm_tree2$results$RMSE[392]
+```
+
+
+```{r echo=FALSE}
+#Because the data is stored in RData File, need to rerun gbm_tree2 witht optimal paraemters again.  It
+#take to long to redo the grid again
+#set.seed <- 12347
+#trainctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3, verboseIter = TRUE)
+
+myGrid2 <- expand.grid(n.trees = c(250), interaction.depth = c(9), shrinkage = c(0.2), n.minobsinnode = c(10))
+
+gbm_tree21 <- train(cnt~., data = Bike, method = "gbm", trControl = trainctrl, 
+                  distribution = "gaussian", tuneGrid = myGrid2)
+
+```
+
+Compare the model developed so far.
+
+```{r}
+resamps <- resamples(list(singleTree=rpart_tree, randomForest=rf_tree, GBM = gbm_tree, GBM2 = gbm_tree21))
+dotplot(resamps, metric = "RMSE", main = "Model Compare")
+```
+```{r}
+bwplot(resamps, metric = "RMSE", main = "Model Compare")
+```
+
+The GBM2 model and the random forest model are close in terms of accuracy.  Note the random forest model appears to have some outliers.  I might prefer the GBM2 model over random forest.
+
+```{r saveGBM3, echo=FALSE, eval=FALSE}
+setwd("~/Github/Valorem/SalesCollaterals/DemandForecast"))
+save.image("DemandForecast.RData")
+```
+
+## xgBoost
+
+`xgBoost` is one of the most popular tree algorithms and one that often is used to place well in [Kaggle Competitions](https://www.kaggle.com/).
+
+Let's try this below.
+
+```{r xgboostRun, results='hide', message=FALSE, warning=FALSE}
+set.seed = 12345
+
+library(xgboost)
+library(Matrix)
+#handles missing values
+#requires matrix as input - all numerical values
+
+#Partition data
+
+myIndex <- sample(2, nrow(Bike), replace = TRUE,  prob = c(.8, .2))
+
+myTrain <-  Bike[myIndex == 1,]
+myTest <- Bike[myIndex == 2,]
+
+#Recall there are 2 factors - use one hot encoding & create matrix
+# cnt is in the 12th column (names(Bike1))
+
+#First need to remove spaces in column names - xgboost does not like these!
+names(myTrain) <- gsub("\\s", "_", names(myTrain))
+names(myTrain) <- gsub("-", "_", names(myTrain))
+
+names(myTest) <- gsub("\\s", "_", names(myTest))
+names(myTest) <- gsub("-", "_", names(myTest))
+
+myTrain_m <- sparse.model.matrix(cnt ~. -cnt, data = myTrain)
+myTrain_label <-  myTrain[, "cnt"]
+
+myTrain_matrix <- xgb.DMatrix(data = as.matrix(myTrain_m), label = myTrain_label)
+
+#Do same thing for Test data
+myTest_m <- sparse.model.matrix(cnt ~. -cnt, data = myTest)
+myTest_label <-  myTest[, "cnt"]
+
+myTest_matrix <- xgb.DMatrix(data = as.matrix(myTest_m), label = myTest_label)
+
+#Parameters
+xgb_params <- list("objective" = "reg:linear", "eval_metric" = "rmse")
+watchlist <- list(train = myTrain_matrix, test = myTest_matrix)
+
+best_model <- xgb.train(params = xgb_params, data = myTrain_matrix, nrounds = 100,
+                        watchlist = watchlist)
+```
+```{r}
+#Plot results
+myErrors <- data.frame(best_model$evaluation_log)
+{plot(myErrors$iter, myErrors$train_rmse, col = "blue")
+lines(myErrors$iter, myErrors$test_rmse, col = "red")}
+```
+
+```{r}
+min(myErrors$test_rmse)
+myErrors[myErrors$test_rmse == min(myErrors$test_rmse),]
+```
+
+Notice the separation between the red line (the test data) and the blue one (training data)?  This is an indication the model is overfitting the data.  We can change the model parameters to close this gap.
+
+- lower eta is robust to overfitting.  Default = 0.3; can range 0-1
+
+```{r xgboost2, results='hide'}
+best_model <- xgb.train(params = xgb_params, data = myTrain_matrix, nrounds = 100,
+                        watchlist = watchlist,  eta = 0.08)
+```
+```{r}
+#Plot results
+myErrors <- data.frame(best_model$evaluation_log)
+{plot(myErrors$iter, myErrors$train_rmse, col = "blue")
+lines(myErrors$iter, myErrors$test_rmse, col = "red")}
+```
+
+Improved but can we do even better?
+
+- `tree.depth`; default = 6; 1 to INF
+- larger values of `gamma` produces more conservative algo (avoid overfitting); range 0 - INF; default = 0
+- lower values of `subsample` helps prevent overfitting. Default = 1 (100%).  Range 0 - 1. subsample ratio of the training instance. Setting it to 0.5 means that XGBoost randomly collected half of the data instances to grow trees and this will prevent overfitting.
+- `colsample_bytree` default = 1. subsample ratio of columns when constructing each tree.
+- `missing` very useful when dealing with large data and much missing data
+
+```{r XGB_MoreParams, results='hide'}
+#http://xgboost.readthedocs.io/en/latest/parameter.html
+best_model <- xgb.train(params = xgb_params, data = myTrain_matrix, nrounds = 300,
+                        watchlist = watchlist, eta = 0.02, max.depth = 5, gamma = 50,
+                        subsample = .5, colsample_bytree = .9, missing = NA, seed = 12345)
+```
+```{r}
+#Plot results
+myErrors <- data.frame(best_model$evaluation_log)
+{plot(myErrors$iter, myErrors$train_rmse, col = "blue")
+lines(myErrors$iter, myErrors$test_rmse, col = "red")}
+```
+
+Wow, much better, I think we got it!  Great results!
+
+```{r}
+best_model$evaluation_log[300]
+```
+
+Review the variables that are most important as identified by xgBoost.
+
+```{r XGB_Importance}
+myImportance <- xgb.importance(colnames(myTrain_matrix), model = best_model)
+print(myImportance)#Gain is most important
+
+xgb.plot.importance(myImportance)
+```
+
+Finally, lets peek at some predictions.
+
+```{r XGB_Prediction1}
+myPredictions <- predict(best_model, newdata = myTest_matrix)
+
+myCompare <- data.frame(Prediction = myPredictions, Actual = myTest$cnt)
+head(myCompare, 20)
+```
+
+```{r echo=FALSE, eval=FALSE}
+save.image("~/Github/LargeFiles/DemandForecast.RData")
+```
+
+--------------
+
+# Run Models with Featured Engineered Data
+
+So far, we have evaluated only the original data set.  It would be a shame to not use the data we created in the feature engineering section. Use the models we have explored and test them against the datasets were created in the beginning of this exercise.
+
+Evaluate the Random Forest, GBM2 and xgBoost models with each of the datasets created earlier and compare the results.
+
+Recall:
+
+- **Bike1** = number of bikes that were rented in each of the previous 12 hours
+- **Bike2** = number of bikes that were rented in each of the previous 12 days at the same hour
+- **Bike3** = number of bikes that were rented in each of the previous 12 weeks at the same hour and the same day
+
+## Decision Tree
+
+For the basic decision tree, run the algorithm using eack of the datasets (Bike1, Bike2, Bike3) and calculate the mean RMSE.
+
+```{r results='hide', warning=FALSE}
+#Manually reran code subbing Bike with Bike1, Bike2, Bike3
+rpart_tree <- train(x = Bike3[, names(Bike3) != "cnt"], y = Bike3$cnt, 
+                    method = "rpart", trControl = trainctrl)
+```
+```{r}
+mean(rpart_tree$results$RMSE)
+```
+
+## Random Forests
+
+Same algorithm used earlier ran 3 times, once for each of the Bike* datasets.
+
+```{r eval=FALSE}
+#run model in parallel
+library(doParallel)
+cl <- makeCluster(detectCores())
+registerDoParallel(cl)
+
+set.seed <- 12347
+trainctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3, verboseIter = TRUE)
+
+#Random Forest
+rf_tree1 <- train(cnt~., data = Bike1, method = "rf",  trControl = trainctrl)
+rf_tree2 <- train(cnt~., data = Bike2, method = "rf",  trControl = trainctrl)
+rf_tree3 <- train(cnt~., data = Bike3, method = "rf",  trControl = trainctrl)
+rfResults <- resamples(list(rfBike1=rf_tree1, rfBike2=rf_tree2, rfBike3=rf_tree3))
+
+stopCluster(cl)
+```
+```{r}
+summary(rfResults)
+```
+
+## GBM
+
+Same optimized algorithm used earlier ran 3 times, once for each of the Bike* datasets.
+
+```{r eval=FALSE}
+#PC rebooted before models completed.  Lost a week of processing.  Changed folding to get this completed faster.
+set.seed <- 12347
+trainctrl <- trainControl(method = "repeatedcv", number = 5, repeats = 2, verboseIter = TRUE)
+
+myGrid <- expand.grid(n.trees = c(150, 175, 200, 250),
+                      interaction.depth = c(5, 6, 7, 8, 9),
+                      shrinkage = c(0.075, 0.1, 0.125, 0.15, 0.2),
+                      n.minobsinnode = c(7, 10, 12, 15))
+
+gbm_treeBike1 <- train(cnt~., data = Bike1, method = "gbm", trControl = trainctrl, 
+                  distribution = "gaussian", tuneGrid = myGrid)
+gbm_treeBike2 <- train(cnt~., data = Bike2, method = "gbm", trControl = trainctrl, 
+                  distribution = "gaussian", tuneGrid = myGrid)
+gbm_treeBike3 <- train(cnt~., data = Bike3, method = "gbm", trControl = trainctrl, 
+                  distribution = "gaussian", tuneGrid = myGrid)
+```
+```{r}
+gbmresults <- resamples(list(gbmBike1=gbm_treeBike1, gbmBike2=gbm_treeBike2, 
+                             gbmBike3=gbm_treeBike3))
+summary(gbmresults)
+```
+
+```{r echo=FALSE, eval=FALSE}
+setwd(setwd("~/Github/Valorem/SalesCollaterals/DemandForecast"))
+save.image("DemandForecast.RData")
+```
+
+## xgBoost
+
+Same optimized algorithm used earlier ran 3 times, once for each of the Bike* datasets.
+
+```{r results='hide'}
+#Performed this manually by simply change the siffix to the Bike dataset
+myIndex <- sample(2, nrow(Bike3), replace = TRUE,  prob = c(.8, .2))
+
+myTrain <-  Bike1[myIndex == 1,]
+myTest <- Bike1[myIndex == 2,]
+
+#Recall there are 2 factors - use one hot encoding & create matrix
+# cnt is in the 12th column (names(Bike1))
+
+#First need to remove spaces in column names - xgboost does not like these!
+names(myTrain) <- gsub("\\s", "_", names(myTrain))
+names(myTrain) <- gsub("-", "_", names(myTrain))
+
+names(myTest) <- gsub("\\s", "_", names(myTest))
+names(myTest) <- gsub("-", "_", names(myTest))
+
+myTrain_m <- sparse.model.matrix(cnt ~. -cnt, data = myTrain)
+myTrain_label <-  myTrain[, "cnt"]
+
+myTrain_matrix <- xgb.DMatrix(data = as.matrix(myTrain_m), label = myTrain_label)
+
+#Do same thing for Test data
+myTest_m <- sparse.model.matrix(cnt ~. -cnt, data = myTest)
+myTest_label <-  myTest[, "cnt"]
+
+myTest_matrix <- xgb.DMatrix(data = as.matrix(myTest_m), label = myTest_label)
+
+#Parameters
+xgb_params <- list("objective" = "reg:linear", "eval_metric" = "rmse")
+watchlist <- list(train = myTrain_matrix, test = myTest_matrix)
+
+best_model <- xgb.train(params = xgb_params, data = myTrain_matrix, nrounds = 300,
+                        watchlist = watchlist, eta = 0.02, max.depth = 5, gamma = 50,
+                        subsample = .5, colsample_bytree = .9, missing = NA, seed = 12345)
+rm(myIndex, myTrain, myTest, myTrain_m, myTrain_label, myTest_matrix, myTrain_matrix, myTest_m)
+```
+
+- Bike1 - train-rmse:30.957346	test-rmse:36.111832  
+- Bike2 - train-rmse:31.022646	test-rmse:36.340450  
+- Bike3 - train-rmse:31.362427	test-rmse:34.209591  
+
+xgBoost performs best with the Bike1 and Bike3 data. I think in this case, I prefer the model based on Bike3 because the test RMSE is less.  In practice, I would evaluate both models further before going into production,
+
+# Step 5: Test, evaluate, and compare the model
+
+Here is a summary of the results from all the testing performed.
+
+```{r createDFtable, message=FALSE, warning=FALSE}
+library(kableExtra)
+library(knitr)
+Data <- c("Bike_Original", "Bike_12hrs", "Bike_12Days", "Bike_12wks")
+DecisionTree <- c(131.13005, 125.1224, 121.6458, 122.5356)
+Random_Forest <- c(63.99653, 32.70131, 36.56251, 37.96330)
+GBM_Best <- c(37.96330, 34.44176, 31.022646, 31.362427)
+xgBoost <- c(69.1015, 30.957346, 31.022646, 31.362427)
+
+resultsDF <- data.frame(Data, DecisionTree, Random_Forest, GBM_Best, xgBoost)
+
+kable(resultsDF, "html", escape=F) %>% 
+  kable_styling(bootstrap_options = c("striped", "hover", full_width = F))
+```
+
+Observations:
+
+- The decision tree does not perform well
+- Bike_12hrs and Bike_12Days data provide the best performance
+- The best overall training RMSE is provided by xgBoost
+
+Conclusion:
+
+>xgBoost is selected as the most promising algorithm using the Bike_12hrs or Bike_12Days feature-engineered data.
+
+# Appendix
+
+Reference:  https://gallery.azure.ai/Experiment/Regression-Demand-estimation-4
+
+## Model Perforamnce Metrics
+
+If there is any one statistic that normally takes precedence over the others, it is the **root mean squared error (RMSE)**, which is the square root of the mean squared error. When it is adjusted for the degrees of freedom for error (sample size minus number of model coefficients), it is known as the `standard error of the regression` or `standard error of the estimate` in regression analysis or as the `estimated white noise standard deviation` in ARIMA analysis. This is the statistic whose value is minimized during the parameter estimation process, and <span style="background:yellow">it is the statistic that determines the width of the confidence intervals for predictions</span>. It is a lower bound on the standard deviation of the forecast error (a tight lower bound if the sample is large and values of the independent variables are not extreme), so a 95% confidence interval for a forecast is approximately equal to the point forecast "plus or minus 2 standard errors"--i.e., plus or minus 2 times the standard error of the regression. 
+
+The root mean squared error is more sensitive than other measures to the occasional large error: the squaring process gives disproportionate weight to very large errors.
+
+However, there are a number of other error measures by which to compare the performance of models in absolute or relative terms:
+
+**Mean absolute error (MAE)** is also measured in the same units as the data, and is usually similar in magnitude to, but slightly smaller than, the root mean squared error.  It is less sensitive to the occasional very large error because it does not square the errors in the calculation.  The mathematically challenged usually find this an easier statistic to understand than the RMSE. 
+
+The root mean squared error and mean absolute error can only be compared between models whose errors are measured in the same units (e.g., dollars, or constant dollars, or cases of beer sold, or whatever). If one model's errors are adjusted for inflation while those of another or not, or if one model's errors are in absolute units while anothers are in logged units, their error measures cannot be directly compared. In such cases, you have to convert the errors of both models into comparable units before computing the various measures. This means converting the forecasts of one model to the same units as those of the other by unlogging or undeflating (or whatever), then subtracting those forecasts from actual values to obtain errors in comparable units, then computing statistics of those errors. You cannot get the same effect by merely unlogging or undeflating the error statistics themselves! 
+
+**Mean absolute percentage error (MAPE)** is also often useful for purposes of reporting, because it is expressed in generic percentage terms which will make some kind of sense even to someone who has no idea what constitutes a "big" error in terms of dollars spent or widgets sold. The MAPE can only be computed with respect to data that are guaranteed to be strictly positive, so if this statistic is missing from your output where you would normally expect to see it, it's possible that it has been suppressed due to negative data values.
+
+**Mean absolute scaled error (MASE)** is another relative measure of error that is applicable only to time series data.  It is defined as the mean absolute error of the model divided by the mean absolute error of a naïve random-walk-without-drift model (i.e., the mean absolute value of the first difference of the series).  Thus, it measures the relative reduction in error compared to a naive model.  Ideally its value will be significantly less than 1.  This statistic is very good to look at when fitting regression models to nonseasonal time series data.  It is possible for a time series regression model to have an impressive R-squared and yet be inferior to a naïve model, as was demonstrated in the what's-a-good-value-for-R-squared notes.  If the series has a strong seasonal pattern, the corresponding statistic to look at would be the mean absolute error divided by the mean absolute value of the seasonal difference (i.e., the mean absolute error of a naïve seasonal model that predicts that the value in a given period will equal the value observed one season ago).
+
